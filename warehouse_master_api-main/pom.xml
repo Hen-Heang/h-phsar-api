@@ -9,10 +9,10 @@
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>com.henheang</groupId>
-    <artifactId>stock-flow-commerce</artifactId>
+    <artifactId>h-phsar</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>Stock flow Commerce</name>
-    <description>Stock flow Commerce API for distributor-retailer wholesale operations</description>
+    <name>H-Phsar</name>
+    <description>H-Phsar API for distributor-retailer wholesale operations</description>
     <properties>
         <java.version>17</java.version>
         <maven.compiler.release>${java.version}</maven.compiler.release>

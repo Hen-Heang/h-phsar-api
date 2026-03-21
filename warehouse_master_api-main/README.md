@@ -15,7 +15,7 @@ https://spring.hanyeaktong.site/swagger-ui/index.html
 
 1. Clone repo
     ```bash
-    git clone https://github.com/ksga-11th-generation-basic-course/warehouse_master_api.git
+    git clone https://github.com/Hen-Heang/h-phsar-api.git
     ```
 
 2. To run the code
