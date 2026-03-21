@@ -8,6 +8,9 @@ import com.henheang.stock_flow_commerce.service.DistributorHomepageService;
 import org.springframework.stereotype.Service;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.YearMonth;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.*;
 
 @Service
@@ -16,6 +19,7 @@ public class DistributorHomepageServiceImp implements DistributorHomepageService
     private  final DistributorHomepageRepository distributorHomepageRepository;
 
         SimpleDateFormat formatter= new SimpleDateFormat("yyyy-MM");
+        private static final DateTimeFormatter YEAR_MONTH_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM");
 
     public DistributorHomepageServiceImp(DistributorHomepageRepository distributorHomepageRepository) {
         this.distributorHomepageRepository = distributorHomepageRepository;
@@ -50,11 +54,12 @@ public class DistributorHomepageServiceImp implements DistributorHomepageService
     @Override
     public OrderChartByMonth getTotalByMonth(Integer currentUserId , String startDate, String endDate) throws ParseException {
 
-        Integer startYear = Integer.parseInt(startDate.substring(0, 4));
-        Integer startMonth = Integer.parseInt(startDate.substring(5));
-
-        Integer endYear = Integer.parseInt(endDate.substring(0, 4));
-        Integer endMonth = Integer.parseInt(endDate.substring(5));
+        YearMonth startYearMonth = parseYearMonth(startDate, "startDate");
+        YearMonth endYearMonth = parseYearMonth(endDate, "endDate");
+        Integer startYear = startYearMonth.getYear();
+        Integer startMonth = startYearMonth.getMonthValue();
+        Integer endYear = endYearMonth.getYear();
+        Integer endMonth = endYearMonth.getMonthValue();
         // 1st check allow endDate have to bigger than startDate
         if (endYear - startYear < 0 ) {
             throw new BadRequestException("Opps, end date need to be higher than start date. Please input at least 1 month higher");
@@ -78,10 +83,7 @@ public class DistributorHomepageServiceImp implements DistributorHomepageService
         // convert String to date
         Date newStartDate = formatter.parse(startDate);
 //        System.out.println(newStartDate);
-        Date newEndDate = formatter.parse(endDate);
-        System.out.println(newEndDate);
-
-        if (newEndDate.compareTo(new Date()) > 0) {
+        if (endYearMonth.isAfter(YearMonth.now())) {
             throw new BadRequestException("End date cannot be higher than today. ");
         }
 
@@ -182,6 +184,14 @@ public class DistributorHomepageServiceImp implements DistributorHomepageService
         }
 
         return orderChart;
+    }
+
+    private YearMonth parseYearMonth(String date, String fieldName) {
+        try {
+            return YearMonth.parse(date, YEAR_MONTH_FORMATTER);
+        } catch (DateTimeParseException | NullPointerException e) {
+            throw new BadRequestException("Invalid " + fieldName + ". Format should be yyyy-MM");
+        }
     }
 
 

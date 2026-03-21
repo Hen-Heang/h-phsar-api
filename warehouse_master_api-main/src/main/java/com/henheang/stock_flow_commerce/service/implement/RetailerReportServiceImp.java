@@ -12,6 +12,9 @@ import org.springframework.stereotype.Service;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
+import java.time.YearMonth;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -20,6 +23,7 @@ public class RetailerReportServiceImp implements RetailerReportService {
     private final RetailerReportRepository retailerReportRepository;
     SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM");
     SimpleDateFormat formatterForDatabase = new SimpleDateFormat("yyyy-MM-dd");
+    private static final DateTimeFormatter YEAR_MONTH_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM");
 
     public RetailerReportServiceImp(RetailerReportRepository retailerReportRepository) {
         this.retailerReportRepository = retailerReportRepository;
@@ -59,13 +63,15 @@ public class RetailerReportServiceImp implements RetailerReportService {
         List<Integer> totalRejectedAndAccepted = new ArrayList<>();
         List<Integer> totalQtyEachCategory = new ArrayList<>();
         List<CategoryNameAndTotalOfQty> categoryNameAndTotalOfQties = new ArrayList<>();
-        int startYear = Integer.parseInt(startDate.substring(0, 4));
-        int startMonth = Integer.parseInt(startDate.substring(5));
-        int endYear = Integer.parseInt(endDate.substring(0, 4));
-        int endMonth = Integer.parseInt(endDate.substring(5));
+        YearMonth startYearMonth = parseYearMonth(startDate, "startDate");
+        YearMonth endYearMonth = parseYearMonth(endDate, "endDate");
+        int startYear = startYearMonth.getYear();
+        int startMonth = startYearMonth.getMonthValue();
+        int endYear = endYearMonth.getYear();
+        int endMonth = endYearMonth.getMonthValue();
         RetailerReport retailerReport = new RetailerReport();
-        LocalDate startDateValue = LocalDate.parse(startDate + "-01");
-        LocalDate endDateValue = LocalDate.parse(endDate + "-01");
+        LocalDate startDateValue = startYearMonth.atDay(1);
+        LocalDate endDateValue = endYearMonth.atDay(1);
 
         if (startDateValue.isBefore(endDateValue) || startDateValue.equals(endDateValue)) {
             HashMap<Integer, String> monthMap = new HashMap<>();
@@ -289,8 +295,15 @@ public class RetailerReportServiceImp implements RetailerReportService {
             throw new BadRequestException("Invalid date range: End date must be after start date");
         }
     }
+
+    private YearMonth parseYearMonth(String date, String fieldName) {
+        try {
+            return YearMonth.parse(date, YEAR_MONTH_FORMATTER);
+        } catch (DateTimeParseException | NullPointerException e) {
+            throw new BadRequestException("Invalid " + fieldName + ". Format should be yyyy-MM");
+        }
+    }
 }
 
 
     
-
