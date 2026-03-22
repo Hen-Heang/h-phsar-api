@@ -243,3 +243,9 @@ INSERT INTO tb_status (id, name) VALUES
                                      (8, 'REJECTED'),
                                      (9, 'DRAFT')
     ON CONFLICT (id) DO NOTHING;
+
+-- Script have to udpate
+
+UPDATE tb_store SET is_publish = true WHERE is_publish IS NULL;
+UPDATE tb_store_product_detail SET is_publish = true WHERE is_publish IS NULL;
+
