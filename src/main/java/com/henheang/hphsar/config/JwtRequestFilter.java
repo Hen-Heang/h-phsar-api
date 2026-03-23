@@ -1,12 +1,10 @@
 package com.henheang.hphsar.config;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.henheang.hphsar.service.implement.JwtUserDetailsServiceImpl;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -15,10 +13,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
-
-import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 
 /**
  * JWT Authentication Filter
@@ -57,14 +51,10 @@ public class JwtRequestFilter extends OncePerRequestFilter {
             try {
                 email = jwtTokenUtil.getUsernameFromToken(jwtToken);
             } catch (Exception e) {
-                // Token is invalid or expired — return 401 Unauthorized
-                response.setHeader("error", e.getMessage());
-                response.setStatus(HttpStatus.UNAUTHORIZED.value());
-                Map<String, String> error = new HashMap<>();
-                error.put("error_message", e.getMessage());
-                response.setContentType(APPLICATION_JSON_VALUE);
-                new ObjectMapper().writeValue(response.getOutputStream(), error);
-                return; // stop further filter processing
+                // Token is invalid or expired — skip authentication and continue the chain.
+                // Spring Security will enforce access rules: public endpoints will be allowed,
+                // protected endpoints will return 401 via JwtAuthenticationEntryPoint.
+                logger.warn("JWT Token is invalid or expired: " + e.getMessage());
             }
         } else {
             logger.warn("JWT Token does not begin with Bearer String");
