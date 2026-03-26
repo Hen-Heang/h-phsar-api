@@ -3,7 +3,6 @@ package com.henheang.hphsar.controller;
 import com.henheang.hphsar.config.JwtTokenUtil;
 import com.henheang.hphsar.exception.BadRequestException;
 import com.henheang.hphsar.exception.ConflictException;
-import com.henheang.hphsar.model.ApiResponse;
 import com.henheang.hphsar.model.appUser.AppUserDto;
 import com.henheang.hphsar.model.appUser.AppUserRequest;
 import com.henheang.hphsar.model.appUser.LoginResponse;
@@ -12,7 +11,7 @@ import com.henheang.hphsar.model.jwt.JwtRequest;
 import com.henheang.hphsar.service.OtpService;
 import com.henheang.hphsar.service.implement.JwtUserDetailsServiceImpl;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.http.HttpStatus;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -21,9 +20,6 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
-import java.text.SimpleDateFormat;
-import java.util.Date;
-
 /**
  * JwtAuthenticationController — Authentication Endpoints
  * <p>
@@ -31,16 +27,17 @@ import java.util.Date;
  * Configured in SecurityConfig → .requestMatchers("/authorization/**").permitAll()
  * <p>
  * Endpoints:
- *   POST /authorization/register        → create a new account
- *   POST /authorization/login           → login and receive JWT token
- *   PUT  /authorization/change-password → change password (knows old password)
- *   PUT  /authorization/forget          → reset password via OTP
+ * POST /authorization/register        → create a new account
+ * POST /authorization/login           → login and receive JWT token
+ * PUT  /authorization/change-password → change password (knows old password)
+ * PUT  /authorization/forget          → reset password via OTP
  */
 @RestController
 @CrossOrigin(origins = "*")
 @RequestMapping("/authorization")
 @Tag(name = "API authorization")
-public class JwtAuthenticationController {
+@RequiredArgsConstructor
+public class JwtAuthenticationController extends BaseController {
 
     private final JwtTokenUtil jwtTokenUtil;
     private final AuthenticationManager authenticationManager;
@@ -51,51 +48,35 @@ public class JwtAuthenticationController {
     // WHY: In a web app, multiple requests run in parallel (multithreaded).
     //      A shared `Date` field can be overwritten by another thread mid-request,
     //      causing wrong timestamps. Using `new Date()` locally inside each method is safe.
-    private final SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-
-    public JwtAuthenticationController(JwtTokenUtil jwtTokenUtil,
-                                        AuthenticationManager authenticationManager,
-                                        JwtUserDetailsServiceImpl jwtUserDetailsService,
-                                        OtpService otpService) {
-        this.jwtTokenUtil = jwtTokenUtil;
-        this.authenticationManager = authenticationManager;
-        this.jwtUserDetailsService = jwtUserDetailsService;
-        this.otpService = otpService;
-    }
 
     // ─── Register ───────────────────────────────────────────────────────────────
 
     /**
      * PROCESS:
-     *   1. Receive { email, password, roleId }
-     *   2. Delegate to JwtUserDetailsServiceImpl.insertUser()
-     *      (validates, checks duplicate, Bcrypt hashes, inserts to DB)
-     *   3. Return created user info (no password in response)
+     * 1. Receive { email, password, roleId }
+     * 2. Delegate to JwtUserDetailsServiceImpl.insertUser()
+     * (validates, checks duplicate, Bcrypt hashes, inserts to DB)
+     * 3. Return created user info (no password in response)
+     * 4. @ReuqestBody :
      */
     @PostMapping("/register")
     public ResponseEntity<?> insertUser(@RequestBody AppUserRequest appUserRequest) {
         AppUserDto appUserDto = jwtUserDetailsService.insertUser(appUserRequest);
-        ApiResponse<AppUserDto> response = ApiResponse.<AppUserDto>builder()
-                .status(HttpStatus.CREATED.value())
-                .message("Successfully registered new user.")
-                .data(appUserDto)
-                .date(formatter.format(new Date())) // FIX 7: use local new Date() — not shared field
-                .build();
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        return created("Successfully registered new user", appUserDto);
     }
 
     // ─── Login ───────────────────────────────────────────────────────────────────
 
     /**
      * PROCESS:
-     *   1. Check if email is verified (is_verified = true in DB)
-     *      → If not: auto-send new OTP and return 409
-     *   2. Authenticate email + password via Spring Security
-     *      → Internally: load user from DB + BCrypt.matches(raw, hash)
-     *      → If wrong password: throw 400
-     *   3. Generate JWT token containing user's email
-     *   4. Fetch roleId and userId to include in response
-     *   5. Return { token, roleId, userId }
+     * 1. Check if email is verified (is_verified = true in DB)
+     * → If not: auto-send new OTP and return 409
+     * 2. Authenticate email + password via Spring Security
+     * → Internally: load user from DB + BCrypt.matches(raw, hash)
+     * → If wrong password: throw 400
+     * 3. Generate JWT token containing user's email
+     * 4. Fetch roleId and userId to include in response
+     * 5. Return { token, roleId, userId }
      */
     @PostMapping(value = "/login")
     public ResponseEntity<?> createAuthenticationToken(@RequestBody JwtRequest authenticationRequest) throws Exception {
@@ -116,56 +97,37 @@ public class JwtAuthenticationController {
         // Step 4: Get role and user ID to send back to the client
         Integer roleId = jwtUserDetailsService.getRoleIdByMail(authenticationRequest.getEmail());
         Integer userId = jwtUserDetailsService.getUserIdByMail(authenticationRequest.getEmail());
-
-        ApiResponse<LoginResponse> response = ApiResponse.<LoginResponse>builder()
-                .status(HttpStatus.OK.value())
-                .message("Login success.")
-                .data(new LoginResponse(token, roleId, userId))
-                .date(formatter.format(new Date())) // FIX 7: local new Date()
-                .build();
-        return ResponseEntity.ok(response);
+        return ok("Login Success", new LoginResponse(token, roleId, userId));
     }
 
     // ─── Change Password ─────────────────────────────────────────────────────────
 
     /**
      * PROCESS:
-     *   1. Find user by email
-     *   2. Verify old password matches stored Bcrypt hash
-     *   3. Encode and save new password
+     * 1. Find user by email
+     * 2. Verify old password matches stored Bcrypt hash
+     * 3. Encode and save new password
      */
     @PutMapping(value = "/change-password")
     public ResponseEntity<?> changePassword(@RequestBody JwtChangePasswordRequest request) {
-        ApiResponse<AppUserDto> response = ApiResponse.<AppUserDto>builder()
-                .status(HttpStatus.OK.value())
-                .message("Password changed successfully.")
-                .data(jwtUserDetailsService.changePassword(request))
-                .date(formatter.format(new Date()))
-                .build();
-        return ResponseEntity.ok(response);
+        return ok("Password changed successfully.", jwtUserDetailsService.changePassword(request));
     }
 
     // ─── Forget Password ──────────────────────────────────────────────────────────
 
     /**
      * PROCESS:
-     *   1. Find user + their latest OTP from DB
-     *   2. Validate OTP: email matches, code matches, not expired (< 3 min)
-     *   3. Encode and save new password
-     *   4. Delete OTP from DB (one-time use)
-     *   5. Return success message only (FIX 1: no plain text password)
+     * 1. Find user + their latest OTP from DB
+     * 2. Validate OTP: email matches, code matches, not expired (< 3 min)
+     * 3. Encode and save new password
+     * 4. Delete OTP from DB (one-time use)
+     * 5. Return success message only (FIX 1: no plain text password)
      */
     @PutMapping("/forget")
     public ResponseEntity<?> forgetPassword(@RequestParam Integer otp,
-                                             @RequestParam String email,
-                                             @RequestParam String newPassword) {
-        ApiResponse<String> response = ApiResponse.<String>builder()
-                .status(HttpStatus.OK.value())
-                .message("Password reset successfully.")
-                .data(jwtUserDetailsService.forgetPassword(otp, email, newPassword))
-                .date(formatter.format(new Date()))
-                .build();
-        return ResponseEntity.ok(response);
+                                            @RequestParam String email,
+                                            @RequestParam String newPassword) {
+        return ok("Password reset successfully.", jwtUserDetailsService.forgetPassword(otp, email, newPassword));
     }
 
     // ─── Private Helpers ─────────────────────────────────────────────────────────

@@ -1,5 +1,6 @@
 package com.henheang.hphsar.controller.distributor.product;
 
+import com.henheang.hphsar.controller.BaseController;
 import com.henheang.hphsar.exception.BadRequestException;
 import com.henheang.hphsar.model.ApiResponse;
 import com.henheang.hphsar.model.PaginationApiResponse;
@@ -27,7 +28,7 @@ import java.util.List;
 @Tag(name = "Distributor Product Controller")
 @RequestMapping("${base.distributor.v1}/products")
 @SecurityRequirement(name = "bearerAuth")
-public class ProductDistributorController {
+public class ProductDistributorController  extends BaseController {
 
     private final ProductDistributorService productDistributorService;
 
@@ -48,13 +49,8 @@ public class ProductDistributorController {
         }
         AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         Integer currentUserId = appUser.getId();
-        ApiResponse<List<Product>> response = ApiResponse.<List<Product>>builder()
-                .status(HttpStatus.OK.value())
-                .message("Insert product successfully.")
-                .data(productDistributorService.insertNewProduct(currentUserId, productRequests))
-                .date(formatter.format(date = new Date()))
-                .build();
-        return ResponseEntity.ok(response);
+        return created("Product added successfully.", productDistributorService.insertNewProduct(currentUserId, productRequests)
+        );
     }
 
     @GetMapping("/{id}")
@@ -103,22 +99,6 @@ public class ProductDistributorController {
         return ResponseEntity.ok(response);
     }
 
-//    @GetMapping("/")
-//    @Operation(summary = "Get all product from smaller to bigger qty ")
-//    public ResponseEntity<?> getAllProductByQty() throws ParseException {
-//        AppUser appUser= (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-//        Integer currentUserId= appUser.getId();
-//        ApiResponse<List<Product>> response = ApiResponse.<List<Product>>builder()
-//                .status(HttpStatus.OK.value())
-//                .message("fetched successfully")
-//                .data(productDistributorService.getAllProductByQty(currentUserId))
-//                .date(formatter.format(date = new Date()))
-//                .build();
-//        return ResponseEntity.ok(response);
-//    }
-
-
-
     @Operation(summary = "search product by name")
     @GetMapping("/search")
     public ResponseEntity<?> getAllProductByName(@RequestParam String name) throws ParseException {
@@ -133,34 +113,6 @@ public class ProductDistributorController {
         return ResponseEntity.ok(response);
     }
 
-//    @GetMapping("products/unit price")
-//    @Operation(summary = "Get all product by unit price DESC")
-//    public ResponseEntity<?> getAllProductByUnitPrice() throws ParseException {
-//        AppUser appUser= (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-//        Integer currentUserId= appUser.getId();
-//        ApiResponse<List<Product>> response = ApiResponse.<List<Product>>builder()
-//                .status(HttpStatus.OK.value())
-//                .message("fetched successfully")
-//                .data(productDistributorService.getAllProductByUnitPrice(currentUserId))
-//                .date(formatter.format(date = new Date()))
-//                .build();
-//        return ResponseEntity.ok(response);
-//
-//    }
-
-//    @PutMapping("products/import")
-//    @Operation(summary = "Import products")
-//    public ResponseEntity<?> importProduct() throws ParseException {
-//        AppUser appUser= (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-//        Integer currentUserId= appUser.getId();
-//        ApiResponse<List<Product>> response = ApiResponse.<List<Product>>builder()
-//                .status(HttpStatus.OK.value())
-//                .message("imported successfully")
-//                .data(productDistributorService.importProduct(currentUserId))
-//                .date(formatter.format(date = new Date()))
-//                .build();
-//        return ResponseEntity.ok(response);
-//    }
 
     @Operation(summary = "unpublish product")
     @PutMapping("/{id}/unlist")

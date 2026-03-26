@@ -1,22 +1,23 @@
 package com.henheang.hphsar.controller.otp;
 
+import com.henheang.hphsar.controller.BaseController;
 import com.henheang.hphsar.exception.BadRequestException;
-import com.henheang.hphsar.model.ApiResponse;
+//import com.henheang.hphsar.model.ApiResponse;
 import com.henheang.hphsar.service.OtpService;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
 import java.text.SimpleDateFormat;
 import java.util.Date;
-
+import com.henheang.hphsar.common.api.ApiResponse;
 /**
  * OTPController — OTP Endpoints
- *
+ * <p>
  * All endpoints here are PUBLIC (no token required).
  * Configured in SecurityConfig → .requestMatchers("/authorization/**").permitAll()
- *
+ * <p>
  * Endpoints:
  *   POST /authorization/api/v1/otp/generate → send OTP code to email
  *   POST /authorization/api/v1/otp/verify   → verify OTP code and activate account
@@ -25,17 +26,13 @@ import java.util.Date;
 @CrossOrigin(origins = "*")
 @Tag(name = "Generate OTP")
 @RequestMapping("/authorization/api/v1/otp")
-public class OTPController {
+@RequiredArgsConstructor
+public class OTPController extends BaseController {
 
     private final OtpService otpService;
 
-    // FIX 7: Removed shared `Date date` field — replaced with local new Date() per method
+    // FIX 7: Removed shared `Date` field — replaced with local new Date() per method
     // WHY: Shared mutable state across concurrent requests can cause wrong timestamps.
-    private final SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-
-    public OTPController(OtpService otpService) {
-        this.otpService = otpService;
-    }
 
     // ─── Generate OTP ───────────────────────────────────────────────────────────
 
@@ -50,13 +47,7 @@ public class OTPController {
     @PostMapping("/generate")
     public ResponseEntity<?> generateOtp(@RequestParam String email) {
         String otpResponse = otpService.generateOtp(email);
-        ApiResponse<String> response = ApiResponse.<String>builder()
-                .status(HttpStatus.CREATED.value())
-                .message("New OTP generated.")
-                .data(otpResponse)
-                .date(formatter.format(new Date())) // FIX 7: local new Date()
-                .build();
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        return ok("New OTP generated.", otpResponse);
     }
 
     // ─── Verify OTP ─────────────────────────────────────────────────────────────
@@ -75,12 +66,6 @@ public class OTPController {
         if (otp > 2147483646) {
             throw new BadRequestException("Integer value cannot exceed 2147483646.");
         }
-        ApiResponse<String> response = ApiResponse.<String>builder()
-                .status(HttpStatus.OK.value())
-                .message("Account activated successfully.")
-                .data(otpService.verifyOtp(otp, email))
-                .date(formatter.format(new Date())) // FIX 7: local new Date()
-                .build();
-        return ResponseEntity.ok(response);
+        return ok("Account activated successfully.", otpService.verifyOtp(otp, email));
     }
 }
