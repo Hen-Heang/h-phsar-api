@@ -8,30 +8,31 @@ import org.apache.ibatis.annotations.Param;
 
 /**
  * AppUserRepository — User Database Operations
- *
+ * <p>
  * HOW MYBATIS XML WORKS (for beginners):
  * ─────────────────────────────────────────
  * Before (Annotation style):
  *   The SQL query was written directly on the method using @Select("SELECT ...")
  *   The column-to-field mapping was done using @Result(property="...", column="...")
- *
+ * <p>
  * After (XML style):
  *   1. This interface only declares the method name and parameters
  *   2. The actual SQL is written in a separate XML file: AppUserMapper.xml
  *   3. MyBatis connects them by matching:
  *        - The @Mapper interface full class name  →  namespace in XML
  *        - The method name here                  →  id="..." in XML
- *
+ * <p>
  * Example connection:
  *   Java:  AppUser findDistributorUserByEmail(String email)
  *   XML:   <select id="findDistributorUserByEmail" ...>SELECT ...</select>
- *
+ * <p>
  * WHY THIS IS BETTER:
  *   - SQL is in its own file — easier to read and format
  *   - No more messy @Result annotations on every method
  *   - ResultMap is defined once in XML and reused everywhere
  *   - Supports dynamic SQL (<if>, <foreach>) which @Select cannot do
  */
+
 @Mapper
 public interface AppUserRepository {
 

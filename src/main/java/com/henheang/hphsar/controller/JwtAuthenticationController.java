@@ -26,10 +26,10 @@ import java.util.Date;
 
 /**
  * JwtAuthenticationController — Authentication Endpoints
- *
+ * <p>
  * All endpoints here are PUBLIC (no token required).
  * Configured in SecurityConfig → .requestMatchers("/authorization/**").permitAll()
- *
+ * <p>
  * Endpoints:
  *   POST /authorization/register        → create a new account
  *   POST /authorization/login           → login and receive JWT token
@@ -47,9 +47,9 @@ public class JwtAuthenticationController {
     private final JwtUserDetailsServiceImpl jwtUserDetailsService;
     private final OtpService otpService;
 
-    // FIX 7: Removed shared `Date date` field — it was a class-level instance variable.
-    // WHY: In a web app, multiple requests run in parallel (multi-threaded).
-    //      A shared `Date date` field can be overwritten by another thread mid-request,
+    // FIX 7: Removed shared `Date` field — it was a class-level instance variable.
+    // WHY: In a web app, multiple requests run in parallel (multithreaded).
+    //      A shared `Date` field can be overwritten by another thread mid-request,
     //      causing wrong timestamps. Using `new Date()` locally inside each method is safe.
     private final SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
@@ -69,7 +69,7 @@ public class JwtAuthenticationController {
      * PROCESS:
      *   1. Receive { email, password, roleId }
      *   2. Delegate to JwtUserDetailsServiceImpl.insertUser()
-     *      (validates, checks duplicate, BCrypt hashes, inserts to DB)
+     *      (validates, checks duplicate, Bcrypt hashes, inserts to DB)
      *   3. Return created user info (no password in response)
      */
     @PostMapping("/register")
@@ -131,7 +131,7 @@ public class JwtAuthenticationController {
     /**
      * PROCESS:
      *   1. Find user by email
-     *   2. Verify old password matches stored BCrypt hash
+     *   2. Verify old password matches stored Bcrypt hash
      *   3. Encode and save new password
      */
     @PutMapping(value = "/change-password")

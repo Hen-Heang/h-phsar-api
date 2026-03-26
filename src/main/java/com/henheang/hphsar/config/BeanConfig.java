@@ -7,10 +7,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 /**
  * BeanConfig — Global Shared Beans
- *
+ * <p>
  * Registers general-purpose beans that are reused across the application.
  * These are created once and injected wherever needed via Spring DI.
- *
+ * <p>
  * Beans defined here:
  *   - PasswordEncoder : hashes passwords before saving to DB (used in: BeanConfig → SecurityConfig → DaoAuthenticationProvider)
  */

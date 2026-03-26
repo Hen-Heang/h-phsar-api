@@ -16,22 +16,22 @@ import java.util.function.Function;
 
 /**
  * JwtTokenUtil — JWT Token Helper
- *
+ * <p>
  * Handles all JWT operations:
  *   1. generateToken()  → create a signed token after login
  *   2. validateToken()  → verify token is valid and not expired
  *   3. getUsernameFromToken() → extract user's email/username from token
- *
+ * <p>
  * A JWT token looks like:  xxxxx.yyyyy.zzzzz
  *   - xxxxx = Header  (algorithm used)
  *   - yyyyy = Payload (claims: email, issued time, expiry)
  *   - zzzzz = Signature (proves the token was not tampered with)
- *
- * The secret key (from application.properties: jwt.secret) is used
+ * <p>
+ * The secret key (from application.properties: jwt. Secret) is used
  * to sign tokens when generating, and to verify them when validating.
- *
+ * <p>
  * Token lifetime: 24 hours (JWT_TOKEN_VALIDITY)
- *
+ * <p>
  * Used by:
  *   - JwtAuthenticationController → generateToken() after successful login
  *   - JwtRequestFilter            → getUsernameFromToken() + validateToken() on every request

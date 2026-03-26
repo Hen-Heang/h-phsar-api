@@ -5,7 +5,7 @@
 **Build with** Spring Boot
 
 ## PROJECT ADDRESS
-https://spring.hanyeaktong.site/swagger-ui/index.html
+http://localhost:8080/swagger-ui/index.html
 
 
 ## Installation
@@ -21,20 +21,20 @@ https://spring.hanyeaktong.site/swagger-ui/index.html
 2. To run the code
    - Start the project Go to file > Open > Choose the folder of the cloned project
    - Run the project by clicking the start button
-   - Open browser and type http://localhost:8888/swagger-ui/index.html
+   - Open browser and type http://localhost:8080/swagger-ui/index.html
 
 > **H-Phsar** is a Cambodian B2B online marketplace (ផ្សារ) for business between Distributor and Retailer. Business owners can trade more efficiently with lower operational complexity.
 
 ### What we have done
 
 - **API authorization** (/authorization)
-  http://localhost:8888/authorization
+  http://localhost:8080/authorization
   - Sign up : register an account.
   - Log in : log in your account if verified
   - Change password: Change to new password
   - Forget Password: By combining OTP endpoint, we can request new password if we forget our password
 - **Generate OTP** (/authorization/api/v1/otp/)
-  http://localhost:8888/authorization/api/v1/otp/
+  http://localhost:8080/authorization/api/v1/otp/
   - Generate OTP : generate a new 4 digits OTP code and send it to your email.
   - Veryfy OTP : Verify your account
 
@@ -43,12 +43,12 @@ https://spring.hanyeaktong.site/swagger-ui/index.html
 *Distributor*
 
 - **Distributor profile controller** (/api/v1/distributor/profiles/)
-  http://localhost:8888/api/v1/distributor/profiles
+  http://localhost:8080/api/v1/distributor/profiles
   - Add user profile : create a user profile for distributor.
   - Get user profile : get details of user profile
   - Update user profile : update distributor user profile
 - **Distributor Store Controller** (/api/v1/distributor/stores/)
-  http://localhost:8888/api/v1/distributor/stores
+  http://localhost:8080/api/v1/distributor/stores
   - Setup new store : Setup new store for distributor
   - Get store detail : view detail of store
   - Edit store : update store detail
@@ -56,7 +56,7 @@ https://spring.hanyeaktong.site/swagger-ui/index.html
   - Enable store : list store back to view back
   - Delete store : remove store completely
 - **Distributor Category Controller** (/api/v1/distributor/categories/)
-  http://localhost:8888/api/v1/distributor/categories
+  http://localhost:8080/api/v1/distributor/categories
   - Create new category : create new category for the store
   - Get category by id : get category detail using the id
   - Get all category : get every category in the store
@@ -64,7 +64,7 @@ https://spring.hanyeaktong.site/swagger-ui/index.html
   - Edit category : update category info
   - Delete category : remove category from store
 - **Distributor Product Controller** (/api/v1/distributor/products/)
-  http://localhost:8888/api/v1/distributor/products
+  http://localhost:8080/api/v1/distributor/products
   - Create new product : Create new product for the store
   - Import product : restock product and set new price for the product
   - Get all product :  get product listing with sorting. can sort by created_date, qty, name, price, and product_id
@@ -74,7 +74,7 @@ https://spring.hanyeaktong.site/swagger-ui/index.html
   - Publish product : list product in public
   - Delete product : remove product permanently
 - **Distributor Order Controller** (/api/v1/distributor/orders/)
-  http://localhost:8888/api/v1/distributor/orders
+  http://localhost:8080/api/v1/distributor/orders
   - Get all order : get all orders listing
   - Get pending order : get all orders that is pending
   - Get preparing order : get all orders that is preparing
@@ -88,21 +88,26 @@ https://spring.hanyeaktong.site/swagger-ui/index.html
   - Update order to dispatching : update order status that is preparing to dispatching
   - Update order to confirming : update order status that is dispatching to confirming. confirm order will wait for retailer to comfirm that they got the product/order
 - **Distributor Homepage Controller** (/api/v1/distributor/order_activities/)
-  http://localhost:8888/api/v1/distributor/order_activities
+  http://localhost:8080/api/v1/distributor/order_activities
   - Get all order : get all orders listing
 - **Distributor Report Controller** (/api/v1/distributor/reports/)
-  http://localhost:8888/api/v1/distributor/reports
+  http://localhost:8080/api/v1/distributor/reports
   - Get order activity homepage by month : get order activity by monthly basis
   - Get order activity homepage by year : get order activity by yearly basis
 - **Distributor History Controller** (/api/v1/distributor/history/)
-  http://localhost:8888/api/v1/distributor/history
+  http://localhost:8080/api/v1/distributor/history
   - Get history order : get history of order. have pagination
   - Get history import : get history of import or restock
+- **Distributor Notification Controller** (/api/v1/distributor/notifications/)
+  http://localhost:8080/api/v1/distributor/notifications
+  - Get all notification : fetch all notifications for the distributor
+  - Mark as read : mark a single notification as read by id
+  - Mark all as read : mark all notifications as read
 
 *Retailer*
 
 - **Retailer Store Controller** (/api/v1/retailer/stores/)
-  http://localhost:8888/api/v1/retailer/stores
+  http://localhost:8080/api/v1/retailer/stores
   - Rate store : give rating to a store
   - Bookmark store : bookmark a store. set store as favorite
   - Edit rating : change rating of a store
@@ -119,12 +124,12 @@ https://spring.hanyeaktong.site/swagger-ui/index.html
   - Search store by name : find store by searching store name
   - Get all store : get store without filter
 - **Retailer Profile Controller** (/api/v1/retailer/profiles/)
-  http://localhost:8888/api/v1/retailer/profiles
+  http://localhost:8080/api/v1/retailer/profiles
   - Create retailer profile : create a profile for retailer. if not created, can not use all feature
   - Get profile : Get profile details
   - Edit profile : Change or update profile
 - **Retailer Profile Controller** (/api/v1/retailer/orders/)
-  http://localhost:8888/api/v1/retailer/orders
+  http://localhost:8080/api/v1/retailer/orders
   - Add to cart : add product to cart. can be one product or a list
   - Update cart product : update product in the cart (qty)
   - Remove product : remove product from cart
@@ -137,13 +142,18 @@ https://spring.hanyeaktong.site/swagger-ui/index.html
   - Get orders progress : get all orders and its progress
   - Get invoice : get invoice details
 - **Retailer Report Controller** (/api/v1/retailer/reports/)
-  http://localhost:8888/api/v1/retailer/report
+  http://localhost:8080/api/v1/retailer/report
   - Get report : get retailer report
 - **Retailer History Controller** (/api/v1/retailer/history/)
-  http://localhost:8888/api/v1/retailer/history
+  http://localhost:8080/api/v1/retailer/history
   - Get order history : get history of order
   - Get draft : get saved draft
-  
+- **Retailer Notification Controller** (/api/v1/retailer/notifications/)
+  http://localhost:8080/api/v1/retailer/notifications
+  - Get all notification : fetch all notifications for the retailer
+  - Mark as read : mark a single notification as read by id
+  - Mark all as read : mark all notifications as read
+
 ## Testing
 
 ### Database Server
@@ -252,6 +262,9 @@ Returns: { token, roleId, userId }
 Client sends: Authorization: Bearer <token>
         │
         ▼
+TrailingSlashNormalizationFilter  ← Strip trailing slash (e.g. /profiles/ → /profiles)
+        │
+        ▼
 CorsFilterConfiguration       ← Allow cross-origin request from browser
         │
         ▼
@@ -269,6 +282,8 @@ JwtRequestFilter
 SecurityConfig — check role permission
         ├── /api/v1/distributor/**  → requires DISTRIBUTOR role (roleId = 1)
         ├── /api/v1/retailer/**     → requires RETAILER role    (roleId = 2)
+        ├── /api/v1/files/**        → public (file uploads/downloads)
+        ├── /ws/**                  → public (WebSocket endpoint)
         └── wrong role → 403 | no token → 401 JSON (JwtAuthenticationEntryPoint)
         │
         ▼
@@ -302,14 +317,15 @@ PUT /authorization/forget?otp=1234&email=...&newPassword=...
 | File | Role |
 |---|---|
 | `AppUser` | Spring UserDetails — holds email, hashed password, role |
-| `AppUserRepository` | SQL: insert / find / update users |
+| `AppUserRepository` | MyBatis XML mapper: insert / find / update users |
 | `OtpRepository` | SQL: generate and fetch OTP records |
 | `JwtUserDetailsServiceImpl` | Core logic: register, login helpers, passwords |
 | `OtpServiceImplV1` | Generate OTP, send email, verify OTP + expiry |
 | `JwtAuthenticationController` | Endpoints: `/register` `/login` `/change-password` `/forget` |
 | `OTPController` | Endpoints: `/otp/generate` `/otp/verify` |
-| `JwtTokenUtil` | Create and decode JWT tokens |
+| `JwtTokenUtil` | Create and decode JWT tokens (jjwt 0.12.x) |
 | `JwtRequestFilter` | Validate token on every request |
+| `TrailingSlashNormalizationFilter` | Strip trailing slashes before auth checks (highest precedence) |
 | `SecurityConfig` | Route access rules by role |
 | `JwtAuthenticationEntryPoint` | Return 401 JSON when unauthenticated |
 
@@ -340,10 +356,9 @@ These issues can cause data breaches, unauthorized access, or exploitable vulner
 - **Why:** This disables the browser's Same-Origin Policy protection entirely. In production, malicious websites can make cross-origin requests on behalf of authenticated users.
 - **Fix:** Restrict to specific trusted domains via an env var (e.g., `ALLOWED_ORIGINS`).
 
-#### A4. Outdated JWT library (jjwt 0.9.1 from 2018)
-- **What:** `pom.xml` depends on `io.jsonwebtoken:jjwt:0.9.1`.
-- **Why:** This version is 6+ years old, has known issues, and uses a deprecated API. The current version is `0.12.x` with a significantly improved and safer API.
-- **Fix:** Upgrade to `jjwt-api`, `jjwt-impl`, and `jjwt-jackson` at version `0.12.x`.
+#### ~~A4. Outdated JWT library~~ ✅ RESOLVED
+- **What was fixed:** Upgraded from `io.jsonwebtoken:jjwt:0.9.1` to the split `jjwt-api`, `jjwt-impl`, and `jjwt-jackson` at version **0.12.6**.
+- **Impact:** `JwtTokenUtil` now uses the modern `Jwts.parser().verifyWith(key).build()` API with proper `HmacSHA512` key construction.
 
 #### A5. `AlreadyExistException` returns HTTP 404 instead of 409
 - **What:** The `AlreadyExistException` class is mapped to HTTP status `404 Not Found`.
@@ -430,10 +445,13 @@ These issues make it very hard to debug problems and monitor the application in 
 
 ### Group E — Database Schema (Low-Medium)
 
-#### E1. OTP tables created at runtime
-- **What:** `DatabaseInitializer.java` creates `tb_distributor_otp` and `tb_retailer_otp` tables with `CREATE TABLE IF NOT EXISTS` at every application startup.
-- **Why:** Runtime schema creation is fragile, hard to audit, and conflicts with proper migration practices. It also runs on every restart unnecessarily.
-- **Fix:** Move these table definitions into a Flyway migration script and remove `DatabaseInitializer`.
+#### E1. Schema changes applied at runtime
+- **What:** `DatabaseInitializer.java` runs `@PostConstruct` SQL at every startup to ensure schema readiness:
+  - Creates `tb_distributor_otp` and `tb_retailer_otp` tables (`CREATE TABLE IF NOT EXISTS`)
+  - Adds `is_active BOOLEAN DEFAULT TRUE` column to `tb_store` (`ALTER TABLE … ADD COLUMN IF NOT EXISTS`)
+  - Adds `phone VARCHAR(50)` column to `tb_store`
+- **Why:** Runtime schema changes are fragile, hard to audit, and conflict with proper migration practices. Running on every restart is unnecessary overhead.
+- **Fix:** Move all table and column definitions into a Flyway migration script and remove `DatabaseInitializer`.
 
 ---
 
@@ -441,7 +459,7 @@ These issues make it very hard to debug problems and monitor the application in 
 
 | Group | Area | Priority | Items |
 |-------|------|----------|-------|
-| A | Security | Critical | A1 A2 A3 A4 A5 |
+| A | Security | Critical | A1 A2 A3 ~~A4~~ A5 |
 | B | Code Quality | High | B1 B2 B3 B4 B5 B6 |
 | C | Observability | Medium | C1 C2 C3 C4 C5 |
 | D | Testing | Medium | D1 |

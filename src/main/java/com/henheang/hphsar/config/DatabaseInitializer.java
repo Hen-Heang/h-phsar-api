@@ -6,10 +6,10 @@ import org.springframework.stereotype.Component;
 
 /**
  * DatabaseInitializer — Auto Schema Setup on Startup
- *
+ * <p>
  * Runs SQL statements once when the application starts to ensure the
  * database schema is ready before any request is handled.
- *
+ * <p>
  * Why use this instead of Flyway/Liquibase?
  *   - Simple approach for small, safe schema additions using IF NOT EXISTS
  *   - Safe to run multiple times (no side effects)
