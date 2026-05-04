@@ -124,7 +124,7 @@ public class CategoryServiceImplV1 implements CategoryService {
         if (!categoryRepository.checkIfStoreCategoryDuplicate(storeId, id)) {
             throw new NotFoundException("Category not found.");
         }
-        // move all product that have this category to 113 UNKNOWN
+        // move all products that have this category to 113 UNKNOWN
         if (categoryRepository.checkIfCategoryHaveProduct(storeId, id)) {
             categoryRepository.createNewStoreCategory(storeId, 113);
             String unknownCategoryId = categoryRepository.moveProductCategory(storeId, id);
@@ -132,14 +132,12 @@ public class CategoryServiceImplV1 implements CategoryService {
                 throw new InternalServerErrorException("Fail to change category.");
             }
         }
-        String deletedCategoryId = categoryRepository.deleteCategory(id, storeId);
-        if (deletedCategoryId == null) {
+        String categoryName = categoryRepository.getCategoryNameById(id);
+        Integer rowsAffected = categoryRepository.deleteCategory(id, storeId);
+        if (rowsAffected == null || rowsAffected == 0) {
             throw new InternalServerErrorException("Fail to delete category.");
         }
-        if (!Objects.equals(deletedCategoryId, String.valueOf(id))) {
-            throw new InternalServerErrorException("Catastrophic error!!! Delete wrong category during operation.");
-        }
-        return "Successfully deleted category : " + categoryRepository.getCategoryNameById(Integer.parseInt(deletedCategoryId));
+        return "Successfully deleted category : " + categoryName;
     }
 
     //Validation of updating in category

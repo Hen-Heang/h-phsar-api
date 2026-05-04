@@ -65,10 +65,11 @@
                updated_date AS updatedDate
         FROM tb_category
         WHERE id = #{id}
+          AND is_active = true
     </select>
 
     <select id="getCategories" resultType="String">
-        SELECT name FROM tb_category WHERE id = #{categoryId}
+        SELECT name FROM tb_category WHERE id = #{categoryId} AND is_active = true
     </select>
 
     <!-- ─── STORE ──────────────────────────────────────────────────────────── -->
@@ -100,7 +101,7 @@
     <!-- ─── PRODUCT CATEGORY ─────────────────────────────────────────────────── -->
 
     <select id="getCategoryIdByName" resultType="int">
-        SELECT id FROM tb_category WHERE name = #{categoryName}
+        SELECT id FROM tb_category WHERE name = #{categoryName} AND is_active = true
     </select>
 
     <insert id="insertNewProductCategory">
@@ -171,13 +172,14 @@
                a.price,
                a.image,
                a.category_id,
-               is_publish   AS isPublish,
+               a.is_publish   AS isPublish,
                b.created_date AS createdDate,
                b.updated_date AS updatedDate,
                a.description
         FROM tb_store_product_detail a
                  JOIN tb_product b ON a.product_id = b.id
         WHERE a.store_id = #{storeId}
+          AND a.is_active = true
         ORDER BY ${by} ASC
         LIMIT #{pageSize}
         OFFSET #{pageSize} * (#{pageNumber} - 1)
@@ -190,13 +192,14 @@
                a.price,
                a.image,
                a.category_id,
-               is_publish   AS isPublish,
+               a.is_publish   AS isPublish,
                b.created_date AS createdDate,
                b.updated_date AS updatedDate,
                a.description
         FROM tb_store_product_detail a
                  JOIN tb_product b ON a.product_id = b.id
         WHERE a.store_id = #{storeId}
+          AND a.is_active = true
         ORDER BY ${by} DESC
         LIMIT #{pageSize}
         OFFSET #{pageSize} * (#{pageNumber} - 1)
@@ -206,19 +209,20 @@
 
     <select id="getAllProductByName" resultMap="ProductWithCategoryResultMap">
         SELECT x.id,
-               name,
-               qty,
-               price,
-               image,
+               y.name,
+               x.qty,
+               x.price,
+               x.image,
                x.category_id,
-               is_active    AS isActive,
-               is_publish   AS isPublish,
-               created_date AS createdDate,
-               updated_date AS updatedDate
+               x.is_active    AS isActive,
+               x.is_publish   AS isPublish,
+               y.created_date AS createdDate,
+               y.updated_date AS updatedDate
         FROM tb_store_product_detail x
                  JOIN tb_product y ON x.product_id = y.id
-        WHERE store_id = #{storeId}
-          AND name ILIKE '%${name}%'
+        WHERE x.store_id = #{storeId}
+          AND x.is_active = true
+          AND y.name ILIKE '%' || #{name} || '%'
     </select>
 
     <select id="getAllProductByUnitPrice" resultType="com.henheang.hphsar.model.product.Product">

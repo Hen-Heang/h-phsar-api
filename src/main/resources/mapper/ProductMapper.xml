@@ -35,7 +35,8 @@
 
     <select id="getProductValueExist" resultMap="ProductResultMap">
         SELECT * FROM tb_product
-        WHERE name ILIKE '${name}'
+        WHERE name ILIKE #{name}
+          AND is_active = true
     </select>
 
     <!-- ═══════════════════════════════════════════════════════════════════════

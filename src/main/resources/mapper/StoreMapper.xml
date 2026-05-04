@@ -9,9 +9,9 @@
     Handles all store-level operations including: create, update, search, bookmark, rating.
 
     Key result maps:
-    - StoreResultMap        → for Store objects (distributor's own store view)
+    - StoreResultMap → for Store objects (distributor's own store view)
     - StoreRetailerResultMap → for StoreRetailer objects (retailer's store listing view, includes categories)
-    - StoreRatingResultMap   → for store rating entries
+    - StoreRatingResultMap → for store rating entries
 
     Both Store and StoreRetailer load rating, ratingCount, and additionalPhone via nested sub-selects.
     StoreRetailer also loads categories.
@@ -126,11 +126,15 @@
         SELECT DISTINCT A.id, A.name, A.updated_date AS updatedDate, A.created_date AS createdDate
         FROM tb_category A
                  INNER JOIN tb_store_product_detail B ON A.id = B.category_id
-        WHERE store_id = #{storeId}
+        WHERE B.store_id = #{storeId}
+          AND A.is_active = true
     </select>
 
     <select id="getCategoryByCategoryId" resultMap="CategoryResultMap">
-        SELECT id, name, created_date AS createdDate, updated_date AS updatedDate FROM tb_category WHERE id = #{id}
+        SELECT id, name, created_date AS createdDate, updated_date AS updatedDate
+        FROM tb_category
+        WHERE id = #{id}
+          AND is_active = true
     </select>
 
     <!-- ═══════════════════════════════════════════════════════════════════════
@@ -403,7 +407,9 @@
                updated_date           AS updatedDate,
                is_publish             AS isPublish,
                is_active              AS isActive
-        FROM tb_store WHERE is_publish = true
+        FROM tb_store
+        WHERE is_publish = true
+          AND is_active = true
         ORDER BY created_date ASC
         LIMIT #{pageSize} OFFSET #{pageSize} * (#{pageNumber} - 1)
     </select>
@@ -420,13 +426,15 @@
                is_publish             AS isPublish,
                is_active              AS isActive,
                phone                  AS primaryPhone
-        FROM tb_store WHERE is_publish = true
+        FROM tb_store
+        WHERE is_publish = true
+          AND is_active = true
         ORDER BY created_date DESC
         LIMIT #{pageSize} OFFSET #{pageSize} * (#{pageNumber} - 1)
     </select>
 
     <select id="getTotalStores" resultType="int">
-        SELECT count(*) FROM tb_store WHERE is_publish = true
+        SELECT count(*) FROM tb_store WHERE is_publish = true AND is_active = true
     </select>
 
     <select id="getAllUserStoreSortByCurrentUserFavoriteDESC" resultMap="StoreRetailerResultMap">
@@ -444,6 +452,7 @@
         FROM tb_store
                  FULL OUTER JOIN tb_bookmark tb ON tb_store.id = tb.store_id
         WHERE is_publish = TRUE
+          AND is_active = true
         ORDER BY (SELECT EXISTS(SELECT * FROM tb_bookmark WHERE tb.retailer_account_id = #{currentUser})) DESC
         LIMIT #{pageSize} OFFSET #{pageSize} * (#{pageNumber} - 1)
     </select>
@@ -462,6 +471,7 @@
                is_active                      AS isActive
         FROM tb_store
         WHERE is_publish = TRUE
+          AND is_active = true
           AND tb_store.id IN (SELECT DISTINCT store_id FROM tb_bookmark WHERE retailer_account_id = #{currentUser})
         ORDER BY created_date ASC
         LIMIT #{pageSize} OFFSET #{pageSize} * (#{pageNumber} - 1)
@@ -481,7 +491,9 @@
                is_active                      AS isActive
         FROM tb_store
                  FULL OUTER JOIN tb_bookmark tb ON tb_store.id = tb.store_id
-        WHERE is_publish = TRUE AND name ILIKE '%${name}%'
+        WHERE is_publish = TRUE
+          AND is_active = true
+          AND name ILIKE '%' || #{name} || '%'
         ORDER BY (SELECT count(rated_star) FROM tb_rating_detail) DESC
         LIMIT #{pageSize} OFFSET #{pageSize} * (#{pageNumber} - 1)
     </select>
@@ -501,6 +513,7 @@
                (SELECT coalesce(avg(rated_star), 0) FROM tb_rating_detail WHERE store_id = tb_store.id) AS rating
         FROM tb_store FULL OUTER JOIN tb_bookmark tb ON tb_store.id = tb.store_id
         WHERE is_publish = TRUE
+          AND is_active = true
         GROUP BY tb_store.id
         ORDER BY rating ASC
         LIMIT #{pageSize} OFFSET #{pageSize} * (#{pageNumber} - 1)
@@ -521,6 +534,7 @@
                (SELECT coalesce(avg(rated_star), 0) FROM tb_rating_detail WHERE store_id = tb_store.id) AS rating
         FROM tb_store FULL OUTER JOIN tb_bookmark tb ON tb_store.id = tb.store_id
         WHERE is_publish = TRUE
+          AND is_active = true
         GROUP BY tb_store.id
         ORDER BY rating DESC
         LIMIT #{pageSize} OFFSET #{pageSize} * (#{pageNumber} - 1)
@@ -540,6 +554,7 @@
                is_active                      AS isActive
         FROM tb_store FULL OUTER JOIN tb_bookmark tb ON tb_store.id = tb.store_id
         WHERE is_publish = TRUE
+          AND is_active = true
         ORDER BY name ASC
         LIMIT #{pageSize} OFFSET #{pageSize} * (#{pageNumber} - 1)
     </select>
@@ -558,6 +573,7 @@
                is_active                      AS isActive
         FROM tb_store FULL OUTER JOIN tb_bookmark tb ON tb_store.id = tb.store_id
         WHERE is_publish = TRUE
+          AND is_active = true
         ORDER BY name DESC
         LIMIT #{pageSize} OFFSET #{pageSize} * (#{pageNumber} - 1)
     </select>
@@ -686,7 +702,9 @@
                is_publish                     AS isPublish,
                is_active                      AS isActive
         FROM tb_store
-        WHERE is_publish = TRUE AND name ILIKE '%${name}%'
+        WHERE is_publish = TRUE
+          AND is_active = true
+          AND name ILIKE '%' || #{name} || '%'
         ORDER BY ${by} ASC
     </select>
 
@@ -703,19 +721,25 @@
                is_publish                     AS isPublish,
                is_active                      AS isActive
         FROM tb_store
-        WHERE is_publish = TRUE AND name ILIKE '%${name}%'
+        WHERE is_publish = TRUE
+          AND is_active = true
+          AND name ILIKE '%' || #{name} || '%'
         ORDER BY ${by} DESC
     </select>
 
     <select id="getStoresIdByNameSearchASC" resultType="int">
         SELECT tb_store.id FROM tb_store
-        WHERE is_publish = TRUE AND name ILIKE '%${name}%'
+        WHERE is_publish = TRUE
+          AND is_active = true
+          AND name ILIKE '%' || #{name} || '%'
         ORDER BY ${by} ASC
     </select>
 
     <select id="getStoresIdByNameSearchDESC" resultType="int">
         SELECT tb_store.id FROM tb_store
-        WHERE is_publish = TRUE AND name ILIKE '%${name}%'
+        WHERE is_publish = TRUE
+          AND is_active = true
+          AND name ILIKE '%' || #{name} || '%'
         ORDER BY ${by} DESC
     </select>
 

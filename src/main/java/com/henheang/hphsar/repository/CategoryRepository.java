@@ -20,7 +20,7 @@ public interface CategoryRepository {
 
     Category editCategory(Integer categoryId, Integer id, Integer storeId);
 
-    String deleteCategory(Integer id, Integer storeId);
+    Integer deleteCategory(Integer id, Integer storeId);
 
     Boolean checkIfExist(String name);
 
