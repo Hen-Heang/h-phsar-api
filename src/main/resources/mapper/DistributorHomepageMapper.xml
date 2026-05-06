@@ -21,8 +21,29 @@
         SELECT id FROM tb_store WHERE distributor_account_id = #{currentUserId}
     </select>
 
-    <!-- ─── ORDER COUNTS BY STATUS ─────────────────────────────────────────── -->
-    <!-- status_id: 1=New, 2=Preparing, 3=Dispatching, 4=Confirming, 5=Completed -->
+    <!-- ─── ORDER COUNTS BY STATUS (single query) ────────────────────────── -->
+    <!--
+        Returns all 5 status counts in one DB round-trip using CASE WHEN.
+        status_id: 1=New, 2=Preparing, 3=Dispatching, 4=Confirming, 5=Completed
+    -->
+    <resultMap id="DistributorHomepageResultMap" type="com.henheang.hphsar.model.distributor.DistributorHomepage">
+        <result property="newOrder"   column="new_order"/>
+        <result property="preparing"  column="preparing"/>
+        <result property="dispatch"   column="dispatch"/>
+        <result property="confirming" column="confirming"/>
+        <result property="completed"  column="completed"/>
+    </resultMap>
+
+    <select id="getHomepageCounts" resultMap="DistributorHomepageResultMap">
+        SELECT
+            COUNT(CASE WHEN status_id = 1 THEN 1 END) AS new_order,
+            COUNT(CASE WHEN status_id = 2 THEN 1 END) AS preparing,
+            COUNT(CASE WHEN status_id = 3 THEN 1 END) AS dispatch,
+            COUNT(CASE WHEN status_id = 4 THEN 1 END) AS confirming,
+            COUNT(CASE WHEN status_id = 5 THEN 1 END) AS completed
+        FROM tb_order
+        WHERE store_id = #{storeId}
+    </select>
 
     <select id="getNewOrder" resultType="int">
         SELECT count(*) AS newOrder FROM tb_order WHERE store_id = #{storeId} AND status_id = 1

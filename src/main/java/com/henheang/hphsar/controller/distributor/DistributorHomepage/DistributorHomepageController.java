@@ -11,8 +11,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
-import java.text.ParseException;
-
 @RestController
 @Tag(name = "Distributor Homepage Controller")
 @RequestMapping("${base.distributor.v1}/order_activities")
@@ -32,7 +30,7 @@ public class DistributorHomepageController extends BaseController {
 
     @GetMapping("/months")
     @Operation(summary = "Get total orders and products sold sort by months (YYYY-MM)")
-    public ResponseEntity<?> getTotalByMonth(@RequestParam(defaultValue = "2023-01") String startDate, @RequestParam(defaultValue = "2023-05") String endDate) throws ParseException {
+    public ResponseEntity<?> getTotalByMonth(@RequestParam(defaultValue = "2023-01") String startDate, @RequestParam(defaultValue = "2023-05") String endDate) {
         AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         Integer currentUserId = appUser.getId();
         return ok("fetched successfully", distributorHomepageService.getTotalByMonth(currentUserId, startDate, endDate));

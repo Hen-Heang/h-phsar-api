@@ -5,182 +5,107 @@ import com.henheang.hphsar.model.distributor.DistributorHomepage;
 import com.henheang.hphsar.model.order.OrderChartByMonth;
 import com.henheang.hphsar.repository.DistributorHomepageRepository;
 import com.henheang.hphsar.service.DistributorHomepageService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
+
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
-import java.util.*;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
+@Slf4j
 @Service
 public class DistributorHomepageServiceImp implements DistributorHomepageService {
 
-    private  final DistributorHomepageRepository distributorHomepageRepository;
+    private final DistributorHomepageRepository distributorHomepageRepository;
 
-        SimpleDateFormat formatter= new SimpleDateFormat("yyyy-MM");
-        private static final DateTimeFormatter YEAR_MONTH_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM");
+    private static final DateTimeFormatter YEAR_MONTH_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM");
+
+    private static final Map<Integer, String> MONTH_NAMES = Map.ofEntries(
+            Map.entry(1,  "JANUARY"),  Map.entry(2,  "FEBRUARY"), Map.entry(3,  "MARCH"),
+            Map.entry(4,  "APRIL"),    Map.entry(5,  "MAY"),      Map.entry(6,  "JUNE"),
+            Map.entry(7,  "JULY"),     Map.entry(8,  "AUGUST"),   Map.entry(9,  "SEPTEMBER"),
+            Map.entry(10, "OCTOBER"),  Map.entry(11, "NOVEMBER"), Map.entry(12, "DECEMBER")
+    );
 
     public DistributorHomepageServiceImp(DistributorHomepageRepository distributorHomepageRepository) {
         this.distributorHomepageRepository = distributorHomepageRepository;
     }
 
-
     @Override
     public DistributorHomepage getNewOrder(Integer currentUserId) {
-        Integer storeId= distributorHomepageRepository.getStoreId(currentUserId);
-        DistributorHomepage distributorHomepage= new DistributorHomepage();
-
-        Integer newOrder= distributorHomepageRepository.getNewOrder(storeId);
-        distributorHomepage.setNewOrder(newOrder);
-
-        Integer preparing= distributorHomepageRepository.getPreparing(storeId);
-        distributorHomepage.setPreparing(preparing);
-
-        Integer dispatch= distributorHomepageRepository.getDispatch(storeId);
-        distributorHomepage.setDispatch(dispatch);
-
-        Integer confirming= distributorHomepageRepository.getConfirming(storeId);
-        distributorHomepage.setConfirming(confirming);
-
-        Integer completed= distributorHomepageRepository.getCompleted(storeId);
-        distributorHomepage.setCompleted(completed);
-
-        return distributorHomepage;
+        Integer storeId = distributorHomepageRepository.getStoreId(currentUserId);
+        return distributorHomepageRepository.getHomepageCounts(storeId);
     }
 
-
-
     @Override
-    public OrderChartByMonth getTotalByMonth(Integer currentUserId , String startDate, String endDate) throws ParseException {
-
+    public OrderChartByMonth getTotalByMonth(Integer currentUserId, String startDate, String endDate) {
         YearMonth startYearMonth = parseYearMonth(startDate, "startDate");
-        YearMonth endYearMonth = parseYearMonth(endDate, "endDate");
-        Integer startYear = startYearMonth.getYear();
-        Integer startMonth = startYearMonth.getMonthValue();
-        Integer endYear = endYearMonth.getYear();
-        Integer endMonth = endYearMonth.getMonthValue();
-        // 1st check allow endDate have to bigger than startDate
-        if (endYear - startYear < 0 ) {
-            throw new BadRequestException("Opps, end date need to be higher than start date. Please input at least 1 month higher");
+        YearMonth endYearMonth   = parseYearMonth(endDate,   "endDate");
+
+        if (endYearMonth.isBefore(startYearMonth)) {
+            throw new BadRequestException("End date must be higher than start date. Please input at least 1 month higher.");
         }
-        if(Objects.equals(endYear, startYear) && endMonth - startMonth <0){
-            throw new BadRequestException("Opps, end date need to be higher than start date. Please input at least 1 month higher");
-        }
-
-
-
-        int monthFromYear = 0;
-
-            // get month differential
-        monthFromYear=(endYear-startYear) * 12;
-
-        int nMonth = 1 + (endMonth - startMonth);
-        Integer totalMonth = nMonth + monthFromYear;
-
-        System.out.println(totalMonth);
-
-        // convert String to date
-        Date newStartDate = formatter.parse(startDate);
-//        System.out.println(newStartDate);
         if (endYearMonth.isAfter(YearMonth.now())) {
-            throw new BadRequestException("End date cannot be higher than today. ");
+            throw new BadRequestException("End date cannot be higher than today.");
         }
 
-
-        OrderChartByMonth orderChart = new OrderChartByMonth();
-
-
-        Map<Integer, String> months = new HashMap<>();
-        months.put(1, "JANUARY");
-        months.put(2, "FEBRUARY");
-        months.put(3, "MARCH");
-        months.put(4, "APRIL");
-        months.put(5, "MAY");
-        months.put(6, "JUNE");
-        months.put(7, "JULY");
-        months.put(8, "AUGUST");
-        months.put(9, "SEPTEMBER");
-        months.put(10, "OCTOBER");
-        months.put(11, "NOVEMBER");
-        months.put(12, "DECEMBER");
+        int startYear = startYearMonth.getYear();
+        int endYear   = endYearMonth.getYear();
+        int yearDiff  = endYear - startYear;
 
         Integer storeId = distributorHomepageRepository.getStoreId(currentUserId);
+        OrderChartByMonth orderChart = new OrderChartByMonth();
 
-            if(endYear - startYear < 2 ) {
+        if (yearDiff < 2) {
+            Integer rawOrder  = distributorHomepageRepository.getTotalOrderByMonth(storeId, startDate, endDate);
+            Integer rawImport = distributorHomepageRepository.getTotalProductImport(storeId, startDate, endDate);
+            Integer rawSold   = distributorHomepageRepository.getTotalProductSold(storeId, startDate, endDate);
 
-                //get total order by number of months
-                Integer finalTotalOrder = (distributorHomepageRepository.getTotalOrderByMonth(storeId, startDate, endDate) ==null ? 0 : distributorHomepageRepository.getTotalOrderByMonth(storeId, startDate, endDate) );
-                orderChart.setTotalOrder(finalTotalOrder);
+            orderChart.setTotalOrder(Objects.requireNonNullElse(rawOrder, 0));
+            orderChart.setTotalProductImport(Objects.requireNonNullElse(rawImport, 0));
+            orderChart.setTotalProductSold(Objects.requireNonNullElse(rawSold, 0));
 
-                //get total products import by number of months
-                Integer finalTotalProductImport = (distributorHomepageRepository.getTotalProductImport(storeId, startDate, endDate) == null? 0 : distributorHomepageRepository.getTotalProductImport(storeId,startDate,endDate));
-                orderChart.setTotalProductImport(finalTotalProductImport);
+            int totalMonth = (int) startYearMonth.until(endYearMonth.plusMonths(1), ChronoUnit.MONTHS);
+            List<String>  listMonth      = new ArrayList<>();
+            List<Integer> orderEachMonth = new ArrayList<>();
+            YearMonth current = startYearMonth;
 
-                //get total products sold by number of months
-                Integer finalTotalProductSold =(distributorHomepageRepository.getTotalProductSold(storeId, startDate, endDate) ==null? 0 :  distributorHomepageRepository.getTotalProductSold(storeId, startDate, endDate)) ;
-                orderChart.setTotalProductSold(finalTotalProductSold);
-
-                //get total month  by number of months
-//                List<Integer> finalTotalMonth = distributorHomepageRepository.getTotalMonth(storeId, startDate, endDate);
-
-
-                List<String> listMonth = new ArrayList<>();
-                List<Integer> orderEachMonth= new ArrayList<>();
-
-                for (int i=0;i< totalMonth;i++) {
-                    listMonth.add(months.get(startMonth));
-                    orderEachMonth.add(distributorHomepageRepository.getTotalOrderEachMonth(storeId, startMonth , startYear) == null ? 0 : distributorHomepageRepository.getTotalOrderEachMonth(storeId, startMonth, startYear) );
-                    startMonth = (startMonth+1) % 13 ; // increment and reset if it reaches 13
-                    if (startMonth == 0) {
-                        startMonth = 1;
-                        startYear++;
-                    }
-                }
-
-                orderChart.setMonth(listMonth);
-
-                orderChart.setTotalOrderEachMonth(orderEachMonth);
-
+            for (int i = 0; i < totalMonth; i++) {
+                listMonth.add(MONTH_NAMES.get(current.getMonthValue()));
+                Integer rawEach = distributorHomepageRepository.getTotalOrderEachMonth(storeId, current.getMonthValue(), current.getYear());
+                orderEachMonth.add(Objects.requireNonNullElse(rawEach, 0));
+                current = current.plusMonths(1);
             }
-//            else {throw new BadRequestException("Please do not select more than 2 years.");}
 
-        // if the user input more than 2 years
-        if(endYear - startYear > 1 ) {
+            orderChart.setMonth(listMonth);
+            orderChart.setTotalOrderEachMonth(orderEachMonth);
 
-            //get total order by number of year
-            Integer finalTotalOrderYear = (distributorHomepageRepository.getTotalOrderByYear(storeId, startYear, endYear)==null ? 0 : distributorHomepageRepository.getTotalOrderByYear(storeId, startYear, endYear) ) ;
-            orderChart.setTotalOrder(finalTotalOrderYear);
+        } else {
+            Integer rawOrder  = distributorHomepageRepository.getTotalOrderByYear(storeId, startYear, endYear);
+            Integer rawImport = distributorHomepageRepository.getTotalProductImportByYear(storeId, startYear, endYear);
+            Integer rawSold   = distributorHomepageRepository.getTotalProductSoldByYear(storeId, startYear, endYear);
 
+            orderChart.setTotalOrder(Objects.requireNonNullElse(rawOrder, 0));
+            orderChart.setTotalProductImport(Objects.requireNonNullElse(rawImport, 0));
+            orderChart.setTotalProductSold(Objects.requireNonNullElse(rawSold, 0));
 
-            //get total products import by number of years
-            Integer finalTotalProductImportByYear = distributorHomepageRepository.getTotalProductImportByYear(storeId, startYear, endYear) ==null ?0 : distributorHomepageRepository.getTotalProductImportByYear(storeId, startYear, endYear) ;
-            orderChart.setTotalProductImport(finalTotalProductImportByYear);
-
-
-            //get total products sold by number of years
-            Integer finalTotalProductSoldByYear = distributorHomepageRepository.getTotalProductSoldByYear(storeId, startYear, endYear)==null ?0 : distributorHomepageRepository.getTotalProductSoldByYear(storeId, startYear, endYear);
-            orderChart.setTotalProductSold(finalTotalProductSoldByYear);
-
-
-            //get total order for each year
-//            Integer finalTotalOrderEachYear = distributorHomepageRepository.getTotalOrderEachYear(storeId, startYear);
-            Integer totalYear = 1+(endYear - startYear);
-
-            List<String> yearAfterLoop = new ArrayList<>();
+            int totalYear = yearDiff + 1;
+            List<String>  yearLabels  = new ArrayList<>();
             List<Integer> orderEachYear = new ArrayList<>();
 
-
             for (int i = 0; i < totalYear; i++) {
-
-                String yearss = Integer.toString(startYear);
-                yearAfterLoop.add(yearss);
-                orderEachYear.add(distributorHomepageRepository.getTotalOrderEachYear(storeId, startYear) == null ? 0 : distributorHomepageRepository.getTotalOrderEachYear(storeId, startYear));
-                startYear++;
+                yearLabels.add(String.valueOf(startYear + i));
+                Integer rawEach = distributorHomepageRepository.getTotalOrderEachYear(storeId, startYear + i);
+                orderEachYear.add(Objects.requireNonNullElse(rawEach, 0));
             }
-            orderChart.setMonth(yearAfterLoop);
 
+            orderChart.setMonth(yearLabels);
             orderChart.setTotalOrderEachMonth(orderEachYear);
         }
 
@@ -202,78 +127,4 @@ public class DistributorHomepageServiceImp implements DistributorHomepageService
         }
         throw new BadRequestException("Invalid " + fieldName + ". Format should be yyyy-MM or yyyy-MM-dd");
     }
-
-
-//    @Override
-//    public OrderChartByYear getTotalByYear(Integer currentUserId, String startDate, String endDate) throws ParseException {
-//
-//        Integer storeId= distributorHomepageRepository.getStoreId(currentUserId);
-//        OrderChartByYear orderChartByYear= new OrderChartByYear();
-//
-//        Integer startYear = Integer.parseInt(startDate.substring(0, 4));
-//        Integer startMonth = Integer.parseInt(startDate.substring(5));
-//
-//
-//        Integer endYear = Integer.parseInt(endDate.substring(0, 4));
-//        Integer endMonth = Integer.parseInt(endDate.substring(5));
-//
-//        // 1st check allow endDate have to bigger than startDate
-//        if (endYear - startYear < 0 ) {
-//            throw new BadRequestException("End date need to be higher than start date. Please input at least 1 month higher");
-//        }
-//
-//        Date newEndDate = formatter.parse(endDate);
-//        System.out.println(newEndDate);
-//        if (newEndDate.compareTo(new Date()) > 0) {
-//            throw new BadRequestException("End date cannot be higher than today. ");
-//        }
-//
-//
-//        if(endYear - startYear > 1 ) {
-//
-//            //get total order by number of year
-//            Integer finalTotalOrderYear = distributorHomepageRepository.getTotalOrderByYear(storeId, startDate, endDate);
-//            orderChartByYear.setTotalOrder(finalTotalOrderYear);
-//
-//
-//            //get total products import by number of years
-//            Integer finalTotalProductImportByYear = distributorHomepageRepository.getTotalProductImportByYear(storeId, startDate, endDate);
-//            orderChartByYear.setTotalProductImport(finalTotalProductImportByYear);
-//
-//
-//            //get total products sold by number of years
-//            Integer finalTotalProductSoldByYear = distributorHomepageRepository.getTotalProductSoldByYear(storeId, startDate, endDate);
-//            orderChartByYear.setTotalProductSold(finalTotalProductSoldByYear);
-//
-//
-//            //get total order for each year
-//            Integer finalTotalOrderEachYear = distributorHomepageRepository.getTotalOrderEachYear(storeId, startYear);
-//            Integer totalYear = 1+(endYear - startYear);
-//
-//            List<String> yearAfterLoop = new ArrayList<>();
-//            List<Integer> orderEachYear = new ArrayList<>();
-//
-//            System.out.println(startYear);
-//
-//            for (int i = 0; i < totalYear; i++) {
-//
-//                String yearss = Integer.toString(startYear);
-//                yearAfterLoop.add(yearss);
-//                orderEachYear.add(distributorHomepageRepository.getTotalOrderEachYear(storeId, startYear) == null ? 0 : distributorHomepageRepository.getTotalOrderEachYear(storeId, startYear));
-//                startYear++;
-//
-//            }
-//            orderChartByYear.setYear(yearAfterLoop);
-//
-//
-//            orderChartByYear.setTotalOrderEachYear(orderEachYear);
-//
-//        }else {
-//            throw new BadRequestException("Please select more than 2 years of date");
-//        }
-//
-//        return orderChartByYear;
-//    }
-//
-
 }

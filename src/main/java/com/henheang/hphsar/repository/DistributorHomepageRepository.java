@@ -1,11 +1,14 @@
 package com.henheang.hphsar.repository;
 
+import com.henheang.hphsar.model.distributor.DistributorHomepage;
 import org.apache.ibatis.annotations.Mapper;
 
 
 @Mapper
 public interface DistributorHomepageRepository {
     Integer getStoreId(Integer currentUserId);
+
+    DistributorHomepage getHomepageCounts(Integer storeId);
 
     Integer getNewOrder(Integer storeId);
 
