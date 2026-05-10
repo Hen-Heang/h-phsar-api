@@ -236,15 +236,21 @@ public class RetailerStoreServiceImplV1 implements RetailerStoreService {
         if (!checkIfStoreExist(storeId)) {
             throw new NotFoundException("This store id does not exist.");
         }
-        String[] validStrings = {"name", "qty", "price", "created_date"};
-        if (Arrays.stream(validStrings).noneMatch(by::contains)) {
+        Map<String, String> validColumns = Map.of(
+                "name", "tp.name",
+                "qty", "td.qty",
+                "price", "td.price",
+                "created_date", "td.created_date"
+        );
+        if (!validColumns.containsKey(by)) {
             throw new BadRequestException("Available sort are: 'name', 'qty', 'price', and 'created_date'.");
         }
+        String qualifiedBy = validColumns.get(by);
         List<Product> products = null;
         if (sort.equalsIgnoreCase("asc")) {
-            products = storeRepository.getProductListingByStoreIdASC(storeId, by);
+            products = storeRepository.getProductListingByStoreIdASC(storeId, qualifiedBy);
         } else if (sort.equalsIgnoreCase("desc")) {
-            products = storeRepository.getProductListingByStoreIdDESC(storeId, by);
+            products = storeRepository.getProductListingByStoreIdDESC(storeId, qualifiedBy);
         }
         assert products != null;
         if (products.isEmpty()) {
