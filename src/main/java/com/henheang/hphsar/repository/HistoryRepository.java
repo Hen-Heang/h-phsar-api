@@ -5,6 +5,7 @@ import com.henheang.hphsar.model.history.OrderDetailHistory;
 import com.henheang.hphsar.model.history.OrderHistory;
 import com.henheang.hphsar.model.product.ProductOrder;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 
 import java.util.Date;
 import java.util.List;
@@ -34,21 +35,24 @@ public interface HistoryRepository {
 
     OrderHistory getOrderByOrderId(Integer orderId);
 
-    Integer findTotalRetailerOrder(Integer currentUserId);
+    Integer findTotalBuyerOrder(Integer currentUserId);
 
-    List<OrderDetailHistory> getRetailerOrderHistory(String sort, Integer pageNumber, Integer pageSize, Integer currentUserId);
+    List<OrderDetailHistory> getBuyerOrderHistory(String sort, Integer pageNumber, Integer pageSize, Integer currentUserId);
 
-    OrderHistory getRetailerOrderByOrderId(Integer orderId);
+    OrderHistory getBuyerOrderByOrderId(Integer orderId);
 
-    Integer findTotalRetailerDraft(Integer currentUserId);
+    Integer findTotalBuyerDraft(Integer currentUserId);
 
-    List<OrderDetailHistory> getRetailerDraft(String sort, Integer pageNumber, Integer pageSize, Integer currentUserId);
+    List<OrderDetailHistory> getBuyerDraft(String sort, Integer pageNumber, Integer pageSize, Integer currentUserId);
 
-    boolean checkDraftById(Integer id);
+    // Ownership-scoped: a draft may only be seen/mutated by the buyer it belongs to.
+    // The buyer id must come from the authenticated principal in the service layer,
+    // never from the request — see HistoryServiceImplV1.
+    boolean existsDraftByIdAndBuyerId(@Param("draftId") Integer draftId, @Param("buyerAccountId") Integer buyerAccountId);
 
-    Integer deleteDraftById(Integer id);
+    int deleteDraftByIdAndBuyerId(@Param("draftId") Integer draftId, @Param("buyerAccountId") Integer buyerAccountId);
 
-    Integer updateDraftById(Integer id);
+    int submitDraftByIdAndBuyerId(@Param("draftId") Integer draftId, @Param("buyerAccountId") Integer buyerAccountId);
 
     OrderDetailHistory getDraftHistory(Integer id, Integer currentUserId);
 }

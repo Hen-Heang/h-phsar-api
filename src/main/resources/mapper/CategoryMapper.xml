@@ -6,7 +6,7 @@
     WHAT IS THIS FILE?
     ══════════════════
     XML Mapper for CategoryRepository.
-    Handles category management for distributor stores.
+    Handles category management for supplier stores.
 
     Two types of operations:
     1. tb_category — the global category table (name, created_date, updated_date)
@@ -172,7 +172,7 @@
     <select id="getStoreIdByCurrentUserId" resultType="int">
         SELECT id
         FROM tb_store
-        WHERE distributor_account_id = #{userId}
+        WHERE supplier_account_id = #{userId}
     </select>
 
     <select id="getCategoryInCurrentStoreId" resultType="int">
@@ -226,7 +226,7 @@
     </select>
 
     <select id="storeIsExist" resultType="boolean">
-        SELECT EXISTS(SELECT * FROM tb_store WHERE distributor_account_id = #{currentUserId})
+        SELECT EXISTS(SELECT * FROM tb_store WHERE supplier_account_id = #{currentUserId})
     </select>
 
     <select id="getCategories" resultType="int">

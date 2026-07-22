@@ -17,7 +17,7 @@ import java.util.Random;
  * OtpServiceImplV1 — OTP business logic
  * <p>
  * PROCESS — generateOtp():
- *   1. Find the user by email (distributor or retailer)
+ *   1. Find the user by email (supplier or buyer)
  *   2. FIX 8: Check if a valid OTP was already sent recently (rate limiting)
  *      → Prevent email spam and DB flooding
  *   3. Generate a random 4-digit number (1000–9999)
@@ -47,31 +47,31 @@ public class OtpServiceImplV1 implements OtpService {
     // Returns true if the user's email is already marked as verified in the DB
     // Used to prevent verifying an already-active account
     private boolean checkIfUserIsActivated(String email) {
-        AppUser appUser = otpRepository.checkIfActivatedByDistributorEmail(email);
+        AppUser appUser = otpRepository.checkIfActivatedBySupplierEmail(email);
         if (appUser == null) {
-            appUser = otpRepository.checkIfActivatedByRetailerEmail(email);
+            appUser = otpRepository.checkIfActivatedByBuyerEmail(email);
         }
         return appUser != null;
     }
 
     // ─── Helper: Get User By Email ──────────────────────────────────────────────
 
-    // Try distributor first, then retailer — the email can belong to either table
+    // Try supplier first, then buyer — the email can belong to either table
     private AppUser getUserByEmail(String email) {
-        AppUser appUser = otpRepository.getUserDistributorByEmail(email);
+        AppUser appUser = otpRepository.getUserSupplierByEmail(email);
         if (appUser == null) {
-            appUser = otpRepository.getUserRetailerByEmail(email);
+            appUser = otpRepository.getUserBuyerByEmail(email);
         }
         return appUser;
     }
 
     // ─── Helper: Get Latest OTP By Email ───────────────────────────────────────
 
-    // Try distributor OTP table first, then retailer
+    // Try supplier OTP table first, then buyer
     private Otp getLatestOtpByEmail(String email) {
-        Otp otp = otpRepository.getDistributorOtpByEmail(email);
+        Otp otp = otpRepository.getSupplierOtpByEmail(email);
         if (otp == null) {
-            otp = otpRepository.getRetailerOtpByEmail(email);
+            otp = otpRepository.getBuyerOtpByEmail(email);
         }
         return otp;
     }
@@ -103,14 +103,14 @@ public class OtpServiceImplV1 implements OtpService {
         Integer otpNumber = new Random().nextInt(9000) + 1000;
 
         // Step 4: Save the OTP to the correct table based on user role
-        // roleId 1 = DISTRIBUTOR → tb_distributor_otp
-        // roleId 2 = RETAILER    → tb_retailer_otp
+        // roleId 1 = SUPPLIER → tb_supplier_otp
+        // roleId 2 = BUYER       → tb_buyer_otp
         Otp otp;
         java.sql.Timestamp time = new Timestamp(System.currentTimeMillis());
         if (appUser.getRoleId() == 1) {
-            otp = otpRepository.generateDistributorOtp(appUser.getId(), otpNumber, email, time);
+            otp = otpRepository.generateSupplierOtp(appUser.getId(), otpNumber, email, time);
         } else {
-            otp = otpRepository.generateRetailerOtp(appUser.getId(), otpNumber, email, time);
+            otp = otpRepository.generateBuyerOtp(appUser.getId(), otpNumber, email, time);
         }
 
         if (otp == null) {
@@ -164,11 +164,11 @@ public class OtpServiceImplV1 implements OtpService {
         }
 
         // Step 4: Mark account as verified in DB (is_verified = true)
-        // Try distributor first — if '1' returned, update was successful
-        String confirm = otpRepository.verifyDistributor(email);
+        // Try supplier first — if '1' returned, update was successful
+        String confirm = otpRepository.verifySupplier(email);
         if (!Objects.equals(confirm, "1")) {
-            // If not a distributor, try retailer
-            confirm = otpRepository.verifyRetailer(email);
+            // If not a supplier, try buyer
+            confirm = otpRepository.verifyBuyer(email);
         }
         if (!Objects.equals(confirm, "1")) {
             throw new InternalServerErrorException("Verification failed. Please try again.");
@@ -177,8 +177,8 @@ public class OtpServiceImplV1 implements OtpService {
         // Step 5 (FIX 3 — Delete OTP after use):
         // WHY: OTP is now consumed. Delete it so it cannot be reused.
         //      Both deletes are called — only the matching one will affect rows.
-        otpRepository.deleteDistributorOtp(email);
-        otpRepository.deleteRetailerOtp(email);
+        otpRepository.deleteSupplierOtp(email);
+        otpRepository.deleteBuyerOtp(email);
 
         return "Account has been verified successfully.";
     }

@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
  * Fields:
  *   email   → must be valid email format, must be unique
  *   password → plain text here, will be Bcrypt encoded before saving to DB
- *   roleId  → 1 = DISTRIBUTOR, 2 = RETAILER
+ *   roleId  → 1 = SUPPLIER, 2 = BUYER
  * <p>
  * FIX 9: Removed all unused imports (Spring Security + Jackson)
  * WHY: These were leftover from copy-paste. The class is just a plain

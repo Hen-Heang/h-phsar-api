@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!--
+    WHAT IS THIS FILE?
+    ══════════════════
+    XML Mapper for BuyerProfileRepository.
+    Handles buyer personal profile (tb_buyer_info) and phone number operations.
+-->
+
+<mapper namespace="com.henheang.hphsar.repository.BuyerProfileRepository">
+
+    <!--
+        RESULT MAP — Buyer
+        ══════════════════════
+        Maps snake_case DB columns → camelCase Java fields.
+
+        <collection> for additionalPhoneNumber:
+            column="id"    → passes the buyer_info id to the sub-select
+            select="..."   → calls getAdditionalPhoneNumberByBuyerInfoId to get List<String>
+    -->
+    <resultMap id="BuyerResultMap" type="com.henheang.hphsar.model.buyer.Buyer">
+        <id     property="id"                   column="id"/>
+        <result property="buyerAccountId"    column="buyerAccountId"/>
+        <result property="firstName"            column="firstName"/>
+        <result property="lastName"             column="lastName"/>
+        <result property="gender"               column="gender"/>
+        <result property="address"              column="address"/>
+        <result property="primaryPhoneNumber"   column="primaryPhoneNumber"/>
+        <result property="profileImage"         column="profileImage"/>
+        <result property="createdDate"          column="createdDate"/>
+        <result property="updatedDate"          column="updatedDate"/>
+        <!--
+            @Many equivalent in XML.
+            After MyBatis fetches the main row, it calls getAdditionalPhoneNumberByBuyerInfoId
+            with the value from column "id" and maps the result List<String> into additionalPhoneNumber.
+        -->
+        <collection property="additionalPhoneNumber"
+                    column="id"
+                    select="getAdditionalPhoneNumberByBuyerInfoId"/>
+    </resultMap>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         CREATE PROFILE — INSERT and return the new buyer_info id
+         ═══════════════════════════════════════════════════════════════════════
+         #{re.firstName} → accesses firstName from the BuyerRequest object
+         "re" comes from @Param("re") on the method parameter
+    -->
+
+    <select id="createBuyerProfile" resultType="int">
+        INSERT INTO tb_buyer_info
+        VALUES (DEFAULT, #{currentUserId}, #{re.firstName}, #{re.lastName}, #{re.gender}, #{re.address},
+                #{re.primaryPhoneNumber}, #{re.profileImage}, DEFAULT, DEFAULT)
+        RETURNING id
+    </select>
+
+    <!-- ─── ADDITIONAL PHONE ────────────────────────────────────────────────── -->
+
+    <insert id="insertAdditinalPhoneNumber">
+        INSERT INTO tb_buyer_phone
+        VALUES (DEFAULT, #{buyerInfoId}, #{additionalPhoneNumber})
+    </insert>
+
+    <select id="getAdditionalPhoneNumberByBuyerInfoId" resultType="String">
+        SELECT phone_number FROM tb_buyer_phone WHERE buyer_info_id = #{id}
+    </select>
+
+    <delete id="deleteAdditionalPhoneNumber">
+        DELETE FROM tb_buyer_phone WHERE buyer_info_id = #{buyerInfoId}
+    </delete>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         GET PROFILE — returns full Buyer with additional phones
+         ═══════════════════════════════════════════════════════════════════════
+         All columns are aliased to match Java field names.
+         The resultMap above handles the @Many phone number collection.
+    -->
+
+    <select id="getBuyerProfile" resultMap="BuyerResultMap">
+        SELECT id,
+               buyer_account_id AS buyerAccountId,
+               first_name          AS firstName,
+               last_name           AS lastName,
+               gender,
+               address,
+               primary_phone_number AS primaryPhoneNumber,
+               profile_image        AS profileImage,
+               created_date         AS createdDate,
+               updated_date         AS updatedDate
+        FROM tb_buyer_info
+        WHERE buyer_account_id = #{currentUserId}
+    </select>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         UPDATE PROFILE
+         ═══════════════════════════════════════════════════════════════════════
+         No return value — uses <update> tag.
+    -->
+
+    <update id="updateBuyerProfile">
+        UPDATE tb_buyer_info
+        SET first_name           = #{re.firstName},
+            last_name            = #{re.lastName},
+            gender               = #{re.gender},
+            address              = #{re.address},
+            primary_phone_number = #{re.primaryPhoneNumber},
+            profile_image        = #{re.profileImage}
+        WHERE buyer_account_id = #{currentUserId}
+    </update>
+
+    <!-- ─── HELPERS ──────────────────────────────────────────────────────────── -->
+
+    <select id="getBuyerInfoId" resultType="int">
+        SELECT id FROM tb_buyer_info WHERE buyer_account_id = #{currentUserId}
+    </select>
+
+    <select id="checkIfBuyerProfileIsAlreadyCreated" resultType="boolean">
+        SELECT EXISTS(SELECT * FROM tb_buyer_info WHERE buyer_account_id = #{currentUserId})
+    </select>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         LOOKUP METHODS — called by @One nested selects in OrderSupplierMapper
+         ═══════════════════════════════════════════════════════════════════════
+         These return a single String value used to populate fields in Order objects.
+    -->
+
+    <select id="getBuyerNameById" resultType="String">
+        SELECT concat(first_name, ' ', last_name) FROM tb_buyer_info
+        WHERE buyer_account_id = #{buyerId}
+    </select>
+
+    <select id="getBuyerImageById" resultType="String">
+        SELECT profile_image FROM tb_buyer_info
+        WHERE buyer_account_id = #{buyerId}
+    </select>
+
+    <select id="getBuyerAddressById" resultType="String">
+        SELECT address FROM tb_buyer_info
+        WHERE buyer_account_id = #{buyerId}
+    </select>
+
+    <select id="getBuyerPhoneById" resultType="String">
+        SELECT primary_phone_number FROM tb_buyer_info
+        WHERE buyer_account_id = #{buyerId}
+    </select>
+
+    <select id="getBuyerEmailById" resultType="String">
+        SELECT email FROM tb_buyer_account
+        WHERE id = #{id}
+    </select>
+
+</mapper>

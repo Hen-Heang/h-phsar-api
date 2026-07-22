@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head th:replace="~{fragments/layout :: head}">
+  <title>History | H-Phsar Buyer</title>
+</head>
+<body>
+
+<div th:replace="~{fragments/layout :: buyer-sidebar}"></div>
+
+<div class="main-wrapper">
+  <div th:replace="~{fragments/layout :: topbar('Order History')}"></div>
+
+  <main class="page-content">
+    <div class="page-header">
+      <h2>Order History</h2>
+      <p>View completed orders and saved drafts.</p>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tab-pills mb-3">
+      <button class="tab-pill active" id="tab-orders" onclick="switchTab('orders')">
+        <i class="bi bi-bag-check me-1"></i>Completed Orders
+      </button>
+      <button class="tab-pill" id="tab-drafts" onclick="switchTab('drafts')">
+        <i class="bi bi-archive me-1"></i>Saved Drafts
+      </button>
+    </div>
+
+    <div class="card">
+      <div class="card-header-custom flex-wrap gap-2">
+        <h6 id="tab-label">Completed Orders</h6>
+        <div class="d-flex gap-2 align-items-center">
+          <select id="sort-select" class="form-select form-select-sm" style="width:auto;" onchange="loadCurrent(1)">
+            <option value="desc">Newest first</option>
+            <option value="asc">Oldest first</option>
+          </select>
+          <span class="text-muted" style="font-size:13px;" id="history-total"></span>
+        </div>
+      </div>
+
+      <div id="history-list" class="p-3">
+        <div class="text-center text-muted py-4">Loading...</div>
+      </div>
+
+      <div class="pagination-wrapper">
+        <span id="history-page-info" style="font-size:13px;color:#6b7280;"></span>
+        <div class="d-flex gap-1" id="history-page-buttons"></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div id="toast-container"></div>
+<div th:replace="~{fragments/layout :: scripts}"></div>
+<script>
+  redirectIfNoToken();
+
+  let activeTab   = 'orders';
+  let currentPage = 1;
+
+  document.addEventListener('DOMContentLoaded', () => loadCurrent(1));
+
+  function switchTab(tab) {
+    activeTab = tab;
+    currentPage = 1;
+    document.getElementById('tab-orders').classList.toggle('active', tab === 'orders');
+    document.getElementById('tab-drafts').classList.toggle('active', tab === 'drafts');
+    document.getElementById('tab-label').textContent = tab === 'orders' ? 'Completed Orders' : 'Saved Drafts';
+    loadCurrent(1);
+  }
+
+  function loadCurrent(page) {
+    if (activeTab === 'orders') loadOrders(page);
+    else loadDrafts(page);
+  }
+
+  async function loadOrders(page = 1) {
+    currentPage = page;
+    const sort = document.getElementById('sort-select').value;
+    const list = document.getElementById('history-list');
+    list.innerHTML = '<div class="text-center text-muted py-4">Loading...</div>';
+
+    try {
+      const res    = await api.get(`/api/v1/buyers/history/order?sort=${sort}&pageNumber=${page}&pageSize=10`);
+      const orders = res.data || [];
+      const total  = res.totalElements || orders.length;
+      const pages  = res.totalPages    || 1;
+
+      document.getElementById('history-total').textContent    = `${total} order(s)`;
+      document.getElementById('history-page-info').textContent = `Page ${page} of ${pages}`;
+      renderPagination('history-page-buttons', page, pages, loadOrders);
+
+      if (!orders.length) {
+        list.innerHTML = '<div class="empty-state"><i class="bi bi-bag-check"></i><p>No completed orders yet.</p></div>';
+        return;
+      }
+
+      list.innerHTML = orders.map(entry => {
+        const o = entry.order || entry;
+        const items = entry.products || [];
+        return `
+        <div class="card mb-3" style="border:1px solid #e5e7eb;border-radius:10px;">
+          <div class="card-body p-3">
+            <div class="d-flex align-items-start justify-content-between mb-2">
+              <div>
+                <span class="fw-bold text-primary">#${o.id}</span>
+                <span class="ms-2 status-badge status-complete">${o.status || 'COMPLETE'}</span>
+              </div>
+              <span class="text-muted" style="font-size:12px;">${formatDate(o.date)}</span>
+            </div>
+            <div class="text-muted" style="font-size:13px;"><i class="bi bi-shop me-1"></i>${o.storeName || o.name || '—'}</div>
+            <div class="fw-bold text-success mt-1">${formatCurrency(o.total)}</div>
+            ${items.length ? `<div class="mt-2 text-muted" style="font-size:12px;">${items.length} item(s): ${items.slice(0,2).map(i => i.productName).join(', ')}${items.length > 2 ? '...' : ''}</div>` : ''}
+          </div>
+        </div>`;
+      }).join('');
+
+    } catch (e) {
+      list.innerHTML = '<div class="empty-state"><i class="bi bi-exclamation-circle"></i><p>Could not load history.</p></div>';
+    }
+  }
+
+  async function loadDrafts(page = 1) {
+    currentPage = page;
+    const sort = document.getElementById('sort-select').value;
+    const list = document.getElementById('history-list');
+    list.innerHTML = '<div class="text-center text-muted py-4">Loading...</div>';
+
+    try {
+      const res    = await api.get(`/api/v1/buyers/history/draft?sort=${sort}&pageNumber=${page}&pageSize=10`);
+      const drafts = res.data || [];
+      const total  = res.totalElements || drafts.length;
+      const pages  = res.totalPages    || 1;
+
+      document.getElementById('history-total').textContent    = `${total} draft(s)`;
+      document.getElementById('history-page-info').textContent = `Page ${page} of ${pages}`;
+      renderPagination('history-page-buttons', page, pages, loadDrafts);
+
+      if (!drafts.length) {
+        list.innerHTML = '<div class="empty-state"><i class="bi bi-archive"></i><p>No saved drafts. Save a cart as draft to see it here.</p></div>';
+        return;
+      }
+
+      list.innerHTML = drafts.map(entry => {
+        const o = entry.order || entry;
+        const items = entry.products || [];
+        return `
+        <div class="card mb-3" style="border:1px solid #e5e7eb;border-radius:10px;">
+          <div class="card-body p-3">
+            <div class="d-flex align-items-start justify-content-between mb-2">
+              <div>
+                <span class="fw-bold text-primary">#${o.id}</span>
+                <span class="ms-2 status-badge status-pending">DRAFT</span>
+              </div>
+              <span class="text-muted" style="font-size:12px;">${formatDate(o.date)}</span>
+            </div>
+            <div class="text-muted" style="font-size:13px;"><i class="bi bi-shop me-1"></i>${o.storeName || o.name || '—'}</div>
+            <div class="fw-bold text-success mt-1">${formatCurrency(o.total)}</div>
+            ${items.length ? `<div class="mt-2 text-muted" style="font-size:12px;">${items.length} item(s): ${items.slice(0,2).map(i => i.productName).join(', ')}${items.length > 2 ? '...' : ''}</div>` : ''}
+            <div class="mt-3 d-flex gap-2">
+              <button class="btn btn-sm btn-success" onclick="restoreDraft(${o.id})">
+                <i class="bi bi-arrow-counterclockwise me-1"></i>Move to Cart
+              </button>
+              <button class="btn btn-sm btn-outline-danger" onclick="deleteDraft(${o.id})">
+                <i class="bi bi-trash3 me-1"></i>Delete
+              </button>
+            </div>
+          </div>
+        </div>`;
+      }).join('');
+
+    } catch (e) {
+      list.innerHTML = '<div class="empty-state"><i class="bi bi-exclamation-circle"></i><p>Could not load drafts.</p></div>';
+    }
+  }
+
+  async function restoreDraft(draftId) {
+    try {
+      await api.put(`/api/v1/buyers/history/draft/${draftId}`);
+      toast('Draft moved back to cart!', 'success');
+      setTimeout(() => window.location.href = '/web/buyers/cart', 800);
+    } catch (e) { toast(e?.message || 'Could not restore draft.', 'error'); }
+  }
+
+  async function deleteDraft(draftId) {
+    if (!confirm('Delete this draft?')) return;
+    try {
+      await api.delete(`/api/v1/buyers/history/draft/${draftId}`);
+      toast('Draft deleted.', 'info');
+      loadDrafts(currentPage);
+    } catch (e) { toast('Could not delete draft.', 'error'); }
+  }
+</script>
+</body>
+</html>

@@ -26,30 +26,30 @@
   </div>
 
   <!-- Main navigation -->
-  <p class="sidebar-section-label">Distributor</p>
+  <p class="sidebar-section-label">Supplier</p>
   <ul class="sidebar-nav">
     <li>
-      <a th:href="@{/web/distributor/dashboard}">
+      <a th:href="@{/web/suppliers/dashboard}">
         <i class="bi bi-grid-1x2-fill"></i> Dashboard
       </a>
     </li>
     <li>
-      <a th:href="@{/web/distributor/products}">
+      <a th:href="@{/web/suppliers/products}">
         <i class="bi bi-box-seam-fill"></i> Products
       </a>
     </li>
     <li>
-      <a th:href="@{/web/distributor/orders}">
+      <a th:href="@{/web/suppliers/orders}">
         <i class="bi bi-bag-fill"></i> Orders
       </a>
     </li>
     <li>
-      <a th:href="@{/web/distributor/categories}">
+      <a th:href="@{/web/suppliers/categories}">
         <i class="bi bi-tags-fill"></i> Categories
       </a>
     </li>
     <li>
-      <a th:href="@{/web/distributor/store}">
+      <a th:href="@{/web/suppliers/store}">
         <i class="bi bi-shop"></i> My Store
       </a>
     </li>
@@ -58,7 +58,7 @@
   <p class="sidebar-section-label">Account</p>
   <ul class="sidebar-nav">
     <li>
-      <a th:href="@{/web/distributor/profile}">
+      <a th:href="@{/web/suppliers/profile}">
         <i class="bi bi-person-fill"></i> Profile
       </a>
     </li>
@@ -72,40 +72,40 @@
 </nav>
 
 <!-- ═══════════════════════════════════════════════════
-     Fragment: retailer-sidebar
+     Fragment: buyer-sidebar
      ═══════════════════════════════════════════════════ -->
-<nav th:fragment="retailer-sidebar" class="sidebar" style="background:#0f4c3a;">
+<nav th:fragment="buyer-sidebar" class="sidebar" style="background:#0f4c3a;">
 
   <div class="sidebar-brand">
     <div class="brand-logo" style="background:#10b981;">R</div>
     <span class="brand-name">H-Phsar</span>
   </div>
 
-  <p class="sidebar-section-label">Retailer</p>
+  <p class="sidebar-section-label">Buyer</p>
   <ul class="sidebar-nav">
     <li>
-      <a th:href="@{/web/retailer/dashboard}">
+      <a th:href="@{/web/buyers/dashboard}">
         <i class="bi bi-grid-1x2-fill"></i> Dashboard
       </a>
     </li>
     <li>
-      <a th:href="@{/web/retailer/stores}">
+      <a th:href="@{/web/buyers/stores}">
         <i class="bi bi-shop-window"></i> Browse Stores
       </a>
     </li>
     <li>
-      <a th:href="@{/web/retailer/cart}">
+      <a th:href="@{/web/buyers/cart}">
         <i class="bi bi-cart3"></i> My Cart
         <span id="sidebar-cart-badge" class="ms-auto badge" style="background:#10b981;font-size:10px;display:none;"></span>
       </a>
     </li>
     <li>
-      <a th:href="@{/web/retailer/orders}">
+      <a th:href="@{/web/buyers/orders}">
         <i class="bi bi-bag-fill"></i> Orders
       </a>
     </li>
     <li>
-      <a th:href="@{/web/retailer/history}">
+      <a th:href="@{/web/buyers/history}">
         <i class="bi bi-clock-history"></i> History
       </a>
     </li>
@@ -114,7 +114,7 @@
   <p class="sidebar-section-label">Account</p>
   <ul class="sidebar-nav">
     <li>
-      <a th:href="@{/web/retailer/profile}">
+      <a th:href="@{/web/buyers/profile}">
         <i class="bi bi-person-fill"></i> Profile
       </a>
     </li>
@@ -138,7 +138,7 @@
       <i class="bi bi-bell-fill"></i>
       <span class="notif-badge" id="notif-badge"></span>
     </button>
-    <div class="topbar-user" onclick="window.location='/web/distributor/profile'">
+    <div class="topbar-user" onclick="window.location='/web/suppliers/profile'">
       <div class="avatar" id="topbar-avatar">U</div>
       <span id="topbar-user-name">Account</span>
     </div>

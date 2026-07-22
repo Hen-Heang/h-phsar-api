@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head th:replace="~{fragments/layout :: head}">
+  <title>Dashboard | H-Phsar Buyer</title>
+</head>
+<body>
+
+<div th:replace="~{fragments/layout :: buyer-sidebar}"></div>
+
+<div class="main-wrapper">
+  <div th:replace="~{fragments/layout :: topbar('Dashboard')}"></div>
+
+  <main class="page-content">
+
+    <div class="page-header">
+      <h2>Buyer Dashboard</h2>
+      <p>Welcome back! Here's your shopping activity overview.</p>
+    </div>
+
+    <!-- Stat Cards -->
+    <div class="row g-3 mb-4">
+      <div class="col-xl-3 col-sm-6">
+        <div class="stat-card">
+          <div class="stat-icon icon-blue"><i class="bi bi-bag-fill"></i></div>
+          <div class="stat-value" id="stat-total-orders">—</div>
+          <div class="stat-label">Total Orders</div>
+          <div class="stat-change up" id="stat-orders-sub">this month</div>
+        </div>
+      </div>
+      <div class="col-xl-3 col-sm-6">
+        <div class="stat-card">
+          <div class="stat-icon icon-green"><i class="bi bi-currency-dollar"></i></div>
+          <div class="stat-value" id="stat-total-spent">—</div>
+          <div class="stat-label">Total Spent</div>
+          <div class="stat-change" style="color:#6b7280;">this month</div>
+        </div>
+      </div>
+      <div class="col-xl-3 col-sm-6">
+        <div class="stat-card">
+          <div class="stat-icon icon-yellow"><i class="bi bi-shop-window"></i></div>
+          <div class="stat-value" id="stat-shops">—</div>
+          <div class="stat-label">Shops Visited</div>
+          <div class="stat-change" style="color:#6b7280;">unique stores</div>
+        </div>
+      </div>
+      <div class="col-xl-3 col-sm-6">
+        <div class="stat-card">
+          <div class="stat-icon icon-red"><i class="bi bi-bell-fill"></i></div>
+          <div class="stat-value" id="stat-notifications">—</div>
+          <div class="stat-label">Notifications</div>
+          <div class="stat-change up" id="stat-notif-sub">unread</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent Orders + Notifications -->
+    <div class="row g-3 mb-4">
+
+      <!-- Recent Orders -->
+      <div class="col-lg-7">
+        <div class="card h-100">
+          <div class="card-header-custom">
+            <h6><i class="bi bi-bag me-2 text-primary"></i>Recent Orders</h6>
+            <a th:href="@{/web/buyers/orders}" style="font-size:13px;color:#3b82f6;text-decoration:none;">
+              View all <i class="bi bi-arrow-right"></i>
+            </a>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-hover mb-0">
+              <thead>
+                <tr>
+                  <th>Order ID</th>
+                  <th>Store</th>
+                  <th>Total</th>
+                  <th>Status</th>
+                  <th>Date</th>
+                </tr>
+              </thead>
+              <tbody id="recent-orders-body">
+                <tr><td colspan="5" class="text-center text-muted py-4">Loading...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Notifications -->
+      <div class="col-lg-5">
+        <div class="card h-100">
+          <div class="card-header-custom">
+            <h6><i class="bi bi-bell me-2 text-primary"></i>Recent Notifications</h6>
+            <button class="btn btn-sm btn-outline-secondary" onclick="markAllRead()">Mark all read</button>
+          </div>
+          <div id="notif-list" style="overflow-y:auto;max-height:320px;">
+            <div class="text-center text-muted py-4">Loading...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Monthly Report -->
+    <div class="row g-3">
+      <div class="col-lg-5">
+        <div class="card">
+          <div class="card-header-custom">
+            <h6><i class="bi bi-bar-chart me-2 text-primary"></i>Monthly Report</h6>
+            <div class="d-flex gap-2">
+              <label for="month-input"></label>
+              <input type="month" id="month-input" class="form-control form-control-sm" style="width:140px;"/>
+              <button class="btn-primary-custom" style="padding:4px 12px;font-size:13px;" onclick="loadReport()">
+                <i class="bi bi-arrow-clockwise"></i>
+              </button>
+            </div>
+          </div>
+          <div class="p-4">
+            <div class="d-flex justify-content-between mb-3">
+              <span class="text-muted" style="font-size:14px;">Orders</span>
+              <span class="fw-bold" id="report-orders">—</span>
+            </div>
+            <div class="d-flex justify-content-between mb-3">
+              <span class="text-muted" style="font-size:14px;">Total Spent</span>
+              <span class="fw-bold" id="report-spent">—</span>
+            </div>
+            <div class="d-flex justify-content-between mb-3">
+              <span class="text-muted" style="font-size:14px;">Products Ordered</span>
+              <span class="fw-bold" id="report-qty">—</span>
+            </div>
+            <div class="d-flex justify-content-between">
+              <span class="text-muted" style="font-size:14px;">Stores Visited</span>
+              <span class="fw-bold" id="report-shops">—</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="col-lg-7">
+        <div class="card">
+          <div class="card-header-custom">
+            <h6><i class="bi bi-lightning me-2 text-primary"></i>Quick Actions</h6>
+          </div>
+          <div class="p-4">
+            <div class="row g-3">
+              <div class="col-6">
+                <a th:href="@{/web/buyers/stores}" style="text-decoration:none;">
+                  <div class="stat-card" style="cursor:pointer;text-align:center;padding:20px;">
+                    <div style="font-size:32px;color:#3b82f6;margin-bottom:8px;"><i class="bi bi-shop-window"></i></div>
+                    <div class="fw-semibold" style="font-size:14px;">Browse Stores</div>
+                    <div class="text-muted" style="font-size:12px;">Find products to order</div>
+                  </div>
+                </a>
+              </div>
+              <div class="col-6">
+                <a th:href="@{/web/buyers/cart}" style="text-decoration:none;">
+                  <div class="stat-card" style="cursor:pointer;text-align:center;padding:20px;">
+                    <div style="font-size:32px;color:#10b981;margin-bottom:8px;"><i class="bi bi-cart3"></i></div>
+                    <div class="fw-semibold" style="font-size:14px;">My Cart</div>
+                    <div class="text-muted" style="font-size:12px;">Review &amp; checkout</div>
+                  </div>
+                </a>
+              </div>
+              <div class="col-6">
+                <a th:href="@{/web/buyers/orders}" style="text-decoration:none;">
+                  <div class="stat-card" style="cursor:pointer;text-align:center;padding:20px;">
+                    <div style="font-size:32px;color:#f59e0b;margin-bottom:8px;"><i class="bi bi-bag-check"></i></div>
+                    <div class="fw-semibold" style="font-size:14px;">Track Orders</div>
+                    <div class="text-muted" style="font-size:12px;">Monitor deliveries</div>
+                  </div>
+                </a>
+              </div>
+              <div class="col-6">
+                <a th:href="@{/web/buyers/history}" style="text-decoration:none;">
+                  <div class="stat-card" style="cursor:pointer;text-align:center;padding:20px;">
+                    <div style="font-size:32px;color:#8b5cf6;margin-bottom:8px;"><i class="bi bi-clock-history"></i></div>
+                    <div class="fw-semibold" style="font-size:14px;">Order History</div>
+                    <div class="text-muted" style="font-size:12px;">Past orders &amp; drafts</div>
+                  </div>
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<div id="toast-container"></div>
+<div th:replace="~{fragments/layout :: scripts}"></div>
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    redirectIfNoToken();
+    const now = new Date();
+    document.getElementById('month-input').value =
+      `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    loadDashboard();
+    loadReport();
+  });
+
+  async function loadDashboard() {
+    // Recent orders
+    try {
+      const res = await api.get('/api/v1/buyers/orders?sort=desc&pageNumber=1&pageSize=5');
+      const orders = res.data || [];
+      const tbody = document.getElementById('recent-orders-body');
+      if (!orders.length) {
+        tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state"><i class="bi bi-inbox"></i><p>No orders yet</p></div></td></tr>';
+      } else {
+        tbody.innerHTML = orders.map(o => `
+          <tr>
+            <td><span class="fw-semibold text-primary">#${o.id}</span></td>
+            <td>${o.storeName || '—'}</td>
+            <td>${formatCurrency(o.total)}</td>
+            <td>${buyerStatusBadge(o.status)}</td>
+            <td>${formatDate(o.date)}</td>
+          </tr>`).join('');
+      }
+    } catch (_) {}
+
+    // Notifications
+    try {
+      const res = await api.get('/api/v1/buyers/notifications');
+      const notifs = res.data || [];
+      const unread = notifs.filter(n => !n.seen).length;
+      document.getElementById('stat-notifications').textContent = unread;
+      const list = document.getElementById('notif-list');
+      if (!notifs.length) {
+        list.innerHTML = '<div class="text-center text-muted py-4">No notifications</div>';
+      } else {
+        list.innerHTML = notifs.slice(0, 6).map(n => `
+          <div class="d-flex align-items-start gap-3 p-3 border-bottom ${n.seen ? '' : 'bg-light'}" style="cursor:pointer;" onclick="markRead(${n.id}, this)">
+            <div style="width:36px;height:36px;border-radius:50%;background:#dbeafe;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <i class="bi bi-bell-fill text-primary" style="font-size:14px;"></i>
+            </div>
+            <div style="flex:1;min-width:0;">
+              <div class="fw-semibold" style="font-size:13px;">${n.title || n.store || '—'}</div>
+              <div class="text-muted" style="font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${n.description || ''}</div>
+              <div style="font-size:11px;color:#9ca3af;">${formatDate(n.createdDate)}</div>
+            </div>
+            ${n.seen ? '' : '<span class="badge bg-primary" style="font-size:9px;align-self:center;">NEW</span>'}
+          </div>`).join('');
+      }
+    } catch (_) {}
+  }
+
+  async function loadReport() {
+    const m = document.getElementById('month-input').value;
+    if (!m) { toast('Please select a month.', 'info'); return; }
+    try {
+      const res = await api.get(`/api/v1/buyers/reports?startDate=${m}&endDate=${m}`);
+      const d = res.data || {};
+      document.getElementById('stat-total-orders').textContent = d.totalOrder ?? 0;
+      document.getElementById('stat-total-spent').textContent  = formatCurrency(d.totalExpenseOrdered);
+      document.getElementById('stat-shops').textContent        = d.totalPurchasedShop ?? 0;
+      document.getElementById('report-orders').textContent     = d.totalOrder ?? 0;
+      document.getElementById('report-spent').textContent      = formatCurrency(d.totalExpenseOrdered);
+      document.getElementById('report-qty').textContent        = d.totalQuantityOrder ?? 0;
+      document.getElementById('report-shops').textContent      = d.totalPurchasedShop ?? 0;
+    } catch (e) {
+      toast('Could not load report.', 'error');
+    }
+  }
+
+  async function markRead(id, el) {
+    try {
+      await api.put(`/api/v1/buyers/notifications/${id}/read`);
+      el.classList.remove('bg-light');
+      const badge = el.querySelector('.badge');
+      if (badge) badge.remove();
+    } catch (_) {}
+  }
+
+  async function markAllRead() {
+    try {
+      await api.put('/api/v1/buyers/notifications/read');
+      document.querySelectorAll('#notif-list .bg-light').forEach(el => el.classList.remove('bg-light'));
+      document.querySelectorAll('#notif-list .badge').forEach(el => el.remove());
+      document.getElementById('stat-notifications').textContent = 0;
+      toast('All notifications marked as read.', 'success');
+    } catch (_) {}
+  }
+
+
+</script>
+</body>
+</html>

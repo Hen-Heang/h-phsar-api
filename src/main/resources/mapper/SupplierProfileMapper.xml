@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!--
+    WHAT IS THIS FILE?
+    ══════════════════
+    XML Mapper for SupplierProfileRepository.
+    Handles supplier personal profile (tb_supplier_info) and phone number operations.
+-->
+
+<mapper namespace="com.henheang.hphsar.repository.SupplierProfileRepository">
+
+    <!--
+        RESULT MAP — Supplier
+        ═════════════════════════
+        Maps snake_case DB column aliases → camelCase Java fields.
+        The SELECT queries already alias all columns, so MyBatis auto-mapping
+        would also work, but explicit resultMap is more reliable.
+    -->
+    <resultMap id="SupplierResultMap" type="com.henheang.hphsar.model.supplier.Supplier">
+        <id     property="id"                   column="id"/>
+        <result property="supplierAccountId" column="supplierAccountId"/>
+        <result property="firstName"            column="firstName"/>
+        <result property="lastName"             column="lastName"/>
+        <result property="gender"               column="gender"/>
+        <result property="profileImage"         column="profileImage"/>
+        <result property="createdDate"          column="createdDate"/>
+        <result property="updatedDate"          column="updatedDate"/>
+    </resultMap>
+
+    <!-- ─── GET ADDITIONAL PHONES ───────────────────────────────────────────── -->
+
+    <select id="getAdditionalPhoneNumberBySupplierInfoId" resultType="String">
+        SELECT phone_number AS additionalPhoneNUmber
+        FROM tb_supplier_phone
+        WHERE supplier_info_id = #{id}
+    </select>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         GET PROFILE — returns Supplier object (without additional phones)
+         ═══════════════════════════════════════════════════════════════════════
+         Additional phones are fetched separately via getAdditionalPhoneNumberBySupplierInfoId
+    -->
+
+    <select id="getUserProfile" resultMap="SupplierResultMap">
+        SELECT id                       AS id,
+               supplier_account_id  AS supplierAccountId,
+               first_name              AS firstName,
+               last_name               AS lastName,
+               profile_image           AS profileImage,
+               created_date            AS createdDate,
+               updated_date            AS updatedDate,
+               gender
+        FROM tb_supplier_info
+        WHERE supplier_account_id = #{currentUserId}
+    </select>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         INSERT PROFILE — INSERT and return the inserted row
+         ═══════════════════════════════════════════════════════════════════════
+         #{dis.firstName} → accesses firstName from SupplierRequest object
+         "dis" comes from @Param("dis") on the method parameter
+    -->
+
+    <select id="insertSupplierInfo" resultMap="SupplierResultMap">
+        INSERT INTO tb_supplier_info(id, supplier_account_id, first_name, last_name, gender, profile_image, created_date, updated_date)
+        VALUES (DEFAULT, #{currentUserId}, #{dis.firstName}, #{dis.lastName}, #{dis.gender}, #{dis.profileImage}, DEFAULT, DEFAULT)
+        RETURNING id,
+                  supplier_account_id AS supplierAccountId,
+                  first_name             AS firstName,
+                  last_name              AS lastName,
+                  gender,
+                  profile_image          AS profileImage,
+                  created_date           AS createdDate,
+                  updated_date           AS updatedDate
+    </select>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         UPDATE PROFILE — UPDATE and return the updated row
+         ═══════════════════════════════════════════════════════════════════════
+    -->
+
+    <select id="updateUserProfile" resultMap="SupplierResultMap">
+        UPDATE tb_supplier_info
+        SET first_name    = #{dis.firstName},
+            last_name     = #{dis.lastName},
+            gender        = #{dis.gender},
+            profile_image = #{dis.profileImage},
+            updated_date  = NOW()
+        WHERE supplier_account_id = #{currentUserId}
+        RETURNING id,
+                  supplier_account_id AS supplierAccountId,
+                  first_name             AS firstName,
+                  last_name              AS lastName,
+                  gender,
+                  profile_image          AS profileImage,
+                  created_date           AS createdDate,
+                  updated_date           AS updatedDate
+    </select>
+
+    <!-- ─── ADDITIONAL PHONE ────────────────────────────────────────────────── -->
+
+    <insert id="addAdditionalPhoneNumber">
+        INSERT INTO tb_supplier_phone VALUES (DEFAULT, #{infoId}, #{additionalPhoneNumber})
+    </insert>
+
+    <delete id="deleteAdditioanlPhoneNumber">
+        DELETE FROM tb_supplier_phone WHERE supplier_info_id = #{infoId}
+    </delete>
+
+    <!-- ─── HELPERS ──────────────────────────────────────────────────────────── -->
+
+    <select id="checkIfUserProfileIsCreated" resultType="boolean">
+        SELECT EXISTS(SELECT * FROM tb_supplier_info WHERE supplier_account_id = #{currentUserId})
+    </select>
+
+    <select id="getSupplierInfoId" resultType="int">
+        SELECT id FROM tb_supplier_info WHERE supplier_account_id = #{currentUserId}
+    </select>
+
+    <select id="checkIfAdditionalPhoneNumberExist" resultType="boolean">
+        SELECT EXISTS(SELECT * FROM tb_supplier_phone WHERE phone_number = #{additionalPhoneNumber})
+    </select>
+
+    <select id="getSupplierIdByStoreId" resultType="int">
+        SELECT supplier_account_id FROM tb_store WHERE id = #{storeId}
+    </select>
+
+</mapper>

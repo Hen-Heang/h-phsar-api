@@ -15,8 +15,8 @@
             MyBatis uses this to know: "this XML belongs to AppUserRepository"
 
     Each SQL block has an id="..." that matches the method name in the Java interface:
-        Java method: AppUser findDistributorUserByEmail(String email)
-        XML block: <select id="findDistributorUserByEmail" ...>
+        Java method: AppUser findSupplierUserByEmail(String email)
+        XML block: <select id="findSupplierUserByEmail" ...>
 
     HOW PARAMETERS WORK:
     ══════════════════════
@@ -72,18 +72,18 @@
                            (usually auto-increment id, timestamps, boolean defaults)
     -->
 
-    <!-- Insert a new DISTRIBUTOR account into tb_distributor_account -->
-    <select id="insertDistributorUser" resultMap="AppUserResultMap">
-        INSERT INTO tb_distributor_account
+    <!-- Insert a new SUPPLIER account into tb_supplier_account -->
+    <select id="insertSupplierUser" resultMap="AppUserResultMap">
+        INSERT INTO tb_supplier_account
         VALUES (DEFAULT, #{user.roleId}, #{user.email}, #{user.password}, DEFAULT, DEFAULT, DEFAULT, DEFAULT)
         RETURNING id, email, password,
                   (SELECT name FROM tb_role WHERE id = role_id) AS role,
                   role_id, is_verified, is_active
     </select>
 
-    <!-- Insert a new RETAILER account into tb_retailer_account -->
-    <select id="insertRetailerUser" resultMap="AppUserResultMap">
-        INSERT INTO tb_retailer_account
+    <!-- Insert a new BUYER account into tb_buyer_account -->
+    <select id="insertBuyerUser" resultMap="AppUserResultMap">
+        INSERT INTO tb_buyer_account
         VALUES (DEFAULT, #{user.roleId}, #{user.email}, #{user.password}, DEFAULT, DEFAULT, DEFAULT, DEFAULT)
         RETURNING id, email, password,
                   (SELECT name FROM tb_role WHERE id = role_id) AS role,
@@ -103,9 +103,9 @@
                     It also uses PreparedStatement internally — safe from SQL injection
     -->
 
-    <!-- Find a distributor user by their email address -->
-    <!-- JOIN tb_role → to get the role name (DISTRIBUTOR/RETAILER) as a string -->
-    <select id="findDistributorUserByEmail" resultMap="AppUserResultMap">
+    <!-- Find a supplier user by their email address -->
+    <!-- JOIN tb_role → to get the role name (SUPPLIER/BUYER) as a string -->
+    <select id="findSupplierUserByEmail" resultMap="AppUserResultMap">
         SELECT  ta.id,
                 ta.email,
                 ta.password,
@@ -113,13 +113,13 @@
                 ta.role_id,
                 ta.is_verified,
                 ta.is_active
-        FROM    tb_distributor_account ta
+        FROM    tb_supplier_account ta
         JOIN    tb_role tr ON ta.role_id = tr.id
         WHERE   ta.email = #{email}
     </select>
 
-    <!-- Find a distributor user by their numeric ID -->
-    <select id="findDistributorUserById" resultMap="AppUserResultMap">
+    <!-- Find a supplier user by their numeric ID -->
+    <select id="findSupplierUserById" resultMap="AppUserResultMap">
         SELECT  ta.id,
                 ta.email,
                 ta.password,
@@ -127,13 +127,13 @@
                 ta.role_id,
                 ta.is_verified,
                 ta.is_active
-        FROM    tb_distributor_account ta
+        FROM    tb_supplier_account ta
         JOIN    tb_role tr ON ta.role_id = tr.id
         WHERE   ta.id = #{id}
     </select>
 
-    <!-- Find a retailer user by their email address -->
-    <select id="findRetailerUserByEmail" resultMap="AppUserResultMap">
+    <!-- Find a buyer user by their email address -->
+    <select id="findBuyerUserByEmail" resultMap="AppUserResultMap">
         SELECT  ta.id,
                 ta.email,
                 ta.password,
@@ -141,7 +141,7 @@
                 ta.role_id,
                 ta.is_verified,
                 ta.is_active
-        FROM    tb_retailer_account ta
+        FROM    tb_buyer_account ta
         JOIN    tb_role tr ON ta.role_id = tr.id
         WHERE   ta.email = #{email}
     </select>
@@ -154,20 +154,20 @@
                                 not a full object, so we use resultType not resultMap
     -->
 
-    <select id="checkPhoneNumberFromDistributorPhone" resultType="boolean">
-        SELECT EXISTS(SELECT 1 FROM tb_distributor_phone WHERE phone_number = #{phone})
+    <select id="checkPhoneNumberFromSupplierPhone" resultType="boolean">
+        SELECT EXISTS(SELECT 1 FROM tb_supplier_phone WHERE phone_number = #{phone})
     </select>
 
-    <select id="checkPhoneNumberFromDistributorDetail" resultType="boolean">
-        SELECT EXISTS(SELECT 1 FROM tb_distributor_info WHERE primary_phone_number = #{phone})
+    <select id="checkPhoneNumberFromSupplierDetail" resultType="boolean">
+        SELECT EXISTS(SELECT 1 FROM tb_supplier_info WHERE primary_phone_number = #{phone})
     </select>
 
-    <select id="checkPhoneNumberFromRetailerPhone" resultType="boolean">
-        SELECT EXISTS(SELECT 1 FROM tb_retailer_phone WHERE phone_number = #{phone})
+    <select id="checkPhoneNumberFromBuyerPhone" resultType="boolean">
+        SELECT EXISTS(SELECT 1 FROM tb_buyer_phone WHERE phone_number = #{phone})
     </select>
 
-    <select id="checkPhoneNumberFromRetailerDetail" resultType="boolean">
-        SELECT EXISTS(SELECT 1 FROM tb_retailer_info WHERE primary_phone_number = #{phone})
+    <select id="checkPhoneNumberFromBuyerDetail" resultType="boolean">
+        SELECT EXISTS(SELECT 1 FROM tb_buyer_info WHERE primary_phone_number = #{phone})
     </select>
 
     <!-- ═══════════════════════════════════════════════════════════════════════
@@ -180,31 +180,31 @@
          value, not a full Java object.
     -->
 
-    <!-- Get role ID number (1=DISTRIBUTOR, 2=RETAILER) by email -->
+    <!-- Get role ID number (1=SUPPLIER, 2=BUYER) by email -->
     <select id="getRoleIdByMail" resultType="int">
-        SELECT role_id FROM tb_distributor_account WHERE email = #{email}
+        SELECT role_id FROM tb_supplier_account WHERE email = #{email}
     </select>
 
-    <select id="getRoleIdByMailRetailer" resultType="int">
-        SELECT role_id FROM tb_retailer_account WHERE email = #{email}
+    <select id="getRoleIdByMailBuyer" resultType="int">
+        SELECT role_id FROM tb_buyer_account WHERE email = #{email}
     </select>
 
     <!-- Check if the email has been OTP-verified (is_verified column) -->
-    <select id="getVerifyDistributorEmail" resultType="boolean">
-        SELECT is_verified FROM tb_distributor_account WHERE email = #{email}
+    <select id="getVerifySupplierEmail" resultType="boolean">
+        SELECT is_verified FROM tb_supplier_account WHERE email = #{email}
     </select>
 
-    <select id="getVerifyRetailerEmail" resultType="boolean">
-        SELECT is_verified FROM tb_retailer_account WHERE email = #{email}
+    <select id="getVerifyBuyerEmail" resultType="boolean">
+        SELECT is_verified FROM tb_buyer_account WHERE email = #{email}
     </select>
 
     <!-- Get the numeric user ID by email -->
-    <select id="getUserIdByMailDistributor" resultType="int">
-        SELECT id FROM tb_distributor_account WHERE email = #{email}
+    <select id="getUserIdByMailSupplier" resultType="int">
+        SELECT id FROM tb_supplier_account WHERE email = #{email}
     </select>
 
-    <select id="getUserIdByMailRetailer" resultType="int">
-        SELECT id FROM tb_retailer_account WHERE email = #{email}
+    <select id="getUserIdByMailBuyer" resultType="int">
+        SELECT id FROM tb_buyer_account WHERE email = #{email}
     </select>
 
     <!-- ═══════════════════════════════════════════════════════════════════════
@@ -220,17 +220,17 @@
          MyBatis automatically maps object fields using the property name.
     -->
 
-    <!-- Change password for distributor — returns updated AppUser object -->
-    <select id="updateDistributorUser" resultMap="AppUserResultMap">
-        UPDATE  tb_distributor_account
+    <!-- Change password for supplier — returns updated AppUser object -->
+    <select id="updateSupplierUser" resultMap="AppUserResultMap">
+        UPDATE  tb_supplier_account
         SET     password = #{newPassword}
         WHERE   email    = #{email}
         RETURNING *
     </select>
 
-    <!-- Change password for retailer — returns updated AppUser object -->
-    <select id="updateRetailerUser" resultMap="AppUserResultMap">
-        UPDATE  tb_retailer_account
+    <!-- Change password for buyer — returns updated AppUser object -->
+    <select id="updateBuyerUser" resultMap="AppUserResultMap">
+        UPDATE  tb_buyer_account
         SET     password = #{newPassword}
         WHERE   email    = #{email}
         RETURNING *
@@ -241,15 +241,15 @@
         resultType="String" → just returns the single password string value
         Used to confirm the update was successful (non-null = success)
     -->
-    <select id="updateForgetDistributorUser" resultType="String">
-        UPDATE  tb_distributor_account
+    <select id="updateForgetSupplierUser" resultType="String">
+        UPDATE  tb_supplier_account
         SET     password = #{newPassword}
         WHERE   email    = #{email}
         RETURNING password
     </select>
 
-    <select id="updateForgetRetailerUser" resultType="String">
-        UPDATE  tb_retailer_account
+    <select id="updateForgetBuyerUser" resultType="String">
+        UPDATE  tb_buyer_account
         SET     password = #{newPassword}
         WHERE   email    = #{email}
         RETURNING password

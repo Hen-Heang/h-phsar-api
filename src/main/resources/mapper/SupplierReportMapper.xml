@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!--
+    WHAT IS THIS FILE?
+    ══════════════════
+    XML Mapper for SupplierReportRepository.
+    All queries return simple types (Double, Integer, List<String>) — no resultMap needed.
+
+    ${startDate}/${endDate} → direct string substitution for date range in BETWEEN clause.
+    These are NOT parameterized — be careful if these values come from user input.
+-->
+
+<mapper namespace="com.henheang.hphsar.repository.SupplierReportRepository">
+
+    <!-- ─── EXPENSE (product import cost) ─────────────────────────────────── -->
+
+    <select id="getTotalExpense" resultType="double">
+        SELECT COALESCE(sum(qty * price), 0) AS totalExpense
+        FROM tb_product_import_detail a
+                 JOIN tb_product_import b ON b.id = a.product_import_id
+        WHERE b.store_id = #{storeId}
+          AND b.created_date BETWEEN '${startDate}' AND '${endDate}'
+    </select>
+
+    <!-- ─── PROFIT (order revenue) ─────────────────────────────────────────── -->
+
+    <select id="getTotalProfit" resultType="double">
+        SELECT COALESCE(sum(qty * unit_price), 0)
+        FROM tb_order a
+                 JOIN tb_order_detail b ON a.id = b.order_id
+        WHERE a.store_id = #{storeId}
+          AND created_date BETWEEN '${startDate}' AND '${endDate}'
+    </select>
+
+    <!-- ─── ORDER COUNT ─────────────────────────────────────────────────────── -->
+
+    <select id="getOrder" resultType="int">
+        SELECT count(a.id)
+        FROM tb_order a
+                 JOIN tb_order_detail b ON a.id = b.order_id
+        WHERE a.store_id = #{storeId}
+          AND created_date BETWEEN '${startDate}' AND '${endDate}'
+    </select>
+
+    <!-- ─── PERIOD (dates of orders, truncated to month) ──────────────────── -->
+
+    <select id="getPeriod" resultType="String">
+        SELECT date_trunc('month', a.created_date)
+        FROM tb_order a
+                 JOIN tb_order_detail b ON a.id = b.order_id
+        WHERE a.store_id = #{storeId}
+          AND created_date BETWEEN '${startDate}' AND '${endDate}'
+    </select>
+
+    <!-- ─── ORDER TOTAL BY MONTH ────────────────────────────────────────────── -->
+
+    <select id="getOrderOfMonth" resultType="int">
+        SELECT COALESCE(sum(unit_price))
+        FROM tb_order_detail
+                 JOIN tb_order t ON t.id = tb_order_detail.order_id
+        WHERE store_id = #{storeId}
+          AND created_date BETWEEN '${startDate}' AND '${endDate}'
+    </select>
+
+</mapper>

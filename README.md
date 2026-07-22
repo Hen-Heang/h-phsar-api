@@ -1,6 +1,6 @@
 # H-Phsar API
 
-> **H-Phsar** (H = Hen Heang · Phsar = ផ្សារ Market) — A Cambodian B2B online marketplace platform connecting Distributors and Retailers.
+> **H-Phsar** (H = Hen Heang · Phsar = ផ្សារ Market) — A Cambodian B2B marketplace connecting suppliers and business buyers.
 
 **Build with** Spring Boot
 
@@ -18,15 +18,15 @@ http://localhost:8080/swagger-ui/index.html
     git clone https://github.com/Hen-Heang/h-phsar-api-full.git
     ```
 
-2. To run the code
-   - Start the project Go to file > Open > Choose the folder of the cloned project
-   - Run the project by clicking the start button
+2. Set up your local environment and database
+   - See [docs/LOCAL_SETUP.md](docs/LOCAL_SETUP.md) — copy `.env.example`, provide your own database/mail/JWT values, no secret is hardcoded or defaulted anymore
+   - Run the project (`.\mvnw.cmd spring-boot:run` or your IDE's run button, with the environment variables loaded)
    - Open browser and type http://localhost:8080/swagger-ui/index.html
 
 3. Read the coding standards before adding features
    - See [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md) for patterns, conventions, and common mistakes
 
-> **H-Phsar** is a Cambodian B2B online marketplace (ផ្សារ) for business between Distributor and Retailer. Business owners can trade more efficiently with lower operational complexity.
+> **H-Phsar** is a Cambodian B2B online marketplace (ផ្សារ) for business between Supplier and Buyer. Business owners can trade more efficiently with lower operational complexity.
 
 ### What we have done
 
@@ -43,31 +43,31 @@ http://localhost:8080/swagger-ui/index.html
 
 **There are 2 types of user in the system**
 
-*Distributor*
+*Supplier — owns stores, manages catalog, inventory and incoming orders*
 
-- **Distributor profile controller** (/api/v1/distributor/profiles/)
-  http://localhost:8080/api/v1/distributor/profiles
-  - Add user profile : create a user profile for distributor.
+- **Supplier Profile Controller** (/api/v1/suppliers/profiles/)
+  http://localhost:8080/api/v1/suppliers/profiles
+  - Add user profile : create a user profile for supplier.
   - Get user profile : get details of user profile
-  - Update user profile : update distributor user profile
-- **Distributor Store Controller** (/api/v1/distributor/stores/)
-  http://localhost:8080/api/v1/distributor/stores
-  - Setup new store : Setup new store for distributor
+  - Update user profile : update supplier user profile
+- **Supplier Store Controller** (/api/v1/suppliers/stores/)
+  http://localhost:8080/api/v1/suppliers/stores
+  - Setup new store : Setup new store for supplier
   - Get store detail : view detail of store
   - Edit store : update store detail
   - Disable store : delist store from public view
   - Enable store : list store back to view back
   - Delete store : remove store completely
-- **Distributor Category Controller** (/api/v1/distributor/categories/)
-  http://localhost:8080/api/v1/distributor/categories
+- **Supplier Category Controller** (/api/v1/suppliers/categories/)
+  http://localhost:8080/api/v1/suppliers/categories
   - Create new category : create new category for the store
   - Get category by id : get category detail using the id
   - Get all category : get every category in the store
   - Search category by name : filter category by searching the name
   - Edit category : update category info
   - Delete category : remove category from store
-- **Distributor Product Controller** (/api/v1/distributor/products/)
-  http://localhost:8080/api/v1/distributor/products
+- **Supplier Product Controller** (/api/v1/suppliers/products/)
+  http://localhost:8080/api/v1/suppliers/products
   - Create new product : Create new product for the store
   - Import product : restock product and set new price for the product
   - Get all product :  get product listing with sorting. can sort by created_date, qty, name, price, and product_id
@@ -76,8 +76,8 @@ http://localhost:8080/swagger-ui/index.html
   - Unpublish product : delist product from public
   - Publish product : list product in public
   - Delete product : remove product permanently
-- **Distributor Order Controller** (/api/v1/distributor/orders/)
-  http://localhost:8080/api/v1/distributor/orders
+- **Supplier Order Controller** (/api/v1/suppliers/orders/)
+  http://localhost:8080/api/v1/suppliers/orders
   - Get all order : get all orders listing
   - Get pending order : get all orders that are pending
   - Get preparing order : get all orders that are being prepared
@@ -89,28 +89,28 @@ http://localhost:8080/swagger-ui/index.html
   - Accept order : accept a pending order — status moves to PROCESSING
   - Decline order : decline a pending order — status moves to REJECTED
   - Dispatch order : mark a PROCESSING order as dispatched — status moves to CONFIRMED
-  - Mark delivered : mark a CONFIRMED order as delivered — status auto-completes to COMPLETED (no retailer confirmation required)
-- **Distributor Homepage Controller** (/api/v1/distributor/order_activities/)
-  http://localhost:8080/api/v1/distributor/order_activities
+  - Mark delivered : mark a CONFIRMED order as delivered — status auto-completes to COMPLETED (no buyer confirmation required)
+- **Supplier Homepage Controller** (/api/v1/suppliers/order_activities/)
+  http://localhost:8080/api/v1/suppliers/order_activities
   - Get all order : get all orders listing
-- **Distributor Report Controller** (/api/v1/distributor/reports/)
-  http://localhost:8080/api/v1/distributor/reports
+- **Supplier Report Controller** (/api/v1/suppliers/reports/)
+  http://localhost:8080/api/v1/suppliers/reports
   - Get order activity homepage by month : get order activity by monthly basis
   - Get order activity homepage by year : get order activity by yearly basis
-- **Distributor History Controller** (/api/v1/distributor/history/)
-  http://localhost:8080/api/v1/distributor/history
+- **Supplier History Controller** (/api/v1/suppliers/history/)
+  http://localhost:8080/api/v1/suppliers/history
   - Get history order : get history of order. have pagination
   - Get history import : get history of import or restock
-- **Distributor Notification Controller** (/api/v1/distributor/notifications/)
-  http://localhost:8080/api/v1/distributor/notifications
-  - Get all notification : fetch all notifications for the distributor
+- **Supplier Notification Controller** (/api/v1/suppliers/notifications/)
+  http://localhost:8080/api/v1/suppliers/notifications
+  - Get all notification : fetch all notifications for the supplier
   - Mark as read : mark a single notification as read by id
   - Mark all as read : mark all notifications as read
 
-*Retailer*
+*Buyer — browses stores, manages carts and places business orders*
 
-- **Retailer Store Controller** (/api/v1/retailer/stores/)
-  http://localhost:8080/api/v1/retailer/stores
+- **Buyer Store Controller** (/api/v1/buyers/stores/)
+  http://localhost:8080/api/v1/buyers/stores
   - Rate store : give rating to a store
   - Bookmark store : bookmark a store. set store as favorite
   - Edit rating : change rating of a store
@@ -126,13 +126,13 @@ http://localhost:8080/swagger-ui/index.html
   - Get store by bookmark : get only boomarked/favorite store
   - Search store by name : find store by searching store name
   - Get all store : get store without filter
-- **Retailer Profile Controller** (/api/v1/retailer/profiles/)
-  http://localhost:8080/api/v1/retailer/profiles
-  - Create retailer profile : create a profile for retailer. if not created, can not use all feature
+- **Buyer Profile Controller** (/api/v1/buyers/profiles/)
+  http://localhost:8080/api/v1/buyers/profiles
+  - Create buyer profile : create a profile for buyer. if not created, can not use all feature
   - Get profile : Get profile details
   - Edit profile : Change or update profile
-- **Retailer Order Controller** (/api/v1/retailer/orders/)
-  http://localhost:8080/api/v1/retailer/orders
+- **Buyer Order Controller** (/api/v1/buyers/orders/)
+  http://localhost:8080/api/v1/buyers/orders
   - Add to cart : add product to cart. can be one product or a list
   - Update cart product : update product quantity in cart
   - Remove product : remove product from cart
@@ -143,16 +143,16 @@ http://localhost:8080/swagger-ui/index.html
   - Get order details : get details of an order by id
   - Get orders progress : get all active orders and their status
   - Get invoice : get invoice for a completed order
-- **Retailer Report Controller** (/api/v1/retailer/reports/)
-  http://localhost:8080/api/v1/retailer/report
-  - Get report : get retailer report
-- **Retailer History Controller** (/api/v1/retailer/history/)
-  http://localhost:8080/api/v1/retailer/history
+- **Buyer Report Controller** (/api/v1/buyers/reports/)
+  http://localhost:8080/api/v1/buyers/reports
+  - Get report : get buyer report
+- **Buyer History Controller** (/api/v1/buyers/history/)
+  http://localhost:8080/api/v1/buyers/history
   - Get order history : get history of order
   - Get draft : get saved draft
-- **Retailer Notification Controller** (/api/v1/retailer/notifications/)
-  http://localhost:8080/api/v1/retailer/notifications
-  - Get all notification : fetch all notifications for the retailer
+- **Buyer Notification Controller** (/api/v1/buyers/notifications/)
+  http://localhost:8080/api/v1/buyers/notifications
+  - Get all notification : fetch all notifications for the buyer
   - Mark as read : mark a single notification as read by id
   - Mark all as read : mark all notifications as read
 
@@ -169,43 +169,43 @@ http://localhost:8080/swagger-ui/index.html
 Go to **DataGrip** and choose the connection then input the information as provided (Database server).
 
 **Note**
-- This system have 2 roles which is distributor and retailer.
+- This system have 2 roles which is supplier and buyer.
 - This system need real verifiable email address with OTP
-- Role of distributor is 1 while retailer is 2
+- Role of supplier is 1 while buyer is 2
 
 ---
 
 ## Order Flow
 
 ```
-Retailer places order
+Buyer places order
         │
         ▼  status_id = 1
-    PENDING  ──── Distributor declines ──→  REJECTED (8)
+    PENDING  ──── Supplier declines ──→  REJECTED (8)
         │
-        │  Distributor accepts
+        │  Supplier accepts
         ▼  status_id = 2
    PROCESSING
         │
-        │  Distributor dispatches
+        │  Supplier dispatches
         ▼  status_id = 3
    CONFIRMED
         │
-        │  Distributor marks delivered
+        │  Supplier marks delivered
         ▼  status_id = 6
-   COMPLETED  ✅  (auto-complete — no retailer confirmation required)
+   COMPLETED  ✅  (auto-complete — no buyer confirmation required)
 ```
 
 **Status ID reference (tb_status)**
 
 | ID | Name | Who acts |
 |----|------|----------|
-| 1 | PENDING | Retailer just placed order |
-| 2 | PROCESSING | Distributor accepted |
-| 3 | CONFIRMED | Distributor dispatched |
-| 6 | COMPLETED | Distributor marked delivered — order done |
-| 8 | REJECTED | Distributor declined |
-| 9 | DRAFT | Retailer saved cart as draft |
+| 1 | PENDING | Buyer just placed order |
+| 2 | PROCESSING | Supplier accepted |
+| 3 | CONFIRMED | Supplier dispatched |
+| 6 | COMPLETED | Supplier marked delivered — order done |
+| 8 | REJECTED | Supplier declined |
+| 9 | DRAFT | Buyer saved cart as draft |
 
 > Statuses 4 (SHIPPING), 5 (DELIVERED), 7 (CANCELLED) exist in the DB but are not used in the current flow.
 
@@ -217,14 +217,14 @@ Notifications are sent automatically at each order status change:
 
 | Event | Recipient | Type ID |
 |-------|-----------|---------|
-| Order placed | Distributor | 3 — New Order |
-| Stock runs out after accept | Distributor | 2 — Out of Stock |
-| Order accepted | Retailer | 4 — Order Accepted |
-| Order declined | Retailer | 5 — Order Declined |
-| Order dispatched | Retailer | 7 — Order Dispatching |
-| Order completed | Retailer | 9 — Order Complete |
+| Order placed | Supplier | 3 — New Order |
+| Stock runs out after accept | Supplier | 2 — Out of Stock |
+| Order accepted | Buyer | 4 — Order Accepted |
+| Order declined | Buyer | 5 — Order Declined |
+| Order dispatched | Buyer | 7 — Order Dispatching |
+| Order completed | Buyer | 9 — Order Complete |
 
-Each notification stores `order_id` so the frontend can link directly to the order detail page (`/web/retailer/orders?orderId=X`).
+Each notification stores `order_id` so the frontend can link directly to the order detail page (`/web/buyers/orders?orderId=X`).
 
 ---
 
@@ -240,11 +240,11 @@ JwtAuthenticationController.insertUser()
         │
         ▼
 JwtUserDetailsServiceImpl.insertUser()
-        ├── Validate roleId is 1 (DISTRIBUTOR) or 2 (RETAILER)
+        ├── Validate roleId is 1 (SUPPLIER) or 2 (BUYER)
         ├── Validate email format (regex)
-        ├── Check duplicate email in tb_distributor_account OR tb_retailer_account
+        ├── Check duplicate email in tb_supplier_account OR tb_buyer_account
         ├── BCrypt encode the password
-        └── INSERT INTO tb_distributor_account / tb_retailer_account
+        └── INSERT INTO tb_supplier_account / tb_buyer_account
             is_verified = FALSE by default  ← account locked until OTP verified
 
 Returns: AppUserDto (id, email, roleId)
@@ -260,10 +260,10 @@ Client sends: email
         │
         ▼
 OtpServiceImplV1.generateOtp()
-        ├── Find user in tb_distributor_account OR tb_retailer_account
+        ├── Find user in tb_supplier_account OR tb_buyer_account
         ├── Generate random 4-digit number (1000–9999)
         ├── EmailService.sendSimpleMail()  → sends OTP code to user's email
-        └── INSERT INTO tb_distributor_otp / tb_retailer_otp  (with timestamp)
+        └── INSERT INTO tb_supplier_otp / tb_buyer_otp  (with timestamp)
 ```
 
 #### Verify OTP `POST /authorization/api/v1/otp/verify`
@@ -277,7 +277,7 @@ OtpServiceImplV1.verifyOtp()
         ├── Check: email matches
         ├── Check: OTP code matches
         ├── Check: created_date < 3 minutes ago  ← expired if older
-        └── UPDATE tb_distributor_account SET is_verified = TRUE
+        └── UPDATE tb_supplier_account SET is_verified = TRUE
 
 Account is now ACTIVE and can log in.
 ```
@@ -335,8 +335,8 @@ JwtRequestFilter
         │
         ▼
 SecurityConfig — check role permission
-        ├── /api/v1/distributor/**  → requires DISTRIBUTOR role (roleId = 1)
-        ├── /api/v1/retailer/**     → requires RETAILER role    (roleId = 2)
+        ├── /api/v1/suppliers/**    → requires SUPPLIER role (roleId = 1)
+        ├── /api/v1/buyers/**       → requires BUYER role    (roleId = 2)
         ├── /api/v1/files/**        → public (file uploads/downloads)
         ├── /ws/**                  → public (WebSocket endpoint)
         └── wrong role → 403 | no token → 401 JSON (JwtAuthenticationEntryPoint)
@@ -390,10 +390,12 @@ PUT /authorization/forget?otp=1234&email=...&newPassword=...
 
 | # | File | Issue | Fix |
 |---|------|-------|-----|
-| 1 | `RetailerReportMapper.xml` | `BindingException: Invalid bound statement` — mapper XML did not exist so all 16 retailer report queries failed at runtime | Created the complete XML mapper file with all SQL statements |
+| 1 | `BuyerReportMapper.xml` | `BindingException: Invalid bound statement` — mapper XML did not exist so all 16 buyer report queries failed at runtime | Created the complete XML mapper file with all SQL statements |
 | 2 | `BeanConfig.java` | `HttpMessageNotReadableException: Cannot construct instance of ArrayList from String value` — sending `additionalPhone` as a plain string instead of array caused a 400 parse error | Added `ObjectMapper` bean with `ACCEPT_SINGLE_VALUE_AS_ARRAY` — both `"phone"` and `["phone"]` now work |
-| 3 | `DistributorStoreServiceImplV1.java` | Creating a store with an unverified account returned HTTP 401, which caused the frontend to auto-logout the user | Changed `UnauthorizedException` → `ForbiddenException` so the response is HTTP 403 (no auto-logout) |
-| 4 | `RetailerProfileServiceImp.java` | `NullPointerException: Cannot invoke String.isEmpty() because getProfileImage() is null` — `.isEmpty()` was called directly on a nullable field | Replaced all `.isEmpty()` checks with `== null || .isBlank()` for all 5 validated fields |
+| 3 | `SupplierStoreServiceImpl.java` | Creating a store with an unverified account returned HTTP 401, which caused the frontend to auto-logout the user | Changed `UnauthorizedException` → `ForbiddenException` so the response is HTTP 403 (no auto-logout) |
+| 4 | `BuyerProfileServiceImpl.java` | `NullPointerException: Cannot invoke String.isEmpty() because getProfileImage() is null` — `.isEmpty()` was called directly on a nullable field | Replaced all `.isEmpty()` checks with `== null || .isBlank()` for all 5 validated fields |
+| 5 | `StoreMapper.xml`, `SupplierProductMapper.xml` | SQL injection — category/product store-search and the product-name lookup interpolated the search term directly into the query via MyBatis `${name}` instead of binding it | Parameterized all 9 occurrences with `#{name}` (`CONCAT('%', #{name}, '%')` for the two partial searches, plain `#{name}` for the exact-match lookup) |
+| 6 | `HistoryRepository.java`, `HistoryMapper.xml`, `HistoryServiceImplV1.java` | IDOR — deleting/submitting a draft order only checked that the draft existed, not that it belonged to the logged-in buyer, so any buyer could delete or submit anyone else's draft by id | Draft queries now require the draft id **and** the authenticated buyer's account id to match in the same row; unknown draft and "belongs to someone else" return the identical 404 |
 
 ---
 
@@ -407,15 +409,11 @@ PUT /authorization/forget?otp=1234&email=...&newPassword=...
 
 These issues can cause data breaches, unauthorized access, or exploitable vulnerabilities in production.
 
-#### A1. Weak default JWT secret
-- **What:** `application.properties` has `jwt.secret=JwtSuperSecretHahaKidding` as the fallback value.
-- **Why:** If the `JWT_SECRET` environment variable is not set, any attacker who reads the source code (e.g., from a public repo) can forge valid JWT tokens and impersonate any user.
-- **Fix:** Remove the default value. Force the app to fail on startup if `JWT_SECRET` is not provided.
+#### ~~A1. Weak default JWT secret~~ ✅ RESOLVED
+- **What was fixed:** `application.yaml` no longer has any fallback value for `jwt.secret` — it's `${JWT_SECRET}` with nothing after the colon, so the app fails to start rather than sign tokens with a guessable key. See [docs/LOCAL_SETUP.md](docs/LOCAL_SETUP.md) for how to generate your own local secret.
 
-#### A2. Weak default database password
-- **What:** `spring.datasource.password=${DB_PASSWORD:123}` defaults to `"123"`.
-- **Why:** Any exposed database port becomes trivially accessible. Even in development, weak defaults create bad habits.
-- **Fix:** Remove the default. Require the `DB_PASSWORD` env var to be set explicitly.
+#### ~~A2. Weak default database password~~ ✅ RESOLVED
+- **What was fixed:** `application.yaml` no longer has any fallback value for `spring.datasource.password`/`username`/`url` — all three are `${DB_URL}` / `${DB_USERNAME}` / `${DB_PASSWORD}` with no default, so a missing env var fails startup instead of connecting with `"123"`.
 
 #### A3. CORS allows all origins
 - **What:** `CorsFilterConfiguration.java` uses `allowedOriginPatterns("*")`, allowing any domain to call the API.
@@ -502,10 +500,9 @@ These issues make it very hard to debug problems and monitor the application in 
 
 ### Group D — Testing (Medium)
 
-#### D1. Near-zero test coverage
-- **What:** Only 2 test files exist — a basic context load test and one `DateTimeUtil` unit test. No tests for controllers, services, or repositories.
-- **Why:** Without tests, every code change risks breaking existing behavior silently. Refactoring is dangerous. Bugs are only caught in production.
-- **Fix:** Add unit tests for all service classes using JUnit 5 + Mockito. Add integration tests for key API endpoints using `MockMvc` and a test database.
+#### ~~D1. Near-zero test coverage~~ 🟡 PARTIALLY RESOLVED
+- **What was fixed:** Added a reusable Testcontainers PostgreSQL base (`AbstractIntegrationTest`, seeded from the project's own `schema.sql`) plus MyBatis/service integration tests covering the SQL-injection and draft-ownership fixes above (`StoreSearchSqlInjectionIT`, `SupplierProductLookupSqlInjectionIT`, `DraftOrderOwnershipIT`).
+- **Still open:** These new tests need Docker to actually run (not yet verified passing in every environment — compiles cleanly, blocked by "no Docker" where it isn't installed). No controller-level (`MockMvc`) tests yet, and most services still have no coverage.
 
 ---
 
@@ -513,7 +510,7 @@ These issues make it very hard to debug problems and monitor the application in 
 
 #### E1. Schema changes applied at runtime
 - **What:** `DatabaseInitializer.java` runs `@PostConstruct` SQL at every startup to ensure schema readiness:
-  - Creates `tb_distributor_otp` and `tb_retailer_otp` tables (`CREATE TABLE IF NOT EXISTS`)
+  - Creates `tb_supplier_otp` and `tb_buyer_otp` tables (`CREATE TABLE IF NOT EXISTS`)
   - Adds `is_active BOOLEAN DEFAULT TRUE` column to `tb_store` (`ALTER TABLE … ADD COLUMN IF NOT EXISTS`)
   - Adds `phone VARCHAR(50)` column to `tb_store`
 - **Why:** Runtime schema changes are fragile, hard to audit, and conflict with proper migration practices. Running on every restart is unnecessary overhead.
@@ -525,8 +522,8 @@ These issues make it very hard to debug problems and monitor the application in 
 
 | Group | Area | Priority | Items |
 |-------|------|----------|-------|
-| A | Security | Critical | A1 A2 A3 ~~A4~~ A5 |
+| A | Security | Critical | ~~A1~~ ~~A2~~ A3 ~~A4~~ A5 |
 | B | Code Quality | High | B1 B2 B3 B4 B5 B6 |
 | C | Observability | Medium | C1 C2 C3 C4 C5 |
-| D | Testing | Medium | D1 |
+| D | Testing | Medium | D1 🟡 |
 | E | Database | Low-Medium | E1 |

@@ -7,7 +7,7 @@
     ══════════════════
     XML Mapper for ProductRepository.
     Handles the global product table (tb_product) operations.
-    Not to be confused with ProductDistributorRepository which handles store-level product details.
+    Not to be confused with SupplierProductRepository which handles store-level product details.
 -->
 
 <mapper namespace="com.henheang.hphsar.repository.ProductRepository">

@@ -31,3 +31,25 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Secrets & local-only config ###
+# Real secret values must never be committed. Only *.example / *-test / *-prod
+# files (which contain no real credentials) are meant to be tracked.
+.env
+.env.*
+!.env.example
+
+*.jks
+*.p12
+*.pfx
+*.pem
+*.key
+
+application-local.yaml
+application-local.yml
+application-secrets.yaml
+application-secrets.yml
+
+### Uploaded / generated content ###
+uploads/
+logs/

@@ -15,7 +15,7 @@ import java.io.IOException;
 /**
  * Strips trailing slashes from incoming request URIs before they reach Spring Security
  * or any controller. This prevents 401/404 mismatches caused by the frontend sending
- * URLs like /api/v1/distributor/profiles/ when the mapped endpoint is /api/v1/distributor/profiles.
+ * URLs like /api/v1/suppliers/profiles/ when the mapped endpoint is /api/v1/suppliers/profiles.
  * <p>
  * Runs first in the filter chain (HIGHEST_PRECEDENCE) so the normalized URI is seen
  * by every downstream filter including Spring Security and JwtRequestFilter.

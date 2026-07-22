@@ -9,18 +9,18 @@
     Handles all store-level operations including: create, update, search, bookmark, rating.
 
     Key result maps:
-    - StoreResultMap → for Store objects (distributor's own store view)
-    - StoreRetailerResultMap → for StoreRetailer objects (retailer's store listing view, includes categories)
+    - StoreResultMap → for Store objects (supplier's own store view)
+    - StoreBuyerResultMap → for StoreBuyer objects (buyer's store listing view, includes categories)
     - StoreRatingResultMap → for store rating entries
 
-    Both Store and StoreRetailer load rating, ratingCount, and additionalPhone via nested sub-selects.
-    StoreRetailer also loads categories.
+    Both Store and StoreBuyer load rating, ratingCount, and additionalPhone via nested sub-selects.
+    StoreBuyer also loads categories.
 -->
 
 <mapper namespace="com.henheang.hphsar.repository.StoreRepository">
 
     <!--
-        RESULT MAP — Category (used in StoreRetailerResultMap)
+        RESULT MAP — Category (used in StoreBuyerResultMap)
         ════════════════════════════════════════════════════════
     -->
     <resultMap id="CategoryResultMap" type="com.henheang.hphsar.model.category.Category">
@@ -56,14 +56,14 @@
     <resultMap id="StoreRatingResultMap" type="com.henheang.hphsar.model.rating.StoreRating">
         <id     property="id"          column="id"/>
         <result property="storeId"     column="storeId"/>
-        <result property="retailerId"  column="retailerId"/>
+        <result property="buyerId"  column="buyerId"/>
         <result property="ratedStar"   column="ratedStar"/>
         <result property="createdDate" column="createdDate"/>
         <result property="updatedDate" column="updatedDate"/>
     </resultMap>
 
     <!--
-        RESULT MAP — Store (distributor view: own store)
+        RESULT MAP — Store (supplier view: own store)
         ══════════════════════════════════════════════════
         Loads rating, ratingCount via @One sub-selects.
         Loads additionalPhone via @Many sub-select.
@@ -73,7 +73,7 @@
         <result property="name"                 column="name"/>
         <result property="address"              column="address"/>
         <result property="bannerImage"          column="bannerImage"/>
-        <result property="distributorAccountId" column="distributorAccountId"/>
+        <result property="supplierAccountId" column="supplierAccountId"/>
         <result property="description"          column="description"/>
         <result property="primaryPhone"         column="primaryPhone"/>
         <result property="createdDate"          column="createdDate"/>
@@ -86,16 +86,16 @@
     </resultMap>
 
     <!--
-        RESULT MAP — StoreRetailer (retailer view: store listing with categories)
+        RESULT MAP — StoreBuyer (buyer view: store listing with categories)
         ══════════════════════════════════════════════════════════════════════════
         Same as StoreResultMap but also loads categories via @Many sub-select.
     -->
-    <resultMap id="StoreRetailerResultMap" type="com.henheang.hphsar.model.store.StoreRetailer">
+    <resultMap id="StoreBuyerResultMap" type="com.henheang.hphsar.model.store.StoreBuyer">
         <id     property="id"                   column="id"/>
         <result property="name"                 column="name"/>
         <result property="address"              column="address"/>
         <result property="bannerImage"          column="bannerImage"/>
-        <result property="distributorAccountId" column="distributorAccountId"/>
+        <result property="supplierAccountId" column="supplierAccountId"/>
         <result property="description"          column="description"/>
         <result property="primaryPhone"         column="primaryPhone"/>
         <result property="createdDate"          column="createdDate"/>
@@ -143,13 +143,13 @@
     -->
 
     <select id="createNewStore" resultMap="StoreResultMap">
-        INSERT INTO tb_store (id, distributor_account_id, name, description, created_date, updated_date, is_publish, is_active, banner_image, address, phone)
+        INSERT INTO tb_store (id, supplier_account_id, name, description, created_date, updated_date, is_publish, is_active, banner_image, address, phone)
         VALUES (DEFAULT, #{currentUserId}, #{store.name}, #{store.description}, DEFAULT, DEFAULT, true, DEFAULT, #{store.bannerImage}, #{store.address}, #{store.primaryPhone})
         RETURNING id,
                   name,
                   address,
                   banner_image                   AS bannerImage,
-                  distributor_account_id         AS distributorAccountId,
+                  supplier_account_id         AS supplierAccountId,
                   description,
                   created_date                   AS createdDate,
                   updated_date                   AS updatedDate,
@@ -167,7 +167,7 @@
                name,
                address,
                banner_image           AS bannerImage,
-               distributor_account_id AS distributorAccountId,
+               supplier_account_id AS supplierAccountId,
                description,
                phone                  AS primaryPhone,
                created_date           AS createdDate,
@@ -175,15 +175,15 @@
                is_publish             AS isPublish,
                is_active              AS isActive
         FROM tb_store
-        WHERE distributor_account_id = #{currentUserId}
+        WHERE supplier_account_id = #{currentUserId}
     </select>
 
-    <select id="getAllStore" resultMap="StoreRetailerResultMap">
+    <select id="getAllStore" resultMap="StoreBuyerResultMap">
         SELECT id,
                name,
                address,
                banner_image           AS bannerImage,
-               distributor_account_id AS distributorAccountId,
+               supplier_account_id AS supplierAccountId,
                description,
                created_date           AS createdDate,
                updated_date           AS updatedDate,
@@ -194,12 +194,12 @@
         WHERE is_publish = true
     </select>
 
-    <select id="getStoreById" resultMap="StoreRetailerResultMap">
+    <select id="getStoreById" resultMap="StoreBuyerResultMap">
         SELECT id,
                name,
                address,
                banner_image           AS bannerImage,
-               distributor_account_id AS distributorAccountId,
+               supplier_account_id AS supplierAccountId,
                description,
                phone                  AS primaryPhone,
                created_date           AS createdDate,
@@ -229,7 +229,7 @@
                   name,
                   address,
                   banner_image           AS bannerImage,
-                  distributor_account_id AS distributorAccountId,
+                  supplier_account_id AS supplierAccountId,
                   description,
                   phone                  AS primaryPhone,
                   created_date           AS createdDate,
@@ -244,17 +244,17 @@
     -->
 
     <select id="deleteUserStore" resultType="String">
-        DELETE FROM tb_store WHERE distributor_account_id = #{currentUserId} RETURNING 1
+        DELETE FROM tb_store WHERE supplier_account_id = #{currentUserId} RETURNING 1
     </select>
 
     <select id="disableStore" resultType="String">
         UPDATE tb_store SET is_publish = false, updated_date = now()
-        WHERE distributor_account_id = #{currentUserId} RETURNING 1
+        WHERE supplier_account_id = #{currentUserId} RETURNING 1
     </select>
 
     <select id="enableStore" resultType="String">
         UPDATE tb_store SET is_publish = true, updated_date = now()
-        WHERE distributor_account_id = #{currentUserId} RETURNING 1
+        WHERE supplier_account_id = #{currentUserId} RETURNING 1
     </select>
 
     <!-- ─── ADDITIONAL PHONE MANAGEMENT ──────────────────────────────────────── -->
@@ -270,7 +270,7 @@
     <!-- ─── BOOKMARK OPERATIONS ───────────────────────────────────────────────── -->
 
     <select id="getBookmarkStoreId" resultType="int">
-        SELECT store_id FROM tb_bookmark WHERE retailer_account_id = #{currentUserId}
+        SELECT store_id FROM tb_bookmark WHERE buyer_account_id = #{currentUserId}
     </select>
 
     <select id="bookmarkStoreById" resultType="String">
@@ -278,29 +278,29 @@
     </select>
 
     <select id="removeBookmarkStoreById" resultType="String">
-        DELETE FROM tb_bookmark WHERE store_id = #{storeId} AND retailer_account_id = #{currentUser} RETURNING 1
+        DELETE FROM tb_bookmark WHERE store_id = #{storeId} AND buyer_account_id = #{currentUser} RETURNING 1
     </select>
 
     <select id="checkAlreadyBookmarked" resultType="boolean">
-        SELECT EXISTS(SELECT * FROM tb_bookmark WHERE store_id = #{storeId} AND retailer_account_id = #{currentUserId})
+        SELECT EXISTS(SELECT * FROM tb_bookmark WHERE store_id = #{storeId} AND buyer_account_id = #{currentUserId})
     </select>
 
     <select id="getTotalBookmarkedStores" resultType="int">
-        SELECT count(DISTINCT store_id) FROM tb_bookmark WHERE retailer_account_id = #{retailerId}
+        SELECT count(DISTINCT store_id) FROM tb_bookmark WHERE buyer_account_id = #{buyerId}
     </select>
 
     <!-- ─── RATING OPERATIONS ─────────────────────────────────────────────────── -->
 
     <select id="checkAlreadyRated" resultType="boolean">
-        SELECT EXISTS(SELECT * FROM tb_rating_detail WHERE store_id = #{storeId} AND retailer_account_id = #{currentUserId})
+        SELECT EXISTS(SELECT * FROM tb_rating_detail WHERE store_id = #{storeId} AND buyer_account_id = #{currentUserId})
     </select>
 
     <select id="ratingStoreById" resultMap="StoreRatingResultMap">
-        INSERT INTO tb_rating_detail (store_id, retailer_account_id, rated_star)
+        INSERT INTO tb_rating_detail (store_id, buyer_account_id, rated_star)
         VALUES (#{storeId}, #{currentUser}, #{request.ratedStar})
         RETURNING id,
                   store_id            AS storeId,
-                  retailer_account_id AS retailerId,
+                  buyer_account_id AS buyerId,
                   rated_star          AS ratedStar,
                   created_date        AS createdDate
     </select>
@@ -308,34 +308,34 @@
     <select id="getRatingByStoreId" resultMap="StoreRatingResultMap">
         SELECT id,
                store_id            AS storeId,
-               retailer_account_id AS retailerId,
+               buyer_account_id AS buyerId,
                rated_star          AS ratedStar,
                created_date        AS createdDate
         FROM tb_rating_detail
-        WHERE store_id = #{storeId} AND retailer_account_id = #{currentUser}
+        WHERE store_id = #{storeId} AND buyer_account_id = #{currentUser}
     </select>
 
     <select id="editRatingByStoreId" resultMap="StoreRatingResultMap">
         UPDATE tb_rating_detail
         SET rated_star = #{request.ratedStar}
-        WHERE store_id = #{storeId} AND retailer_account_id = #{currentUser}
+        WHERE store_id = #{storeId} AND buyer_account_id = #{currentUser}
         RETURNING id,
                   store_id            AS storeId,
-                  retailer_account_id AS retailerId,
+                  buyer_account_id AS buyerId,
                   rated_star          AS ratedStar,
                   created_date        AS createdDate
     </select>
 
     <select id="deleteRatingByStoreId" resultType="String">
         DELETE FROM tb_rating_detail
-        WHERE store_id = #{storeId} AND retailer_account_id = #{currentUser}
+        WHERE store_id = #{storeId} AND buyer_account_id = #{currentUser}
         RETURNING 1
     </select>
 
     <select id="getTotalRatedStores" resultType="int">
         SELECT count(*) FROM tb_store
                                 JOIN tb_rating_detail trd ON tb_store.id = trd.store_id
-        WHERE is_publish = true AND retailer_account_id = #{retailerId}
+        WHERE is_publish = true AND buyer_account_id = #{buyerId}
     </select>
 
     <!-- ─── PRODUCT LISTING FOR STORE ────────────────────────────────────────── -->
@@ -395,12 +395,12 @@
 
     <!-- ─── STORE LISTING (paginated, sorted) ────────────────────────────────── -->
 
-    <select id="getAllUserStoreSortByDateASC" resultMap="StoreRetailerResultMap">
+    <select id="getAllUserStoreSortByDateASC" resultMap="StoreBuyerResultMap">
         SELECT id,
                name,
                address,
                banner_image           AS bannerImage,
-               distributor_account_id AS distributorAccountId,
+               supplier_account_id AS supplierAccountId,
                description,
                phone                  AS primaryPhone,
                created_date           AS createdDate,
@@ -414,12 +414,12 @@
         LIMIT #{pageSize} OFFSET #{pageSize} * (#{pageNumber} - 1)
     </select>
 
-    <select id="getAllUserStoreSortByDateDESC" resultMap="StoreRetailerResultMap">
+    <select id="getAllUserStoreSortByDateDESC" resultMap="StoreBuyerResultMap">
         SELECT id,
                name,
                address,
                banner_image           AS bannerImage,
-               distributor_account_id AS distributorAccountId,
+               supplier_account_id AS supplierAccountId,
                description,
                created_date           AS createdDate,
                updated_date           AS updatedDate,
@@ -437,12 +437,12 @@
         SELECT count(*) FROM tb_store WHERE is_publish = true AND is_active = true
     </select>
 
-    <select id="getAllUserStoreSortByCurrentUserFavoriteDESC" resultMap="StoreRetailerResultMap">
+    <select id="getAllUserStoreSortByCurrentUserFavoriteDESC" resultMap="StoreBuyerResultMap">
         SELECT tb_store.id                     AS id,
                name,
                address,
                banner_image                   AS bannerImage,
-               tb_store.distributor_account_id AS distributorAccountId,
+               tb_store.supplier_account_id AS supplierAccountId,
                description,
                phone                          AS primaryPhone,
                tb_store.created_date          AS createdDate,
@@ -453,16 +453,16 @@
                  FULL OUTER JOIN tb_bookmark tb ON tb_store.id = tb.store_id
         WHERE is_publish = TRUE
           AND is_active = true
-        ORDER BY (SELECT EXISTS(SELECT * FROM tb_bookmark WHERE tb.retailer_account_id = #{currentUser})) DESC
+        ORDER BY (SELECT EXISTS(SELECT * FROM tb_bookmark WHERE tb.buyer_account_id = #{currentUser})) DESC
         LIMIT #{pageSize} OFFSET #{pageSize} * (#{pageNumber} - 1)
     </select>
 
-    <select id="getAllBookmarkedStore" resultMap="StoreRetailerResultMap">
+    <select id="getAllBookmarkedStore" resultMap="StoreBuyerResultMap">
         SELECT tb_store.id                     AS id,
                name,
                address,
                banner_image                   AS bannerImage,
-               tb_store.distributor_account_id AS distributorAccountId,
+               tb_store.supplier_account_id AS supplierAccountId,
                description,
                phone                          AS primaryPhone,
                tb_store.created_date          AS createdDate,
@@ -472,17 +472,17 @@
         FROM tb_store
         WHERE is_publish = TRUE
           AND is_active = true
-          AND tb_store.id IN (SELECT DISTINCT store_id FROM tb_bookmark WHERE retailer_account_id = #{currentUser})
+          AND tb_store.id IN (SELECT DISTINCT store_id FROM tb_bookmark WHERE buyer_account_id = #{currentUser})
         ORDER BY created_date ASC
         LIMIT #{pageSize} OFFSET #{pageSize} * (#{pageNumber} - 1)
     </select>
 
-    <select id="searchStoreByName" resultMap="StoreRetailerResultMap">
+    <select id="searchStoreByName" resultMap="StoreBuyerResultMap">
         SELECT tb_store.id                     AS id,
                name,
                address,
                banner_image                   AS bannerImage,
-               tb_store.distributor_account_id AS distributorAccountId,
+               tb_store.supplier_account_id AS supplierAccountId,
                description,
                phone                          AS primaryPhone,
                tb_store.created_date          AS createdDate,
@@ -498,12 +498,12 @@
         LIMIT #{pageSize} OFFSET #{pageSize} * (#{pageNumber} - 1)
     </select>
 
-    <select id="getAllUserStoreSortByRatedStarASC" resultMap="StoreRetailerResultMap">
+    <select id="getAllUserStoreSortByRatedStarASC" resultMap="StoreBuyerResultMap">
         SELECT tb_store.id                                                             AS id,
                name,
                address,
                banner_image                                                           AS bannerImage,
-               tb_store.distributor_account_id                                        AS distributorAccountId,
+               tb_store.supplier_account_id                                        AS supplierAccountId,
                description,
                phone                                                                  AS primaryPhone,
                tb_store.created_date                                                  AS createdDate,
@@ -519,12 +519,12 @@
         LIMIT #{pageSize} OFFSET #{pageSize} * (#{pageNumber} - 1)
     </select>
 
-    <select id="getAllUserStoreSortByRatedStarDESC" resultMap="StoreRetailerResultMap">
+    <select id="getAllUserStoreSortByRatedStarDESC" resultMap="StoreBuyerResultMap">
         SELECT tb_store.id                                                             AS id,
                name,
                address,
                banner_image                                                           AS bannerImage,
-               tb_store.distributor_account_id                                        AS distributorAccountId,
+               tb_store.supplier_account_id                                        AS supplierAccountId,
                description,
                phone                                                                  AS primaryPhone,
                tb_store.created_date                                                  AS createdDate,
@@ -540,12 +540,12 @@
         LIMIT #{pageSize} OFFSET #{pageSize} * (#{pageNumber} - 1)
     </select>
 
-    <select id="getAllUserStoreSortByNameASC" resultMap="StoreRetailerResultMap">
+    <select id="getAllUserStoreSortByNameASC" resultMap="StoreBuyerResultMap">
         SELECT tb_store.id                     AS id,
                name,
                address,
                banner_image                   AS bannerImage,
-               tb_store.distributor_account_id AS distributorAccountId,
+               tb_store.supplier_account_id AS supplierAccountId,
                description,
                phone                          AS primaryPhone,
                tb_store.created_date          AS createdDate,
@@ -559,12 +559,12 @@
         LIMIT #{pageSize} OFFSET #{pageSize} * (#{pageNumber} - 1)
     </select>
 
-    <select id="getAllUserStoreSortByNameDESC" resultMap="StoreRetailerResultMap">
+    <select id="getAllUserStoreSortByNameDESC" resultMap="StoreBuyerResultMap">
         SELECT tb_store.id                     AS id,
                name,
                address,
                banner_image                   AS bannerImage,
-               tb_store.distributor_account_id AS distributorAccountId,
+               tb_store.supplier_account_id AS supplierAccountId,
                description,
                phone                          AS primaryPhone,
                tb_store.created_date          AS createdDate,
@@ -580,12 +580,12 @@
 
     <!-- ─── SEARCH ──────────────────────────────────────────────────────────── -->
 
-    <select id="getStoresByCategorySearchASC" resultMap="StoreRetailerResultMap">
+    <select id="getStoresByCategorySearchASC" resultMap="StoreBuyerResultMap">
         SELECT tb_store.id                     AS id,
                name,
                address,
                banner_image                   AS bannerImage,
-               tb_store.distributor_account_id AS distributorAccountId,
+               tb_store.supplier_account_id AS supplierAccountId,
                description,
                phone                          AS primaryPhone,
                created_date                   AS createdDate,
@@ -594,18 +594,18 @@
                is_active                      AS isActive
         FROM tb_store
         WHERE is_publish = TRUE
-          AND id IN (SELECT store_id FROM tb_store_category WHERE category_id IN (SELECT id FROM tb_category WHERE name ILIKE '%${name}%'))
+          AND id IN (SELECT store_id FROM tb_store_category WHERE category_id IN (SELECT id FROM tb_category WHERE name ILIKE CONCAT('%', #{name}, '%')))
           AND id IN (SELECT store_id FROM tb_store_category WHERE category_id IN (SELECT DISTINCT category_id FROM tb_store_product_detail WHERE store_id = tb_store.id))
           AND is_active = true
         ORDER BY ${by} ASC
     </select>
 
-    <select id="getStoresByCategorySearchDESC" resultMap="StoreRetailerResultMap">
+    <select id="getStoresByCategorySearchDESC" resultMap="StoreBuyerResultMap">
         SELECT tb_store.id                     AS id,
                name,
                address,
                banner_image                   AS bannerImage,
-               tb_store.distributor_account_id AS distributorAccountId,
+               tb_store.supplier_account_id AS supplierAccountId,
                description,
                phone                          AS primaryPhone,
                created_date                   AS createdDate,
@@ -614,7 +614,7 @@
                is_active                      AS isActive
         FROM tb_store
         WHERE is_publish = TRUE
-          AND id IN (SELECT store_id FROM tb_store_category WHERE category_id IN (SELECT id FROM tb_category WHERE name ILIKE '%${name}%'))
+          AND id IN (SELECT store_id FROM tb_store_category WHERE category_id IN (SELECT id FROM tb_category WHERE name ILIKE CONCAT('%', #{name}, '%')))
           AND id IN (SELECT store_id FROM tb_store_category WHERE category_id IN (SELECT DISTINCT category_id FROM tb_store_product_detail WHERE store_id = tb_store.id))
         ORDER BY ${by} DESC
     </select>
@@ -622,7 +622,7 @@
     <select id="getStoreIdsByCategorySearchASC" resultType="int">
         SELECT tb_store.id FROM tb_store
         WHERE is_publish = TRUE
-          AND id IN (SELECT store_id FROM tb_store_product_detail WHERE product_id IN (SELECT id FROM tb_product WHERE name ILIKE '%${name}%'))
+          AND id IN (SELECT store_id FROM tb_store_product_detail WHERE product_id IN (SELECT id FROM tb_product WHERE name ILIKE CONCAT('%', #{name}, '%')))
           AND id IN (SELECT store_id FROM tb_store_product_detail WHERE product_id IN (SELECT DISTINCT product_id FROM tb_store_product_detail WHERE store_id = tb_store.id))
         ORDER BY ${by} ASC
     </select>
@@ -630,17 +630,17 @@
     <select id="getStoreIdsByCategorySearchDESC" resultType="int">
         SELECT tb_store.id FROM tb_store
         WHERE is_publish = TRUE
-          AND id IN (SELECT store_id FROM tb_store_product_detail WHERE product_id IN (SELECT id FROM tb_product WHERE name ILIKE '%${name}%'))
+          AND id IN (SELECT store_id FROM tb_store_product_detail WHERE product_id IN (SELECT id FROM tb_product WHERE name ILIKE CONCAT('%', #{name}, '%')))
           AND id IN (SELECT store_id FROM tb_store_product_detail WHERE product_id IN (SELECT DISTINCT product_id FROM tb_store_product_detail WHERE store_id = tb_store.id))
         ORDER BY ${by} DESC
     </select>
 
-    <select id="getStoresByProductSearchASC" resultMap="StoreRetailerResultMap">
+    <select id="getStoresByProductSearchASC" resultMap="StoreBuyerResultMap">
         SELECT tb_store.id                     AS id,
                name,
                address,
                banner_image                   AS bannerImage,
-               tb_store.distributor_account_id AS distributorAccountId,
+               tb_store.supplier_account_id AS supplierAccountId,
                description,
                phone                          AS primaryPhone,
                created_date                   AS createdDate,
@@ -649,17 +649,17 @@
                is_active                      AS isActive
         FROM tb_store
         WHERE is_publish = TRUE
-          AND id IN (SELECT store_id FROM tb_store_product_detail WHERE product_id IN (SELECT id FROM tb_product WHERE name ILIKE '%${name}%'))
+          AND id IN (SELECT store_id FROM tb_store_product_detail WHERE product_id IN (SELECT id FROM tb_product WHERE name ILIKE CONCAT('%', #{name}, '%')))
           AND id IN (SELECT store_id FROM tb_store_product_detail WHERE product_id IN (SELECT DISTINCT product_id FROM tb_store_product_detail WHERE store_id = tb_store.id))
         ORDER BY ${by} ASC
     </select>
 
-    <select id="getStoresByProductSearchDESC" resultMap="StoreRetailerResultMap">
+    <select id="getStoresByProductSearchDESC" resultMap="StoreBuyerResultMap">
         SELECT tb_store.id                     AS id,
                name,
                address,
                banner_image                   AS bannerImage,
-               tb_store.distributor_account_id AS distributorAccountId,
+               tb_store.supplier_account_id AS supplierAccountId,
                description,
                phone                          AS primaryPhone,
                created_date                   AS createdDate,
@@ -668,7 +668,7 @@
                is_active                      AS isActive
         FROM tb_store
         WHERE is_publish = TRUE
-          AND id IN (SELECT store_id FROM tb_store_product_detail WHERE product_id IN (SELECT id FROM tb_product WHERE name ILIKE '%${name}%'))
+          AND id IN (SELECT store_id FROM tb_store_product_detail WHERE product_id IN (SELECT id FROM tb_product WHERE name ILIKE CONCAT('%', #{name}, '%')))
           AND id IN (SELECT store_id FROM tb_store_product_detail WHERE product_id IN (SELECT DISTINCT product_id FROM tb_store_product_detail WHERE store_id = tb_store.id))
         ORDER BY ${by} DESC
     </select>
@@ -676,7 +676,7 @@
     <select id="getStoreIdByProductSearchASC" resultType="int">
         SELECT tb_store.id FROM tb_store
         WHERE is_publish = TRUE
-          AND id IN (SELECT store_id FROM tb_store_product_detail WHERE product_id IN (SELECT id FROM tb_product WHERE name ILIKE '%${name}%'))
+          AND id IN (SELECT store_id FROM tb_store_product_detail WHERE product_id IN (SELECT id FROM tb_product WHERE name ILIKE CONCAT('%', #{name}, '%')))
           AND id IN (SELECT store_id FROM tb_store_product_detail WHERE product_id IN (SELECT DISTINCT product_id FROM tb_store_product_detail WHERE store_id = tb_store.id))
         ORDER BY ${by} ASC
     </select>
@@ -684,17 +684,17 @@
     <select id="getStoreIdByProductSearchDESC" resultType="int">
         SELECT tb_store.id FROM tb_store
         WHERE is_publish = TRUE
-          AND id IN (SELECT store_id FROM tb_store_product_detail WHERE product_id IN (SELECT id FROM tb_product WHERE name ILIKE '%${name}%'))
+          AND id IN (SELECT store_id FROM tb_store_product_detail WHERE product_id IN (SELECT id FROM tb_product WHERE name ILIKE CONCAT('%', #{name}, '%')))
           AND id IN (SELECT store_id FROM tb_store_product_detail WHERE product_id IN (SELECT DISTINCT product_id FROM tb_store_product_detail WHERE store_id = tb_store.id))
         ORDER BY ${by} DESC
     </select>
 
-    <select id="getStoresByNameSearchASC" resultMap="StoreRetailerResultMap">
+    <select id="getStoresByNameSearchASC" resultMap="StoreBuyerResultMap">
         SELECT tb_store.id                     AS id,
                name,
                address,
                banner_image                   AS bannerImage,
-               tb_store.distributor_account_id AS distributorAccountId,
+               tb_store.supplier_account_id AS supplierAccountId,
                description,
                phone                          AS primaryPhone,
                tb_store.created_date          AS createdDate,
@@ -708,12 +708,12 @@
         ORDER BY ${by} ASC
     </select>
 
-    <select id="getStoresByNameSearchDESC" resultMap="StoreRetailerResultMap">
+    <select id="getStoresByNameSearchDESC" resultMap="StoreBuyerResultMap">
         SELECT tb_store.id                     AS id,
                name,
                address,
                banner_image                   AS bannerImage,
-               tb_store.distributor_account_id AS distributorAccountId,
+               tb_store.supplier_account_id AS supplierAccountId,
                description,
                phone                          AS primaryPhone,
                tb_store.created_date          AS createdDate,
@@ -747,12 +747,12 @@
          ${combinedList} → comma-separated list of IDs passed as a raw string.
     -->
 
-    <select id="getStoresByStoreIdsASC" resultMap="StoreRetailerResultMap">
+    <select id="getStoresByStoreIdsASC" resultMap="StoreBuyerResultMap">
         SELECT tb_store.id                     AS id,
                name,
                address,
                banner_image                   AS bannerImage,
-               tb_store.distributor_account_id AS distributorAccountId,
+               tb_store.supplier_account_id AS supplierAccountId,
                description,
                phone                          AS primaryPhone,
                created_date                   AS createdDate,
@@ -764,12 +764,12 @@
         ORDER BY array_position('{${combinedList}}', id) ASC
     </select>
 
-    <select id="getStoresByStoreIdsDESC" resultMap="StoreRetailerResultMap">
+    <select id="getStoresByStoreIdsDESC" resultMap="StoreBuyerResultMap">
         SELECT tb_store.id                     AS id,
                name,
                address,
                banner_image                   AS bannerImage,
-               tb_store.distributor_account_id AS distributorAccountId,
+               tb_store.supplier_account_id AS supplierAccountId,
                description,
                phone                          AS primaryPhone,
                created_date                   AS createdDate,
@@ -784,11 +784,11 @@
     <!-- ─── SIMPLE LOOKUPS ────────────────────────────────────────────────────── -->
 
     <select id="getStoreIdByUserId" resultType="int">
-        SELECT id FROM tb_store WHERE distributor_account_id = #{currentUserId}
+        SELECT id FROM tb_store WHERE supplier_account_id = #{currentUserId}
     </select>
 
     <select id="checkStoreIfCreated" resultType="int">
-        SELECT COALESCE((SELECT 1 FROM tb_store WHERE distributor_account_id = #{currentUserId}), 0) AS isExist
+        SELECT COALESCE((SELECT 1 FROM tb_store WHERE supplier_account_id = #{currentUserId}), 0) AS isExist
     </select>
 
     <select id="checkDuplicateStoreName" resultType="boolean">
@@ -800,7 +800,7 @@
     </select>
 
     <select id="checkIfStoreIsDisable" resultType="boolean">
-        SELECT is_publish FROM tb_store WHERE distributor_account_id = #{currentUserId}
+        SELECT is_publish FROM tb_store WHERE supplier_account_id = #{currentUserId}
     </select>
 
     <select id="checkIfCategoryExistInStore" resultType="boolean">
@@ -834,8 +834,8 @@
     </select>
 
     <select id="getStoreEmailByStoreId" resultType="String">
-        SELECT email FROM tb_distributor_account
-        WHERE id = (SELECT distributor_account_id FROM tb_store WHERE id = #{id})
+        SELECT email FROM tb_supplier_account
+        WHERE id = (SELECT supplier_account_id FROM tb_store WHERE id = #{id})
     </select>
 
     <select id="getStoreIdByProductId" resultType="int">

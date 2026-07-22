@@ -8,8 +8,8 @@ import com.henheang.hphsar.model.appUser.AppUser;
 import com.henheang.hphsar.model.history.ImportHistory;
 import com.henheang.hphsar.model.history.OrderDetailHistory;
 import com.henheang.hphsar.repository.HistoryRepository;
-import com.henheang.hphsar.repository.OrderRetailerRepository;
-import com.henheang.hphsar.repository.RetailerProfileRepository;
+import com.henheang.hphsar.repository.BuyerOrderRepository;
+import com.henheang.hphsar.repository.BuyerProfileRepository;
 import com.henheang.hphsar.repository.StoreRepository;
 import com.henheang.hphsar.service.HistoryService;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -18,21 +18,20 @@ import org.springframework.stereotype.Service;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.List;
-import java.util.Objects;
 
 @Service
 public class HistoryServiceImplV1 implements HistoryService {
     SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
     private final HistoryRepository historyRepository;
-    private final OrderRetailerRepository orderRetailerRepository;
+    private final BuyerOrderRepository buyerOrderRepository;
     private final StoreRepository storeRepository;
-    private final RetailerProfileRepository retailerProfileRepository;
+    private final BuyerProfileRepository buyerProfileRepository;
 
-    public HistoryServiceImplV1(HistoryRepository historyRepository, OrderRetailerRepository orderRetailerRepository, StoreRepository storeRepository, RetailerProfileRepository retailerProfileRepository) {
+    public HistoryServiceImplV1(HistoryRepository historyRepository, BuyerOrderRepository buyerOrderRepository, StoreRepository storeRepository, BuyerProfileRepository buyerProfileRepository) {
         this.historyRepository = historyRepository;
-        this.orderRetailerRepository = orderRetailerRepository;
+        this.buyerOrderRepository = buyerOrderRepository;
         this.storeRepository = storeRepository;
-        this.retailerProfileRepository = retailerProfileRepository;
+        this.buyerProfileRepository = buyerProfileRepository;
     }
 
     @Override
@@ -78,14 +77,14 @@ public class HistoryServiceImplV1 implements HistoryService {
     }
 
     @Override
-    public List<OrderDetailHistory> getRetailerOrderHistory(String sort, Integer pageNumber, Integer pageSize) throws ParseException {
+    public List<OrderDetailHistory> getBuyerOrderHistory(String sort, Integer pageNumber, Integer pageSize) throws ParseException {
         AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         Integer currentUserId = appUser.getId();
-        if (!retailerProfileRepository.checkIfRetailerProfileIsAlreadyCreated(currentUserId)) {
+        if (!buyerProfileRepository.checkIfBuyerProfileIsAlreadyCreated(currentUserId)) {
             throw new NotFoundException("User have not created profile yet. Please create user profile to use this feature.");
         }
-        Integer totalOrderHistory = historyRepository.findTotalRetailerOrder(currentUserId);
-        List<OrderDetailHistory> orderDetails = historyRepository.getRetailerOrderHistory(sort, pageNumber, pageSize, currentUserId);
+        Integer totalOrderHistory = historyRepository.findTotalBuyerOrder(currentUserId);
+        List<OrderDetailHistory> orderDetails = historyRepository.getBuyerOrderHistory(sort, pageNumber, pageSize, currentUserId);
         if (totalOrderHistory < pageSize * pageNumber && orderDetails.isEmpty()) {
             throw new NotFoundException("Out of range. Total page is " + totalOrderHistory);
         }
@@ -99,27 +98,30 @@ public class HistoryServiceImplV1 implements HistoryService {
     public List<OrderDetailHistory> getDraftHistory(String sort, Integer pageNumber, Integer pageSize) {
         AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         Integer currentUserId = appUser.getId();
-        if (!retailerProfileRepository.checkIfRetailerProfileIsAlreadyCreated(currentUserId)) {
+        if (!buyerProfileRepository.checkIfBuyerProfileIsAlreadyCreated(currentUserId)) {
             throw new NotFoundException("User have not created profile yet. Please create user profile to use this feature.");
         }
-        Integer totalRetailerDraftPage = historyRepository.findTotalRetailerDraft(currentUserId);
-        List<OrderDetailHistory> orderDetails = historyRepository.getRetailerDraft(sort, pageNumber, pageSize, currentUserId);
-        if (totalRetailerDraftPage < pageSize * pageNumber && orderDetails.isEmpty()) {
-            throw new NotFoundException("Out of range. Total page is " + totalRetailerDraftPage);
+        Integer totalBuyerDraftPage = historyRepository.findTotalBuyerDraft(currentUserId);
+        List<OrderDetailHistory> orderDetails = historyRepository.getBuyerDraft(sort, pageNumber, pageSize, currentUserId);
+        if (totalBuyerDraftPage < pageSize * pageNumber && orderDetails.isEmpty()) {
+            throw new NotFoundException("Out of range. Total page is " + totalBuyerDraftPage);
         }
         return orderDetails;
     }
 
     @Override
     public String deleteDraftById(Integer id) {
+        // Buyer id always comes from the authenticated principal, never from
+        // the request — the caller cannot supply/override whose draft this is.
         AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         Integer currentUserId = appUser.getId();
-        Integer storeId = storeRepository.getStoreIdByUserId(currentUserId);
-        if (!historyRepository.checkDraftById(id)) {
+        // Ownership-scoped existence check: a draft that exists but belongs to
+        // another buyer must look identical to a draft that doesn't exist at all.
+        if (!historyRepository.existsDraftByIdAndBuyerId(id, currentUserId)) {
             throw new NotFoundException("Draft not found.");
         }
-        Integer draftId = historyRepository.deleteDraftById(id);
-        if (!Objects.equals(id, draftId)){
+        int affected = historyRepository.deleteDraftByIdAndBuyerId(id, currentUserId);
+        if (affected != 1) {
             throw new InternalServerErrorException("Fail to delete draft.");
         }
         return "Successfully deleted draft " + id;
@@ -127,21 +129,25 @@ public class HistoryServiceImplV1 implements HistoryService {
 
     @Override
     public OrderDetailHistory updateDraftById(Integer id) throws ParseException {
+        // Buyer id always comes from the authenticated principal, never from
+        // the request — the caller cannot supply/override whose draft this is.
         AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         Integer currentUserId = appUser.getId();
-        if (!historyRepository.checkDraftById(id)) {
+        // Ownership-scoped existence check: a draft that exists but belongs to
+        // another buyer must look identical to a draft that doesn't exist at all.
+        if (!historyRepository.existsDraftByIdAndBuyerId(id, currentUserId)) {
             throw new NotFoundException("Draft not found.");
         }
         Integer storeId = storeRepository.getStoreIdByDraftId(id);
         // check for cart or pending request
-        if (orderRetailerRepository.checkForCartOrPending(storeId, currentUserId)) {
+        if (buyerOrderRepository.checkForCartOrPending(storeId, currentUserId)) {
             throw new ConflictException("You currently have pending order or cart. Can only order once at a time. Please kindly wait for this order to be accepted.");
         }
-        Integer draftId = historyRepository.updateDraftById(id);
-        if (!Objects.equals(draftId, id)){
+        int affected = historyRepository.submitDraftByIdAndBuyerId(id, currentUserId);
+        if (affected != 1) {
             throw new InternalServerErrorException("Fail to update draft.");
         }
-        OrderDetailHistory orderDetailHistory = historyRepository.getDraftHistory(draftId, currentUserId);
+        OrderDetailHistory orderDetailHistory = historyRepository.getDraftHistory(id, currentUserId);
         if (orderDetailHistory == null){
             throw new InternalServerErrorException("Fail to fetch data.");
         }
@@ -186,32 +192,32 @@ public class HistoryServiceImplV1 implements HistoryService {
     }
 
     @Override
-    public Integer findRetailerTotalOrderPage(Integer pageSize) {
+    public Integer findBuyerTotalOrderPage(Integer pageSize) {
         AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         Integer currentUserId = appUser.getId();
 //        if (storeRepository.checkStoreIfCreated(currentUserId) == 0) {
 //            throw new NotFoundException("User have not created store. Please create store to proceed with category.");
 //        }
-        Integer totalRetailerOrder = historyRepository.findTotalRetailerOrder(currentUserId);
+        Integer totalBuyerOrder = historyRepository.findTotalBuyerOrder(currentUserId);
         int totalPage;
-        if (totalRetailerOrder % pageSize == 0) {
-            totalPage = totalRetailerOrder / pageSize;
+        if (totalBuyerOrder % pageSize == 0) {
+            totalPage = totalBuyerOrder / pageSize;
         } else {
-            totalPage = (Integer) (totalRetailerOrder / pageSize) + 1;
+            totalPage = (Integer) (totalBuyerOrder / pageSize) + 1;
         }
         return totalPage;
     }
 
     @Override
-    public Integer findRetailerTotalDraftPage(Integer pageSize) {
+    public Integer findBuyerTotalDraftPage(Integer pageSize) {
         AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         Integer currentUserId = appUser.getId();
-        Integer totalRetailerDraftPage = historyRepository.findTotalRetailerDraft(currentUserId);
+        Integer totalBuyerDraftPage = historyRepository.findTotalBuyerDraft(currentUserId);
         int totalPage;
-        if (totalRetailerDraftPage % pageSize == 0) {
-            totalPage = totalRetailerDraftPage / pageSize;
+        if (totalBuyerDraftPage % pageSize == 0) {
+            totalPage = totalBuyerDraftPage / pageSize;
         } else {
-            totalPage = (Integer) (totalRetailerDraftPage / pageSize) + 1;
+            totalPage = (Integer) (totalBuyerDraftPage / pageSize) + 1;
         }
         return totalPage;
     }

@@ -1,5 +1,6 @@
 package com.henheang.hphsar.config;
 
+import com.henheang.hphsar.model.appUser.Role;
 import com.henheang.hphsar.service.implement.JwtUserDetailsServiceImpl;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -63,8 +64,8 @@ public class SecurityConfig {
      *   - /v3/api-docs/**, /swagger-ui/** → API documentation
      * <p>
      * Protected endpoints (token required):
-     *   - /api/v1/retailer/**     → RETAILER role only
-     *   - /api/v1/distributor/**  → DISTRIBUTOR role only
+     *   - /api/v1/buyers/**       → BUYER role only
+     *   - /api/v1/suppliers/**    → SUPPLIER role only
      *   - anything else           → any authenticated user
      */
     @Bean
@@ -74,8 +75,8 @@ public class SecurityConfig {
             .csrf(AbstractHttpConfigurer::disable) // disable CSRF since we use stateless JWT, not cookies
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                .requestMatchers("/api/v1/retailer/**").hasAuthority("RETAILER")
-                .requestMatchers("/api/v1/distributor/**").hasAuthority("DISTRIBUTOR")
+                .requestMatchers("/api/v1/buyers/**").hasAuthority(Role.BUYER.name())
+                .requestMatchers("/api/v1/suppliers/**").hasAuthority(Role.SUPPLIER.name())
                 .requestMatchers(
                         "/authorization/**",
                         "/api/v1/files/**",

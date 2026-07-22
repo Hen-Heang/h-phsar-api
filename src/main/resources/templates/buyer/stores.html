@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head th:replace="~{fragments/layout :: head}">
+  <title>Browse Stores | H-Phsar Buyer</title>
+</head>
+<body>
+
+<div th:replace="~{fragments/layout :: buyer-sidebar}"></div>
+
+<div class="main-wrapper">
+  <div th:replace="~{fragments/layout :: topbar('Browse Stores')}"></div>
+
+  <main class="page-content">
+    <div class="page-header">
+      <h2>Browse Stores</h2>
+      <p>Discover supplier stores and order products.</p>
+    </div>
+
+    <!-- Filters -->
+    <div class="card mb-4">
+      <div class="card-header-custom flex-wrap gap-2">
+        <div class="search-wrapper">
+          <i class="bi bi-search"></i>
+          <label for="store-search"></label>
+          <input class="search-input" id="store-search" type="text" placeholder="Search stores..." oninput="debounceSearch()"/>
+        </div>
+        <div class="d-flex gap-2 align-items-center">
+          <select id="sort-mode" class="form-select form-select-sm" style="width:auto;" onchange="loadStores()">
+            <option value="date">Newest</option>
+            <option value="name">Name</option>
+            <option value="rated">Top Rated</option>
+            <option value="bookmark">Bookmarked</option>
+          </select>
+          <select id="sort-dir" class="form-select form-select-sm" style="width:auto;" onchange="loadStores()">
+            <option value="asc">Asc</option>
+            <option value="desc">Desc</option>
+          </select>
+          <span class="text-muted" style="font-size:13px;" id="store-total"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Store Grid -->
+    <div class="row g-3" id="store-grid">
+      <div class="col-12 text-center text-muted py-5">Loading stores...</div>
+    </div>
+
+    <!-- Pagination -->
+    <div class="pagination-wrapper mt-3">
+      <span id="store-page-info" style="font-size:13px;color:#6b7280;"></span>
+      <div class="d-flex gap-1" id="store-page-buttons"></div>
+    </div>
+  </main>
+</div>
+
+<!-- Store Detail Modal -->
+<div class="modal fade" id="storeModal" tabindex="-1">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content" style="border-radius:16px;border:none;">
+      <div class="modal-header border-0 pb-0">
+        <h5 class="modal-title fw-bold" id="store-modal-title">Store Details</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-4">
+
+        <!-- Store info -->
+        <div id="store-modal-info" class="mb-4"></div>
+
+        <!-- Category filter -->
+        <div class="d-flex gap-2 flex-wrap mb-3" id="cat-filter-row">
+          <button class="btn btn-sm btn-primary" onclick="loadStoreProducts(null)">All</button>
+        </div>
+
+        <!-- Products -->
+        <div class="row g-3" id="store-products-grid">
+          <div class="col-12 text-center text-muted py-4">Select a store to view products.</div>
+        </div>
+      </div>
+      <div class="modal-footer border-0 pt-0 d-flex justify-content-between">
+        <div id="rating-section"></div>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add to Cart Confirm Modal -->
+<div class="modal fade" id="cartModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content" style="border-radius:12px;border:none;">
+      <div class="modal-body p-4 text-center">
+        <div style="font-size:36px;margin-bottom:12px;">🛒</div>
+        <h6 class="fw-bold mb-1" id="cart-product-name"></h6>
+        <p class="text-muted" style="font-size:13px;">Enter quantity to add to cart</p>
+        <input type="number" id="cart-qty" class="form-control text-center mb-3" min="1" value="1" style="font-size:18px;font-weight:700;"/>
+        <div class="d-flex gap-2 justify-content-center">
+          <button class="btn btn-light px-4" data-bs-dismiss="modal">Cancel</button>
+          <button class="btn btn-success px-4" onclick="confirmAddToCart()">Add to Cart</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<div th:replace="~{fragments/layout :: scripts}"></div>
+<script>
+  redirectIfNoToken();
+
+  let currentPage = 1;
+  let searchTimer = null;
+  let selectedStoreId = null;
+  let addStoreId = null;
+  let addProductId = null;
+
+  function debounceSearch() {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => loadStores(1), 400);
+  }
+
+  async function loadStores(page = 1) {
+    currentPage = page;
+    const search   = document.getElementById('store-search').value.trim();
+    const sortMode = document.getElementById('sort-mode').value;
+    const sortDir  = document.getElementById('sort-dir').value;
+    const grid = document.getElementById('store-grid');
+    grid.innerHTML = '<div class="col-12 text-center text-muted py-5">Loading...</div>';
+
+    try {
+      let res;
+      const base = '/api/v1/buyers/stores';
+      if (search) {
+        res = await api.get(`${base}/hybrid/search?name=${encodeURIComponent(search)}&sort=${sortDir}&by=desc`);
+        const list = res.data || [];
+        renderStoreGrid(list);
+        document.getElementById('store-total').textContent = `${list.length} result(s)`;
+        document.getElementById('store-page-info').textContent = '';
+        document.getElementById('store-page-buttons').innerHTML = '';
+        return;
+      }
+
+      const urlMap = {
+        date:     `${base}/sort/date?sort=${sortDir}&pageNumber=${page}&pageSize=12`,
+        name:     `${base}/sort/name?sort=${sortDir}&pageNumber=${page}&pageSize=12`,
+        rated:    `${base}/sort/rated?sort=${sortDir}&pageNumber=${page}&pageSize=12`,
+        bookmark: `${base}/bookmark?pageNumber=${page}&pageSize=12`,
+      };
+      res = await api.get(urlMap[sortMode] || urlMap.date);
+
+      const list  = res.data || [];
+      const total = res.totalElements || list.length;
+      const pages = res.totalPages    || 1;
+
+      document.getElementById('store-total').textContent    = `${total} store(s)`;
+      document.getElementById('store-page-info').textContent = `Page ${page} of ${pages}`;
+      renderPagination('store-page-buttons', page, pages, loadStores);
+      renderStoreGrid(list);
+
+    } catch (e) {
+      grid.innerHTML = '<div class="col-12"><div class="empty-state"><i class="bi bi-exclamation-circle"></i><p>Failed to load stores</p></div></div>';
+    }
+  }
+
+  function renderStoreGrid(list) {
+    const grid = document.getElementById('store-grid');
+    if (!list.length) {
+      grid.innerHTML = '<div class="col-12"><div class="empty-state"><i class="bi bi-shop-window"></i><p>No stores found</p></div></div>';
+      return;
+    }
+    grid.innerHTML = list.map(s => `
+      <div class="col-xl-3 col-lg-4 col-md-6">
+        <div class="card h-100" style="cursor:pointer;transition:transform 0.15s;" onmouseenter="this.style.transform='translateY(-3px)'" onmouseleave="this.style.transform=''"
+             onclick="openStore(${s.id})">
+          <div style="height:140px;background:#e5e7eb;border-radius:12px 12px 0 0;overflow:hidden;position:relative;">
+            ${s.bannerImage
+              ? `<img src="${s.bannerImage}" style="width:100%;height:100%;object-fit:cover;" alt="banner"/>`
+              : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:48px;color:#9ca3af;"><i class="bi bi-shop"></i></div>`}
+            <div style="position:absolute;top:8px;right:8px;" onclick="event.stopPropagation()">
+              <button class="btn btn-sm ${s.isBookmarked ? 'btn-warning' : 'btn-outline-warning'}" onclick="toggleBookmark(${s.id}, this)" title="${s.isBookmarked ? 'Remove bookmark' : 'Bookmark'}">
+                <i class="bi bi-bookmark${s.isBookmarked ? '-fill' : ''}"></i>
+              </button>
+            </div>
+            ${s.isPublish ? '' : '<div style="position:absolute;top:8px;left:8px;background:rgba(0,0,0,0.5);color:#fff;font-size:11px;padding:2px 8px;border-radius:4px;">Unlisted</div>'}
+          </div>
+          <div class="p-3">
+            <div class="fw-bold mb-1" style="font-size:15px;">${s.name || '—'}</div>
+            <div class="text-muted mb-2" style="font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${s.address || ''}</div>
+            <div class="d-flex align-items-center gap-1 mb-2">
+              ${starRating(s.rating || 0)}
+              <span style="font-size:12px;color:#6b7280;">(${s.ratingCount || 0})</span>
+            </div>
+            <div class="d-flex flex-wrap gap-1">
+              ${(s.categories || []).slice(0, 3).map(c => `<span class="badge" style="background:#e0f2fe;color:#0369a1;font-size:10px;">${c.name}</span>`).join('')}
+            </div>
+          </div>
+        </div>
+      </div>`).join('');
+  }
+
+  function starRating(rating) {
+    const full = Math.floor(rating);
+    const half = rating - full >= 0.5;
+    let html = '';
+    for (let i = 0; i < 5; i++) {
+      if (i < full) html += '<i class="bi bi-star-fill" style="color:#f59e0b;font-size:12px;"></i>';
+      else if (i === full && half) html += '<i class="bi bi-star-half" style="color:#f59e0b;font-size:12px;"></i>';
+      else html += '<i class="bi bi-star" style="color:#d1d5db;font-size:12px;"></i>';
+    }
+    return html;
+  }
+
+  async function openStore(storeId) {
+    selectedStoreId = storeId;
+    new bootstrap.Modal(document.getElementById('storeModal')).show();
+
+    document.getElementById('store-modal-info').innerHTML = '<div class="text-center text-muted py-3">Loading...</div>';
+    document.getElementById('store-products-grid').innerHTML = '<div class="col-12 text-center text-muted py-4">Loading products...</div>';
+    document.getElementById('cat-filter-row').innerHTML = '<button class="btn btn-sm btn-primary" onclick="loadStoreProducts(null)">All</button>';
+
+    try {
+      // Load store detail
+      const storeRes = await api.get(`/api/v1/buyers/stores/${storeId}`);
+      const s = storeRes.data || {};
+      document.getElementById('store-modal-title').textContent = s.name || 'Store Details';
+      document.getElementById('store-modal-info').innerHTML = `
+        <div class="row g-3">
+          <div class="col-md-8">
+            <div style="font-size:14px;color:#374151;">${s.description || ''}</div>
+            <div class="text-muted mt-2" style="font-size:13px;"><i class="bi bi-geo-alt me-1"></i>${s.address || ''}</div>
+            <div class="text-muted" style="font-size:13px;"><i class="bi bi-telephone me-1"></i>${s.primaryPhone || ''}</div>
+          </div>
+          <div class="col-md-4 text-md-end">
+            <div class="mb-2">${starRating(s.rating || 0)} <span class="fw-semibold">${(s.rating||0).toFixed(1)}</span> (${s.ratingCount||0} reviews)</div>
+            <button class="btn btn-sm ${s.isBookmarked ? 'btn-warning' : 'btn-outline-warning'}" id="modal-bookmark-btn" onclick="toggleBookmark(${storeId}, this)">
+              <i class="bi bi-bookmark${s.isBookmarked ? '-fill' : ''} me-1"></i>${s.isBookmarked ? 'Bookmarked' : 'Bookmark'}
+            </button>
+          </div>
+        </div>`;
+
+      // Load rating section
+      renderRatingSection(storeId, s);
+
+      // Load categories
+      const catRes = await api.get(`/api/v1/buyers/stores/${storeId}/category`);
+      const cats = catRes.data || [];
+      const catRow = document.getElementById('cat-filter-row');
+      catRow.innerHTML = `<button class="btn btn-sm btn-primary" onclick="loadStoreProducts(null)">All</button>` +
+        cats.map(c => `<button class="btn btn-sm btn-outline-secondary" onclick="loadStoreProducts(${c.id})">${c.name}</button>`).join('');
+
+    } catch (e) {
+      document.getElementById('store-modal-info').innerHTML = '<div class="text-danger">Could not load store info.</div>';
+    }
+
+    loadStoreProducts(null);
+  }
+
+  async function loadStoreProducts(categoryId) {
+    const grid = document.getElementById('store-products-grid');
+    grid.innerHTML = '<div class="col-12 text-center text-muted py-4">Loading...</div>';
+
+    // Update active button
+    document.querySelectorAll('#cat-filter-row button').forEach((btn, i) => {
+      btn.className = 'btn btn-sm ' + (categoryId === null && i === 0 ? 'btn-primary' : categoryId !== null && btn.textContent !== 'All' && btn.onclick.toString().includes(categoryId) ? 'btn-primary' : 'btn-outline-secondary');
+    });
+
+    try {
+      let res;
+      if (categoryId) {
+        res = await api.get(`/api/v1/buyers/stores/${selectedStoreId}/products/category?categoryId=${categoryId}`);
+      } else {
+        res = await api.get(`/api/v1/buyers/stores/${selectedStoreId}/products?sort=asc&by=price`);
+      }
+      const products = res.data || [];
+      if (!products.length) {
+        grid.innerHTML = '<div class="col-12"><div class="empty-state"><i class="bi bi-box-seam"></i><p>No products available</p></div></div>';
+        return;
+      }
+      grid.innerHTML = products.map(p => `
+        <div class="col-xl-3 col-lg-4 col-md-6">
+          <div class="card h-100">
+            <div style="height:120px;background:#f3f4f6;border-radius:8px 8px 0 0;overflow:hidden;">
+              ${p.image ? `<img src="${p.image}" style="width:100%;height:100%;object-fit:cover;" alt="${p.name}"/>` : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:36px;color:#9ca3af;"><i class="bi bi-image"></i></div>`}
+            </div>
+            <div class="p-3">
+              <div class="fw-semibold mb-1" style="font-size:13px;">${p.name || '—'}</div>
+              <div class="text-muted mb-1" style="font-size:11px;">${p.category?.name || ''}</div>
+              <div class="fw-bold text-success mb-2">${formatCurrency(p.price)}</div>
+              <div class="d-flex justify-content-between align-items-center">
+                <span class="text-muted" style="font-size:11px;">Stock: ${p.qty ?? '—'}</span>
+                ${p.qty > 0
+                  ? `<button class="btn btn-sm btn-success" onclick="openAddToCart(${selectedStoreId}, ${p.id}, '${esc(p.name)}')"><i class="bi bi-cart-plus"></i></button>`
+                  : `<span class="badge bg-secondary" style="font-size:10px;">Out of stock</span>`}
+              </div>
+            </div>
+          </div>
+        </div>`).join('');
+    } catch (e) {
+      grid.innerHTML = '<div class="col-12"><div class="empty-state"><i class="bi bi-exclamation-circle"></i><p>Could not load products</p></div></div>';
+    }
+  }
+
+  function renderRatingSection(storeId, store) {
+    const section = document.getElementById('rating-section');
+    section.innerHTML = `
+      <div class="d-flex align-items-center gap-2">
+        <span style="font-size:13px;color:#6b7280;">Rate this store:</span>
+        <div id="star-picker" class="d-flex gap-1">
+          ${[1,2,3,4,5].map(i => `<i class="bi bi-star" style="font-size:20px;color:#d1d5db;cursor:pointer;" data-star="${i}" onmouseover="hoverStar(${i})" onmouseout="resetStars()" onclick="submitRating(${storeId}, ${i})"></i>`).join('')}
+        </div>
+      </div>`;
+    // Load existing rating
+    api.get(`/api/v1/buyers/stores/${storeId}/rating`).then(r => {
+      if (r.data?.ratedStar) setStars(r.data.ratedStar);
+    }).catch(() => {});
+  }
+
+  function hoverStar(n) {
+    document.querySelectorAll('#star-picker i').forEach((s, i) => {
+      s.className = i < n ? 'bi bi-star-fill' : 'bi bi-star';
+      s.style.color = i < n ? '#f59e0b' : '#d1d5db';
+    });
+  }
+  function resetStars() { /* keep current selection */ }
+  function setStars(n) { hoverStar(n); }
+
+  async function submitRating(storeId, star) {
+    setStars(star);
+    try {
+      // Try put first (update), fall back to post (create)
+      try { await api.put(`/api/v1/buyers/stores/${storeId}/rating`, { ratedStar: star }); }
+      catch (_) { await api.post(`/api/v1/buyers/stores/${storeId}/rating`, { ratedStar: star }); }
+      toast(`Rated ${star} star${star > 1 ? 's' : ''}!`, 'success');
+    } catch (e) { toast('Could not submit rating.', 'error'); }
+  }
+
+  async function toggleBookmark(storeId, btn) {
+    const isBookmarked = btn.classList.contains('btn-warning');
+    try {
+      if (isBookmarked) {
+        await api.delete(`/api/v1/buyers/stores/${storeId}/bookmark/remove`);
+        btn.className = 'btn btn-sm btn-outline-warning';
+        btn.innerHTML = '<i class="bi bi-bookmark"></i>';
+        toast('Bookmark removed.', 'info');
+      } else {
+        await api.post(`/api/v1/buyers/stores/${storeId}/bookmark`);
+        btn.className = 'btn btn-sm btn-warning';
+        btn.innerHTML = '<i class="bi bi-bookmark-fill"></i>';
+        toast('Store bookmarked!', 'success');
+      }
+    } catch (e) { toast('Could not update bookmark.', 'error'); }
+  }
+
+  function openAddToCart(storeId, productId, productName) {
+    addStoreId = storeId;
+    addProductId = productId;
+    document.getElementById('cart-product-name').textContent = productName;
+    document.getElementById('cart-qty').value = 1;
+    new bootstrap.Modal(document.getElementById('cartModal')).show();
+  }
+
+  async function confirmAddToCart() {
+    const qty = parseInt(document.getElementById('cart-qty').value);
+    if (!qty || qty < 1) { toast('Enter a valid quantity.', 'error'); return; }
+    try {
+      await api.post(`/api/v1/buyers/orders/cart?storeId=${addStoreId}`, [{ productId: addProductId, qty }]);
+      bootstrap.Modal.getInstance(document.getElementById('cartModal')).hide();
+      toast('Added to cart!', 'success');
+    } catch (e) { toast(e?.message || 'Could not add to cart.', 'error'); }
+  }
+
+  function esc(s) { return (s || '').replace(/'/g, "\\'"); }
+
+  loadStores();
+</script>
+</body>
+</html>

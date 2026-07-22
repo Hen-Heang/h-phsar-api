@@ -23,8 +23,8 @@ import org.apache.ibatis.annotations.Param;
  *        - The method name here                  →  id="..." in XML
  * <p>
  * Example connection:
- *   Java:  AppUser findDistributorUserByEmail(String email)
- *   XML:   <select id="findDistributorUserByEmail" ...>SELECT ...</select>
+ *   Java:  AppUser findSupplierUserByEmail(String email)
+ *   XML:   <select id="findSupplierUserByEmail" ...>SELECT ...</select>
  * <p>
  * WHY THIS IS BETTER:
  *   - SQL is in its own file — easier to read and format
@@ -39,38 +39,38 @@ public interface AppUserRepository {
     // ─── INSERT ────────────────────────────────────────────────────────────────
     // @Param("user") tells MyBatis: the parameter named "user" in XML = appUserRequest here
     // In XML you access it as #{user.email}, #{user.password}, #{user.roleId}
-    AppUser insertDistributorUser(@Param("user") AppUserRequest appUserRequest);
-    AppUser insertRetailerUser(@Param("user") AppUserRequest appUserRequest);
+    AppUser insertSupplierUser(@Param("user") AppUserRequest appUserRequest);
+    AppUser insertBuyerUser(@Param("user") AppUserRequest appUserRequest);
 
     // ─── SELECT BY EMAIL ───────────────────────────────────────────────────────
     // MyBatis matches the parameter #{email} in XML to the String email argument here
-    AppUser findDistributorUserByEmail(String email);
-    AppUser findDistributorUserById(Integer id);
-    AppUser findRetailerUserByEmail(String email);
+    AppUser findSupplierUserByEmail(String email);
+    AppUser findSupplierUserById(Integer id);
+    AppUser findBuyerUserByEmail(String email);
 
     // ─── CHECK DUPLICATE PHONE ─────────────────────────────────────────────────
-    Boolean checkPhoneNumberFromDistributorPhone(String phone);
-    Boolean checkPhoneNumberFromDistributorDetail(String phone);
-    Boolean checkPhoneNumberFromRetailerPhone(String phone);
-    Boolean checkPhoneNumberFromRetailerDetail(String phone);
+    Boolean checkPhoneNumberFromSupplierPhone(String phone);
+    Boolean checkPhoneNumberFromSupplierDetail(String phone);
+    Boolean checkPhoneNumberFromBuyerPhone(String phone);
+    Boolean checkPhoneNumberFromBuyerDetail(String phone);
 
     // ─── GET ROLE ID ───────────────────────────────────────────────────────────
     Integer getRoleIdByMail(String email);
-    Integer getRoleIdByMailRetailer(String email);
+    Integer getRoleIdByMailBuyer(String email);
 
     // ─── GET VERIFICATION STATUS ───────────────────────────────────────────────
-    Boolean getVerifyDistributorEmail(String email);
-    Boolean getVerifyRetailerEmail(String email);
+    Boolean getVerifySupplierEmail(String email);
+    Boolean getVerifyBuyerEmail(String email);
 
     // ─── UPDATE PASSWORD ───────────────────────────────────────────────────────
     // @Param is needed here because the method has multiple parameters
     // Without @Param, MyBatis cannot tell which is #{email} and which is #{newPassword}
-    AppUser updateDistributorUser(JwtChangePasswordRequest request);
-    AppUser updateRetailerUser(JwtChangePasswordRequest request);
-    String updateForgetDistributorUser(@Param("email") String email, @Param("newPassword") String newPassword);
-    String updateForgetRetailerUser(@Param("email") String email, @Param("newPassword") String newPassword);
+    AppUser updateSupplierUser(JwtChangePasswordRequest request);
+    AppUser updateBuyerUser(JwtChangePasswordRequest request);
+    String updateForgetSupplierUser(@Param("email") String email, @Param("newPassword") String newPassword);
+    String updateForgetBuyerUser(@Param("email") String email, @Param("newPassword") String newPassword);
 
     // ─── GET USER ID ───────────────────────────────────────────────────────────
-    Integer getUserIdByMailDistributor(String email);
-    Integer getUserIdByMailRetailer(String email);
+    Integer getUserIdByMailSupplier(String email);
+    Integer getUserIdByMailBuyer(String email);
 }

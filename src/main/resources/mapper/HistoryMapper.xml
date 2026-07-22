@@ -6,12 +6,12 @@
     WHAT IS THIS FILE?
     ══════════════════
     XML Mapper for HistoryRepository.
-    Handles product import history and order history for both distributors and retailers.
+    Handles product import history and order history for both suppliers and buyers.
 
     Key result maps:
     - ImportHistoryResultMap → for product import history rows
     - OrderHistoryResultMap → for a single order summary (used inside OrderDetailHistory)
-    - RetailerOrderHistoryResultMap → same but uses store name/image instead of retailer name/image
+    - BuyerOrderHistoryResultMap → same but uses store name/image instead of buyer name/image
     - OrderDetailHistoryResultMap → wraps OrderHistory + List<ProductOrder>
 -->
 
@@ -50,53 +50,53 @@
     </resultMap>
 
     <!--
-        RESULT MAP — OrderHistory (for distributor view)
+        RESULT MAP — OrderHistory (for supplier view)
         ══════════════════════════════════════════════════
-        Distributor sees: retailer name, retailer image, retailer address, order total, status.
+        Supplier sees: buyer name, buyer image, buyer address, order total, status.
         These are loaded via nested sub-selects (association = @One equivalent).
     -->
     <resultMap id="OrderHistoryResultMap" type="com.henheang.hphsar.model.history.OrderHistory">
         <id     property="id"         column="id"/>
         <result property="storeId"    column="storeId"/>
-        <result property="retailerId" column="retailerId"/>
+        <result property="buyerId" column="buyerId"/>
         <result property="date"       column="date"/>
-        <association property="name"    column="retailerId"
-                     select="com.henheang.hphsar.repository.RetailerProfileRepository.getRetailerNameById"/>
-        <association property="image"   column="retailerId"
-                     select="com.henheang.hphsar.repository.RetailerProfileRepository.getRetailerImageById"/>
-        <association property="address" column="retailerId"
-                     select="com.henheang.hphsar.repository.RetailerProfileRepository.getRetailerAddressById"/>
+        <association property="name"    column="buyerId"
+                     select="com.henheang.hphsar.repository.BuyerProfileRepository.getBuyerNameById"/>
+        <association property="image"   column="buyerId"
+                     select="com.henheang.hphsar.repository.BuyerProfileRepository.getBuyerImageById"/>
+        <association property="address" column="buyerId"
+                     select="com.henheang.hphsar.repository.BuyerProfileRepository.getBuyerAddressById"/>
         <association property="total"   column="id"
-                     select="com.henheang.hphsar.repository.OrderDistributorRepository.getTotalOrderAmount"/>
+                     select="com.henheang.hphsar.repository.SupplierOrderRepository.getTotalOrderAmount"/>
         <association property="status"  column="status_id"
-                     select="com.henheang.hphsar.repository.OrderDistributorRepository.getStatusByStatusId"/>
+                     select="com.henheang.hphsar.repository.SupplierOrderRepository.getStatusByStatusId"/>
     </resultMap>
 
     <!--
-        RESULT MAP — OrderHistory (for retailer view)
+        RESULT MAP — OrderHistory (for buyer view)
         ══════════════════════════════════════════════
-        Retailer sees: store name, store image, retailer address, order total, status.
-        Different from the distributor view — uses store name/image instead of retailer name/image.
+        Buyer sees: store name, store image, buyer address, order total, status.
+        Different from the supplier view — uses store name/image instead of buyer name/image.
     -->
-    <resultMap id="RetailerOrderHistoryResultMap" type="com.henheang.hphsar.model.history.OrderHistory">
+    <resultMap id="BuyerOrderHistoryResultMap" type="com.henheang.hphsar.model.history.OrderHistory">
         <id     property="id"         column="id"/>
         <result property="storeId"    column="storeId"/>
-        <result property="retailerId" column="retailerId"/>
+        <result property="buyerId" column="buyerId"/>
         <result property="date"       column="date"/>
         <association property="name"    column="storeId"
                      select="com.henheang.hphsar.repository.StoreRepository.getStoreNameById"/>
         <association property="image"   column="storeId"
                      select="com.henheang.hphsar.repository.StoreRepository.getStoreImageByStoreId"/>
-        <association property="address" column="retailerId"
-                     select="com.henheang.hphsar.repository.RetailerProfileRepository.getRetailerAddressById"/>
+        <association property="address" column="buyerId"
+                     select="com.henheang.hphsar.repository.BuyerProfileRepository.getBuyerAddressById"/>
         <association property="total"   column="id"
-                     select="com.henheang.hphsar.repository.OrderDistributorRepository.getTotalOrderAmount"/>
+                     select="com.henheang.hphsar.repository.SupplierOrderRepository.getTotalOrderAmount"/>
         <association property="status"  column="status_id"
-                     select="com.henheang.hphsar.repository.OrderDistributorRepository.getStatusByStatusId"/>
+                     select="com.henheang.hphsar.repository.SupplierOrderRepository.getStatusByStatusId"/>
     </resultMap>
 
     <!--
-        RESULT MAP — OrderDetailHistory (distributor)
+        RESULT MAP — OrderDetailHistory (supplier)
         ═══════════════════════════════════════════════
         Contains:
         - order → OrderHistory object (from getOrderByOrderId sub-select)
@@ -111,19 +111,19 @@
     </resultMap>
 
     <!--
-        RESULT MAP — OrderDetailHistory (retailer)
+        RESULT MAP — OrderDetailHistory (buyer)
         ════════════════════════════════════════════
-        Same structure but calls getRetailerOrderByOrderId instead.
+        Same structure but calls getBuyerOrderByOrderId instead.
     -->
-    <resultMap id="RetailerOrderDetailHistoryResultMap" type="com.henheang.hphsar.model.history.OrderDetailHistory">
-        <association property="order"    column="id" select="getRetailerOrderByOrderId"/>
+    <resultMap id="BuyerOrderDetailHistoryResultMap" type="com.henheang.hphsar.model.history.OrderDetailHistory">
+        <association property="order"    column="id" select="getBuyerOrderByOrderId"/>
         <collection  property="products" column="id" select="getProductOrderForOrderDetail"/>
     </resultMap>
 
     <!-- ─── SQL FRAGMENTS ────────────────────────────────────────────────────── -->
 
     <sql id="selectOrderBase">
-        SELECT id, store_id AS storeId, retailer_account_id AS retailerId, created_date AS date, status_id
+        SELECT id, store_id AS storeId, buyer_account_id AS buyerId, created_date AS date, status_id
         FROM tb_order
     </sql>
 
@@ -154,24 +154,24 @@
         WHERE order_id = #{orderId}
     </select>
 
-    <!-- ─── HELPER: load order summary for distributor ───────────────────────── -->
+    <!-- ─── HELPER: load order summary for supplier ───────────────────────── -->
 
     <select id="getOrderByOrderId" resultMap="OrderHistoryResultMap">
         SELECT id,
                store_id                AS storeId,
-               retailer_account_id    AS retailerId,
+               buyer_account_id    AS buyerId,
                created_date           AS date,
                status_id
         FROM tb_order
         WHERE id = #{id}
     </select>
 
-    <!-- ─── HELPER: load order summary for retailer ──────────────────────────── -->
+    <!-- ─── HELPER: load order summary for buyer ──────────────────────────── -->
 
-    <select id="getRetailerOrderByOrderId" resultMap="RetailerOrderHistoryResultMap">
+    <select id="getBuyerOrderByOrderId" resultMap="BuyerOrderHistoryResultMap">
         SELECT id,
                store_id                AS storeId,
-               retailer_account_id    AS retailerId,
+               buyer_account_id    AS buyerId,
                created_date           AS date,
                status_id
         FROM tb_order
@@ -216,7 +216,7 @@
     </select>
 
     <!-- ═══════════════════════════════════════════════════════════════════════
-         IMPORT HISTORY (product imports by distributor)
+         IMPORT HISTORY (product imports by supplier)
          ═══════════════════════════════════════════════════════════════════════
     -->
 
@@ -243,7 +243,7 @@
     </select>
 
     <!-- ═══════════════════════════════════════════════════════════════════════
-         ORDER HISTORY (distributor view)
+         ORDER HISTORY (supplier view)
          ═══════════════════════════════════════════════════════════════════════
          status_id IN (5, 6) → completed or rejected orders
     -->
@@ -264,66 +264,87 @@
     </select>
 
     <!-- ═══════════════════════════════════════════════════════════════════════
-         ORDER HISTORY (retailer view)
+         ORDER HISTORY (buyer view)
          ═══════════════════════════════════════════════════════════════════════
     -->
 
-    <select id="findTotalRetailerOrder" resultType="int">
+    <select id="findTotalBuyerOrder" resultType="int">
         SELECT COUNT(*)
         FROM tb_order
                  JOIN tb_order_detail tod ON tb_order.id = tod.order_id
-        WHERE retailer_account_id = #{currentUserId}
+        WHERE buyer_account_id = #{currentUserId}
           AND status_id IN (5, 6)
     </select>
 
-    <select id="getRetailerOrderHistory" resultMap="RetailerOrderDetailHistoryResultMap">
+    <select id="getBuyerOrderHistory" resultMap="BuyerOrderDetailHistoryResultMap">
         <include refid="selectOrderBase"/>
-        WHERE retailer_account_id = #{currentUserId}
+        WHERE buyer_account_id = #{currentUserId}
           AND status_id IN (5, 6)
         <include refid="orderByDate"/>
         <include refid="paginate"/>
     </select>
 
     <!-- ═══════════════════════════════════════════════════════════════════════
-         DRAFT HISTORY (retailer)
+         DRAFT HISTORY (buyer)
          ═══════════════════════════════════════════════════════════════════════
          status_id = 8 → draft orders not yet submitted
     -->
 
-    <select id="findTotalRetailerDraft" resultType="int">
+    <select id="findTotalBuyerDraft" resultType="int">
         SELECT count(*) FROM tb_order
-        WHERE retailer_account_id = #{currentUserId}
+        WHERE buyer_account_id = #{currentUserId}
           AND status_id = 8
     </select>
 
-    <select id="getRetailerDraft" resultMap="RetailerOrderDetailHistoryResultMap">
+    <select id="getBuyerDraft" resultMap="BuyerOrderDetailHistoryResultMap">
         <include refid="selectOrderBase"/>
-        WHERE retailer_account_id = #{currentUserId}
+        WHERE buyer_account_id = #{currentUserId}
           AND status_id IN (8)
         <include refid="orderByDate"/>
         <include refid="paginate"/>
     </select>
 
-    <select id="checkDraftById" resultType="boolean">
-        SELECT EXISTS(SELECT * FROM tb_order WHERE id = #{id} AND status_id = 8)
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         DRAFT OWNERSHIP — a draft may only be read/mutated when both the draft
+         id and the authenticated buyer's account id match the same tb_order row.
+         status_id = 8 (draft) / 1 (pending) are the project's current status
+         values, hardcoded here as-is; the underlying status model is known to
+         need a wider rework (see the order-status audit) but that is out of
+         scope for this fix — treat these literals as tracked technical debt.
+         ═══════════════════════════════════════════════════════════════════════ -->
+
+    <select id="existsDraftByIdAndBuyerId" resultType="boolean">
+        SELECT EXISTS(
+            SELECT * FROM tb_order
+            WHERE id = #{draftId}
+              AND buyer_account_id = #{buyerAccountId}
+              AND status_id = 8
+        )
     </select>
 
-    <select id="deleteDraftById" resultType="int">
-        DELETE FROM tb_order WHERE id = #{id} RETURNING id
-    </select>
+    <delete id="deleteDraftByIdAndBuyerId">
+        DELETE FROM tb_order
+        WHERE id = #{draftId}
+          AND buyer_account_id = #{buyerAccountId}
+          AND status_id = 8
+    </delete>
 
-    <select id="updateDraftById" resultType="int">
-        UPDATE tb_order SET status_id = 1 WHERE id = #{id} RETURNING id
-    </select>
+    <update id="submitDraftByIdAndBuyerId">
+        UPDATE tb_order
+        SET status_id = 1
+        WHERE id = #{draftId}
+          AND buyer_account_id = #{buyerAccountId}
+          AND status_id = 8
+    </update>
 
-    <select id="getDraftHistory" resultMap="RetailerOrderDetailHistoryResultMap">
+    <select id="getDraftHistory" resultMap="BuyerOrderDetailHistoryResultMap">
         SELECT id,
                store_id             AS storeId,
-               retailer_account_id AS retailerId,
+               buyer_account_id AS buyerId,
                created_date        AS date,
                status_id
         FROM tb_order
-        WHERE retailer_account_id = #{currentUserId}
+        WHERE buyer_account_id = #{currentUserId}
           AND id = #{id}
           AND status_id IN (1)
     </select>

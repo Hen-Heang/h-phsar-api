@@ -28,11 +28,11 @@
 These are the real tables in your database. Use these when writing your practice queries.
 
 ```
-tb_distributor_account   (id, role_id, email, password, is_verified, is_active, created_date, updated_date)
-tb_retailer_account      (id, role_id, email, password, is_verified, is_active, created_date, updated_date)
+tb_supplier_account   (id, role_id, email, password, is_verified, is_active, created_date, updated_date)
+tb_buyer_account      (id, role_id, email, password, is_verified, is_active, created_date, updated_date)
 tb_role                  (id, name)
 
-tb_store                 (id, distributor_account_id, name, description, banner_image, address,
+tb_store                 (id, supplier_account_id, name, description, banner_image, address,
                           phone, is_publish, is_active, created_date, updated_date)
 tb_store_phone           (id, store_id, phone)
 tb_store_category        (id, store_id, category_id)
@@ -44,23 +44,23 @@ tb_product               (id, name, is_active, created_date, updated_date)
 tb_product_import        (id, created_date, store_id)
 tb_product_import_detail (id, product_id, product_import_id, qty, price, category_id)
 
-tb_order                 (id, retailer_account_id, store_id, status_id, created_date, updated_date)
+tb_order                 (id, buyer_account_id, store_id, status_id, created_date, updated_date)
 tb_order_detail          (id, order_id, qty, unit_price, store_product_id)
 tb_status                (id, name)
 
-tb_retailer_info         (id, retailer_account_id, first_name, last_name, gender, address,
+tb_buyer_info         (id, buyer_account_id, first_name, last_name, gender, address,
                           primary_phone_number, profile_image, created_date, updated_date)
-tb_retailer_phone        (id, retailer_info_id, phone_number)
-tb_distributor_info      (id, distributor_account_id, first_name, last_name, gender, address,
+tb_buyer_phone        (id, buyer_info_id, phone_number)
+tb_supplier_info      (id, supplier_account_id, first_name, last_name, gender, address,
                           primary_phone_number, profile_image, created_date, updated_date)
-tb_distributor_phone     (id, distributor_info_id, phone_number)
+tb_supplier_phone     (id, supplier_info_id, phone_number)
 
-tb_bookmark              (id, store_id, retailer_account_id)
-tb_rating_detail         (id, store_id, retailer_account_id, rated_star, created_date)
+tb_bookmark              (id, store_id, buyer_account_id)
+tb_rating_detail         (id, store_id, buyer_account_id, rated_star, created_date)
 
 tb_notification_type         (id, name)
-tb_retailer_notification     (id, retailer_id, type_id, order_id, content, is_read, created_date)
-tb_distributor_notification  (id, distributor_id, type_id, order_id, content, is_read, created_date)
+tb_buyer_notification     (id, buyer_id, type_id, order_id, content, is_read, created_date)
+tb_supplier_notification  (id, supplier_id, type_id, order_id, content, is_read, created_date)
 ```
 
 **Status IDs (tb_status):**
@@ -92,19 +92,19 @@ SELECT * FROM table_name;
 
 ```sql
 -- AppUserMapper.xml — get role id for a user
-SELECT role_id FROM tb_distributor_account WHERE email = #{email}
+SELECT role_id FROM tb_supplier_account WHERE email = #{email}
 
 -- AppUserMapper.xml — get user id
-SELECT id FROM tb_distributor_account WHERE email = #{email}
+SELECT id FROM tb_supplier_account WHERE email = #{email}
 
 -- AppUserMapper.xml — check if email is verified
-SELECT is_verified FROM tb_distributor_account WHERE email = #{email}
+SELECT is_verified FROM tb_supplier_account WHERE email = #{email}
 
 -- CategoryMapper.xml — get total category count for a store
 SELECT count(*) FROM tb_store_category WHERE store_id = #{storeId}
 
 -- StoreMapper.xml — get the store id for a user
-SELECT id FROM tb_store WHERE distributor_account_id = #{currentUserId}
+SELECT id FROM tb_store WHERE supplier_account_id = #{currentUserId}
 ```
 
 ### Key rules:
@@ -157,30 +157,30 @@ WHERE status_id NOT IN (8, 9)
 ### From your project:
 
 ```sql
--- OrderDistributorMapper.xml — all active orders for a store
-SELECT id, store_id, retailer_account_id, created_date, status_id
+-- SupplierOrderMapper.xml — all active orders for a store
+SELECT id, store_id, buyer_account_id, created_date, status_id
 FROM tb_order
 WHERE store_id = #{storeId} AND status_id IN (1, 2, 3, 4, 5)
 
--- OrderRetailerMapper.xml — check if retailer has an active cart in a store
+-- BuyerOrderMapper.xml — check if buyer has an active cart in a store
 SELECT EXISTS(
     SELECT * FROM tb_order
     WHERE store_id = #{storeId}
-      AND retailer_account_id = #{retailerId}
+      AND buyer_account_id = #{buyerId}
       AND status_id = 9
 )
 
 -- NotificationMapper.xml — unread notifications only
 SELECT EXISTS(
-    SELECT 1 FROM tb_retailer_notification
-    WHERE retailer_id = #{currentUserId} AND is_read = false
+    SELECT 1 FROM tb_buyer_notification
+    WHERE buyer_id = #{currentUserId} AND is_read = false
 )
 
 -- StoreMapper.xml — only published and active stores
 SELECT id, name FROM tb_store
 WHERE is_publish = true AND is_active = true
 
--- DistributorReportMapper.xml — date range filter
+-- SupplierReportMapper.xml — date range filter
 WHERE b.created_date BETWEEN '${startDate}' AND '${endDate}'
 ```
 
@@ -216,7 +216,7 @@ SELECT ta.id,
        ta.role_id,
        ta.is_verified,               -- auto-mapped if resultMap defines it
        ta.is_active
-FROM tb_distributor_account ta
+FROM tb_supplier_account ta
 JOIN tb_role tr ON ta.role_id = tr.id
 WHERE ta.email = #{email}
 
@@ -225,7 +225,7 @@ SELECT id,
        name,
        address,
        banner_image           AS bannerImage,
-       distributor_account_id AS distributorAccountId,
+       supplier_account_id AS supplierAccountId,
        description,
        phone                  AS primaryPhone,
        created_date           AS createdDate,
@@ -233,7 +233,7 @@ SELECT id,
        is_publish             AS isPublish,
        is_active              AS isActive
 FROM tb_store
-WHERE distributor_account_id = #{currentUserId}
+WHERE supplier_account_id = #{currentUserId}
 
 -- NotificationMapper.xml — alias with NULL literal value
 SELECT id,
@@ -243,7 +243,7 @@ SELECT id,
        content       AS title,
        is_read       AS seen,
        created_date  AS createdDate
-FROM tb_retailer_notification
+FROM tb_buyer_notification
 ```
 
 ### When to use AS:
@@ -273,7 +273,7 @@ JOIN table_b ON table_a.column = table_b.column
 ```sql
 -- AppUserMapper.xml — get user with role name
 SELECT ta.id, ta.email, tr.name AS role
-FROM tb_distributor_account ta
+FROM tb_supplier_account ta
 JOIN tb_role tr ON ta.role_id = tr.id       -- only rows where role_id matches in tb_role
 WHERE ta.email = #{email}
 ```
@@ -289,7 +289,7 @@ WHERE TSC.store_id = #{storeId}
 ```
 
 ```sql
--- OrderDistributorMapper.xml — product items in an order
+-- SupplierOrderMapper.xml — product items in an order
 SELECT tspd.id AS productId,
        image,
        tspd.qty AS inStock,
@@ -332,12 +332,12 @@ FROM tb_product_import_detail
     JOIN tb_product_import tpi ON tpi.id = tb_product_import_detail.product_import_id
 WHERE store_id = #{storeId}
 
--- RetailerReportMapper.xml — order + detail + product + category (4 tables)
+-- BuyerReportMapper.xml — order + detail + product + category (4 tables)
 FROM tb_order o
     JOIN tb_order_detail od          ON o.id              = od.order_id
     JOIN tb_store_product_detail spd ON od.store_product_id = spd.id
     JOIN tb_category c               ON spd.category_id    = c.id
-WHERE o.retailer_account_id = #{currentUserId}
+WHERE o.buyer_account_id = #{currentUserId}
 ```
 
 ### Table alias shorthand:
@@ -368,7 +368,7 @@ SELECT count(*) FROM tb_store WHERE is_publish = true
 SELECT count(*) FROM tb_order WHERE store_id = #{storeId} AND status_id = 1
 
 -- Count distinct values (no duplicates)
-SELECT count(DISTINCT store_id) FROM tb_bookmark WHERE retailer_account_id = #{retailerId}
+SELECT count(DISTINCT store_id) FROM tb_bookmark WHERE buyer_account_id = #{buyerId}
 ```
 
 ### SUM — add up values
@@ -400,22 +400,22 @@ COALESCE(SUM(qty), 0)            -- if no rows, SUM returns NULL → return 0 in
 COALESCE(COUNT(*), 0)            -- COUNT never returns NULL but this is a safe habit
 ```
 
-### From your project (RetailerReportMapper.xml):
+### From your project (BuyerReportMapper.xml):
 
 ```sql
--- Total money spent by a retailer in a month
+-- Total money spent by a buyer in a month
 SELECT COALESCE(SUM(od.qty * od.unit_price), 0)
 FROM tb_order o
     JOIN tb_order_detail od ON o.id = od.order_id
-WHERE o.retailer_account_id = #{currentUserId}
+WHERE o.buyer_account_id = #{currentUserId}
   AND o.status_id = #{statusId}
   AND EXTRACT(YEAR  FROM o.created_date) = #{year}
   AND EXTRACT(MONTH FROM o.created_date) = #{month}
 
--- Count how many ratings this retailer submitted
+-- Count how many ratings this buyer submitted
 SELECT COALESCE(COUNT(*), 0)
 FROM tb_rating_detail
-WHERE retailer_account_id = #{currentUserId}
+WHERE buyer_account_id = #{currentUserId}
   AND EXTRACT(YEAR  FROM created_date) = #{year}
   AND EXTRACT(MONTH FROM created_date) = #{month}
 ```
@@ -448,22 +448,22 @@ GROUP BY tb_store.id         -- one row per store
 ORDER BY rating DESC
 LIMIT #{pageSize} OFFSET #{pageSize} * (#{pageNumber} - 1)
 
--- RetailerReportMapper.xml — total qty per category
+-- BuyerReportMapper.xml — total qty per category
 SELECT COALESCE(SUM(od.qty), 0)
 FROM tb_order o
     JOIN tb_order_detail od          ON o.id              = od.order_id
     JOIN tb_store_product_detail spd ON od.store_product_id = spd.id
-WHERE o.retailer_account_id = #{currentUserId}
+WHERE o.buyer_account_id = #{currentUserId}
   AND o.status_id = #{statusId}
 GROUP BY spd.category_id     -- one sum per category
 
--- RetailerReportMapper.xml — category name + total qty ordered
+-- BuyerReportMapper.xml — category name + total qty ordered
 SELECT c.name AS categoryName, SUM(od.qty) AS totalItem
 FROM tb_order o
     JOIN tb_order_detail od          ON o.id              = od.order_id
     JOIN tb_store_product_detail spd ON od.store_product_id = spd.id
     JOIN tb_category c               ON spd.category_id    = c.id
-WHERE o.retailer_account_id = #{currentUserId}
+WHERE o.buyer_account_id = #{currentUserId}
 GROUP BY c.name
 ```
 
@@ -476,7 +476,7 @@ FROM tb_order o
     JOIN tb_order_detail od          ON o.id              = od.order_id
     JOIN tb_store_product_detail spd ON od.store_product_id = spd.id
     JOIN tb_category c               ON spd.category_id    = c.id
-WHERE o.retailer_account_id = #{currentUserId}
+WHERE o.buyer_account_id = #{currentUserId}
 GROUP BY c.name
 HAVING SUM(od.qty) > 10     -- filter groups after aggregation
 ```
@@ -500,17 +500,17 @@ SELECT id,
        (SELECT name FROM tb_notification_type WHERE id = type_id) AS notificationType,
        order_id,
        content
-FROM tb_retailer_notification
-WHERE retailer_id = #{currentUserId}
+FROM tb_buyer_notification
+WHERE buyer_id = #{currentUserId}
 
--- OrderRetailerMapper.xml — inline lookup for store name and image
+-- BuyerOrderMapper.xml — inline lookup for store name and image
 SELECT id,
        store_id AS storeId,
        (SELECT name FROM tb_store WHERE id = tb_order.store_id)         AS storeName,
        (SELECT banner_image FROM tb_store WHERE id = tb_order.store_id) AS storeImage,
        (SELECT SUM(unit_price) FROM tb_order_detail WHERE order_id = tb_order.id) AS total
 FROM tb_order
-WHERE status_id = 9 AND retailer_account_id = #{currentUserId}
+WHERE status_id = 9 AND buyer_account_id = #{currentUserId}
 ```
 
 Each row of the outer query runs the inner query once. Clean substitute for JOIN when you need just one value.
@@ -523,7 +523,7 @@ SELECT ... FROM tb_store
 WHERE is_publish = TRUE
   AND tb_store.id IN (
       SELECT DISTINCT store_id FROM tb_bookmark
-      WHERE retailer_account_id = #{currentUser}
+      WHERE buyer_account_id = #{currentUser}
   )
 
 -- CategoryMapper.xml — search categories by name using IN
@@ -551,20 +551,20 @@ Nested IN is common in Korean SI. Read from the innermost query outward.
 SELECT EXISTS(SELECT 1 FROM table WHERE condition)
 
 -- AppUserMapper.xml — check if phone is already used
-SELECT EXISTS(SELECT 1 FROM tb_distributor_phone WHERE phone_number = #{phone})
+SELECT EXISTS(SELECT 1 FROM tb_supplier_phone WHERE phone_number = #{phone})
 
 -- StoreMapper.xml — check if user already bookmarked a store
 SELECT EXISTS(
     SELECT * FROM tb_bookmark
-    WHERE store_id = #{storeId} AND retailer_account_id = #{currentUserId}
+    WHERE store_id = #{storeId} AND buyer_account_id = #{currentUserId}
 )
 
--- ProductDistributorMapper.xml — check if a product is in any order
+-- SupplierProductMapper.xml — check if a product is in any order
 SELECT EXISTS(
     SELECT * FROM tb_order x
         JOIN tb_order_detail y ON x.id = y.order_id
     WHERE store_product_id = #{productId}
-      AND store_id = (SELECT id FROM tb_store WHERE distributor_account_id = #{currentUserId})
+      AND store_id = (SELECT id FROM tb_store WHERE supplier_account_id = #{currentUserId})
 )
 ```
 
@@ -589,7 +589,7 @@ The inner query runs once per outer row, using the outer row's value. This is ca
 ### Pattern 5: Subquery in FROM clause
 
 ```sql
--- ProductDistributorMapper.xml — COALESCE with subquery
+-- SupplierProductMapper.xml — COALESCE with subquery
 SELECT COALESCE((SELECT id FROM tb_product WHERE name ILIKE '${name}'), 0)
 ```
 
@@ -603,8 +603,8 @@ SELECT COALESCE((SELECT id FROM tb_product WHERE name ILIKE '${name}'), 0)
 -- Basic syntax
 INSERT INTO table_name (col1, col2) VALUES (val1, val2)
 
--- AppUserMapper.xml — insert distributor and return the full new row
-INSERT INTO tb_distributor_account
+-- AppUserMapper.xml — insert supplier and return the full new row
+INSERT INTO tb_supplier_account
 VALUES (DEFAULT, #{user.roleId}, #{user.email}, #{user.password}, DEFAULT, DEFAULT, DEFAULT, DEFAULT)
 RETURNING id, email, password,
           (SELECT name FROM tb_role WHERE id = role_id) AS role,
@@ -613,14 +613,14 @@ RETURNING id, email, password,
 -- CategoryMapper.xml — insert category and return just the id
 INSERT INTO tb_category(name) VALUES (#{category.name}) RETURNING *
 
--- RetailerProfileMapper.xml — insert profile and return new id
-INSERT INTO tb_retailer_info
+-- BuyerProfileMapper.xml — insert profile and return new id
+INSERT INTO tb_buyer_info
 VALUES (DEFAULT, #{currentUserId}, #{re.firstName}, #{re.lastName}, #{re.gender},
         #{re.address}, #{re.primaryPhoneNumber}, #{re.profileImage}, DEFAULT, DEFAULT)
 RETURNING id
 
 -- StoreMapper.xml — insert store and return full row for display
-INSERT INTO tb_store (id, distributor_account_id, name, description, created_date, updated_date,
+INSERT INTO tb_store (id, supplier_account_id, name, description, created_date, updated_date,
                       is_publish, is_active, banner_image, address, phone)
 VALUES (DEFAULT, #{currentUserId}, #{store.name}, #{store.description}, DEFAULT, DEFAULT,
         true, DEFAULT, #{store.bannerImage}, #{store.address}, #{store.primaryPhone})
@@ -638,7 +638,7 @@ RETURNING id, name, address, banner_image AS bannerImage, ...
 UPDATE table_name SET col1 = val1, col2 = val2 WHERE condition
 
 -- AppUserMapper.xml — change password
-UPDATE tb_distributor_account
+UPDATE tb_supplier_account
 SET password = #{newPassword}
 WHERE email = #{email}
 RETURNING *
@@ -655,13 +655,13 @@ SET name         = #{store.name},
 WHERE id = #{storeId}
 RETURNING id, name, address, banner_image AS bannerImage, ...
 
--- ProductDistributorMapper.xml — add to existing qty (not replace)
+-- SupplierProductMapper.xml — add to existing qty (not replace)
 UPDATE tb_store_product_detail
 SET qty   = qty + #{qty},    -- ← add to current value, don't replace it
     price = #{price}
 WHERE store_id = #{storeId} AND id = #{productId}
 
--- OrderDistributorMapper.xml — deduct stock when order is accepted
+-- SupplierOrderMapper.xml — deduct stock when order is accepted
 UPDATE tb_store_product_detail
 SET qty = qty - (
     SELECT qty FROM tb_order_detail
@@ -688,13 +688,13 @@ UPDATE tb_order SET status_id = 6 WHERE id = #{orderId} RETURNING 1  -- delivere
 -- Basic syntax
 DELETE FROM table_name WHERE condition
 
--- RetailerProfileMapper.xml — delete phone numbers before re-inserting
-DELETE FROM tb_retailer_phone WHERE retailer_info_id = #{retailerInfoId}
+-- BuyerProfileMapper.xml — delete phone numbers before re-inserting
+DELETE FROM tb_buyer_phone WHERE buyer_info_id = #{buyerInfoId}
 
 -- StoreMapper.xml — delete store permanently
-DELETE FROM tb_store WHERE distributor_account_id = #{currentUserId} RETURNING 1
+DELETE FROM tb_store WHERE supplier_account_id = #{currentUserId} RETURNING 1
 
--- OrderRetailerMapper.xml — cancel cart
+-- BuyerOrderMapper.xml — cancel cart
 DELETE FROM tb_order WHERE id = #{orderId} AND status_id = 9 RETURNING 1
 
 -- CategoryMapper.xml — delete category from store
@@ -742,7 +742,7 @@ ORDER BY category_id ASC
 LIMIT #{pageSize}
 OFFSET #{pageSize} * (#{pageNumber} - 1)
 
--- ProductDistributorMapper.xml — paginated product list with sort
+-- SupplierProductMapper.xml — paginated product list with sort
 SELECT a.id, b.name, a.qty, a.price, a.image
 FROM tb_store_product_detail a
     JOIN tb_product b ON a.product_id = b.id
@@ -788,7 +788,7 @@ WHERE name LIKE '%Apple%'
 -- ILIKE (case-insensitive) — matches "Apple", "apple", "APPLE", "ApPlE"
 WHERE name ILIKE '%apple%'
 
--- ProductDistributorMapper.xml
+-- SupplierProductMapper.xml
 WHERE name ILIKE '%${name}%'
 
 -- StoreMapper.xml
@@ -808,20 +808,20 @@ EXTRACT(YEAR  FROM date_column)
 EXTRACT(MONTH FROM date_column)
 EXTRACT(DAY   FROM date_column)
 
--- RetailerReportMapper.xml — filter orders by specific year and month
-WHERE o.retailer_account_id = #{currentUserId}
+-- BuyerReportMapper.xml — filter orders by specific year and month
+WHERE o.buyer_account_id = #{currentUserId}
   AND EXTRACT(YEAR  FROM o.created_date) = #{year}
   AND EXTRACT(MONTH FROM o.created_date) = #{month}
 
 -- Only filter by year (no month — for yearly reports)
-WHERE o.retailer_account_id = #{currentUserId}
+WHERE o.buyer_account_id = #{currentUserId}
   AND EXTRACT(YEAR FROM o.created_date) = #{year}
 ```
 
 ### date_trunc — truncate date to a unit
 
 ```sql
--- DistributorReportMapper.xml — truncate to month (strip day/time)
+-- SupplierReportMapper.xml — truncate to month (strip day/time)
 SELECT date_trunc('month', a.created_date)  -- returns: 2025-01-01 00:00:00
 FROM tb_order a
     JOIN tb_order_detail b ON a.id = b.order_id
@@ -833,7 +833,7 @@ WHERE a.store_id = #{storeId}
 ### BETWEEN — range filter (inclusive)
 
 ```sql
--- DistributorReportMapper.xml — filter by date range
+-- SupplierReportMapper.xml — filter by date range
 WHERE b.created_date BETWEEN '${startDate}' AND '${endDate}'
 -- Equivalent to: WHERE created_date >= startDate AND created_date <= endDate
 ```
@@ -848,16 +848,16 @@ SET name         = #{store.name},
 WHERE id = #{storeId}
 
 -- NotificationMapper.xml — set created_date on insert
-INSERT INTO tb_retailer_notification (id, retailer_id, type_id, content, is_read, created_date)
+INSERT INTO tb_buyer_notification (id, buyer_id, type_id, content, is_read, created_date)
 VALUES (DEFAULT, #{param1}, #{param2}, #{param4}, #{param7}, NOW())
 ```
 
 ### CONCAT — join strings together
 
 ```sql
--- RetailerProfileMapper.xml — combine first and last name
-SELECT concat(first_name, ' ', last_name) FROM tb_retailer_info
-WHERE retailer_account_id = #{retailerId}
+-- BuyerProfileMapper.xml — combine first and last name
+SELECT concat(first_name, ' ', last_name) FROM tb_buyer_info
+WHERE buyer_account_id = #{buyerId}
 -- Result: "Hen Heang"
 
 -- CategoryMapper.xml — build ILIKE pattern safely
@@ -874,7 +874,7 @@ FROM tb_category A
 WHERE store_id = #{storeId}
 
 -- StoreMapper.xml — count unique stores bookmarked
-SELECT count(DISTINCT store_id) FROM tb_bookmark WHERE retailer_account_id = #{retailerId}
+SELECT count(DISTINCT store_id) FROM tb_bookmark WHERE buyer_account_id = #{buyerId}
 ```
 
 ---
@@ -888,9 +888,9 @@ SELECT count(DISTINCT store_id) FROM tb_bookmark WHERE retailer_account_id = #{r
 Define once, reuse everywhere. Like a Java method for SQL.
 
 ```xml
-<!-- Define the fragment (OrderDistributorMapper.xml) -->
+<!-- Define the fragment (SupplierOrderMapper.xml) -->
 <sql id="selectOrderBase">
-    SELECT id, store_id AS storeId, retailer_account_id AS retailerId,
+    SELECT id, store_id AS storeId, buyer_account_id AS buyerId,
            created_date AS date, status_id
     FROM tb_order
 </sql>
@@ -918,7 +918,7 @@ Without `<sql>/<include>`, you would copy-paste the SELECT and LIMIT lines into 
 ### `<choose>` / `<when>` / `<otherwise>` — if/else logic
 
 ```xml
-<!-- OrderDistributorMapper.xml — sort direction based on parameter -->
+<!-- SupplierOrderMapper.xml — sort direction based on parameter -->
 <sql id="orderByDate">
     ORDER BY created_date
     <choose>
@@ -1050,7 +1050,7 @@ WHERE store_id = #{storeId}
 ORDER BY ${by} ASC     <!-- by = "price" or "name" or "created_date" -->
 LIMIT #{pageSize}      <!-- pageSize value still uses #{} -->
 
--- ProductDistributorMapper.xml
+-- SupplierProductMapper.xml
 ORDER BY ${by} ASC
 LIMIT #{pageSize}
 OFFSET #{pageSize} * (#{pageNumber} - 1)
@@ -1089,7 +1089,7 @@ WHERE id IN (${combinedList})  <!-- combinedList = "1,2,3,5" built in service la
 ### `<association>` — one nested object (one-to-one)
 
 ```xml
-<!-- ProductDistributorMapper.xml — Product contains a Category -->
+<!-- SupplierProductMapper.xml — Product contains a Category -->
 <resultMap id="ProductWithCategoryResultMap" type="...Product">
     <id     property="id"   column="id"/>
     <result property="name" column="name"/>
@@ -1149,9 +1149,9 @@ class Store {
 ### Combining `<association>` and `<collection>` in one resultMap
 
 ```xml
-<!-- StoreMapper.xml — StoreRetailer has rating (Double), ratingCount (Integer),
+<!-- StoreMapper.xml — StoreBuyer has rating (Double), ratingCount (Integer),
      additionalPhone (List<String>), and categories (List<Category>) -->
-<resultMap id="StoreRetailerResultMap" type="...StoreRetailer">
+<resultMap id="StoreBuyerResultMap" type="...StoreBuyer">
     <id     property="id"   column="id"/>
     <result property="name" column="name"/>
     <!-- Single values via association -->
@@ -1166,13 +1166,13 @@ class Store {
 ### Cross-mapper sub-select — calling another mapper's method
 
 ```xml
-<!-- OrderDistributorMapper.xml — order result loads retailer name from RetailerProfileMapper -->
+<!-- SupplierOrderMapper.xml — order result loads buyer name from BuyerProfileMapper -->
 <resultMap id="OrderResultMap" type="...Order">
     <id property="id" column="id"/>
-    <!-- Calls getRetailerNameById in RetailerProfileRepository -->
+    <!-- Calls getBuyerNameById in BuyerProfileRepository -->
     <association property="name"
-                 column="retailerId"
-                 select="com.henheang.hphsar.repository.RetailerProfileRepository.getRetailerNameById"/>
+                 column="buyerId"
+                 select="com.henheang.hphsar.repository.BuyerProfileRepository.getBuyerNameById"/>
     <!-- Calls getStoreImageById in StoreRepository -->
     <association property="storeImage"
                  column="storeId"
@@ -1206,21 +1206,21 @@ Write these queries yourself using your real tables. Answers are at the bottom.
 
 **Q1.** Get all stores where `is_publish = true` and `is_active = true`.
 
-**Q2.** Get the email and `is_verified` status for all retailers in `tb_retailer_account`.
+**Q2.** Get the email and `is_verified` status for all buyers in `tb_buyer_account`.
 
 **Q3.** Count how many products are in store with id = 5 (`tb_store_product_detail`).
 
-**Q4.** Get all orders for retailer id = 3 where status is PENDING (status_id = 1).
+**Q4.** Get all orders for buyer id = 3 where status is PENDING (status_id = 1).
 
 ---
 
 ### Level 2 — JOIN
 
-**Q5.** Get each store's name along with the distributor's email. (JOIN `tb_store` with `tb_distributor_account`)
+**Q5.** Get each store's name along with the supplier's email. (JOIN `tb_store` with `tb_supplier_account`)
 
 **Q6.** Get all products in store id = 5, showing the product name (from `tb_product`) and price (from `tb_store_product_detail`).
 
-**Q7.** Get all completed orders (status_id = 6) with the retailer's email address.
+**Q7.** Get all completed orders (status_id = 6) with the buyer's email address.
 
 ---
 
@@ -1238,9 +1238,9 @@ Write these queries yourself using your real tables. Answers are at the bottom.
 
 **Q11.** Get all stores that have at least one product with qty = 0. (Use EXISTS or IN)
 
-**Q12.** Get all retailers who have never placed an order. (Use NOT EXISTS or NOT IN)
+**Q12.** Get all buyers who have never placed an order. (Use NOT EXISTS or NOT IN)
 
-**Q13.** For each retailer, show their full name (from `tb_retailer_info`) and their total number of orders.
+**Q13.** For each buyer, show their full name (from `tb_buyer_info`) and their total number of orders.
 
 ---
 
@@ -1272,7 +1272,7 @@ SELECT * FROM tb_store WHERE is_publish = true AND is_active = true
 
 **Q2.**
 ```sql
-SELECT email, is_verified FROM tb_retailer_account
+SELECT email, is_verified FROM tb_buyer_account
 ```
 
 **Q3.**
@@ -1282,14 +1282,14 @@ SELECT count(*) FROM tb_store_product_detail WHERE store_id = 5
 
 **Q4.**
 ```sql
-SELECT * FROM tb_order WHERE retailer_account_id = 3 AND status_id = 1
+SELECT * FROM tb_order WHERE buyer_account_id = 3 AND status_id = 1
 ```
 
 **Q5.**
 ```sql
-SELECT s.name AS storeName, d.email AS distributorEmail
+SELECT s.name AS storeName, d.email AS supplierEmail
 FROM tb_store s
-    JOIN tb_distributor_account d ON s.distributor_account_id = d.id
+    JOIN tb_supplier_account d ON s.supplier_account_id = d.id
 ```
 
 **Q6.**
@@ -1302,9 +1302,9 @@ WHERE spd.store_id = 5
 
 **Q7.**
 ```sql
-SELECT o.id AS orderId, ra.email AS retailerEmail
+SELECT o.id AS orderId, ra.email AS buyerEmail
 FROM tb_order o
-    JOIN tb_retailer_account ra ON o.retailer_account_id = ra.id
+    JOIN tb_buyer_account ra ON o.buyer_account_id = ra.id
 WHERE o.status_id = 6
 ```
 
@@ -1344,10 +1344,10 @@ WHERE EXISTS (
 
 **Q12.**
 ```sql
-SELECT * FROM tb_retailer_account ra
+SELECT * FROM tb_buyer_account ra
 WHERE NOT EXISTS (
     SELECT 1 FROM tb_order o
-    WHERE o.retailer_account_id = ra.id
+    WHERE o.buyer_account_id = ra.id
 )
 ```
 
@@ -1355,8 +1355,8 @@ WHERE NOT EXISTS (
 ```sql
 SELECT concat(ri.first_name, ' ', ri.last_name) AS fullName,
        count(o.id) AS totalOrders
-FROM tb_retailer_info ri
-    LEFT JOIN tb_order o ON ri.retailer_account_id = o.retailer_account_id
+FROM tb_buyer_info ri
+    LEFT JOIN tb_order o ON ri.buyer_account_id = o.buyer_account_id
 GROUP BY ri.id, ri.first_name, ri.last_name
 ```
 
@@ -1405,7 +1405,7 @@ SELECT count(*) FROM tb_store WHERE is_publish = true
 </sql>
 
 <select id="getOrderHistory" resultMap="OrderHistoryResultMap">
-    SELECT id, store_id, retailer_account_id, created_date AS date, status_id
+    SELECT id, store_id, buyer_account_id, created_date AS date, status_id
     FROM tb_order
     WHERE store_id = #{storeId} AND status_id IN (5, 6)
     <include refid="orderByDate"/>

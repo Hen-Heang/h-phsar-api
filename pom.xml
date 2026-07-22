@@ -12,7 +12,7 @@
     <artifactId>h-phsar</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>H-Phsar</name>
-    <description>H-Phsar API for distributor-retailer wholesale operations</description>
+    <description>H-Phsar API for supplier-buyer wholesale operations</description>
     <properties>
         <java.version>17</java.version>
         <maven.compiler.release>${java.version}</maven.compiler.release>
@@ -109,6 +109,24 @@
         <dependency>
             <groupId>org.springframework.security</groupId>
             <artifactId>spring-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- Minimum Testcontainers footprint for this step's SQL-injection and
+             draft-ownership regression tests. Versions are managed by the
+             spring-boot-starter-parent BOM, no explicit version needed. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-testcontainers</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>postgresql</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>

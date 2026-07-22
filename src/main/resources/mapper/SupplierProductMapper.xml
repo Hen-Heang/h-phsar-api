@@ -1,0 +1,327 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!--
+    WHAT IS THIS FILE?
+    ══════════════════
+    XML Mapper for SupplierProductRepository.
+    Handles store-level product management (tb_store_product_detail).
+
+    The key nested result here is that Product objects contain a Category object.
+    getCategoryByCategoryId is called via <association> to populate product.category.
+-->
+
+<mapper namespace="com.henheang.hphsar.repository.SupplierProductRepository">
+
+    <!--
+        RESULT MAP — Category (simple)
+        ════════════════════════════════
+        Used as nested result in ProductWithCategoryResultMap below.
+    -->
+    <resultMap id="CategoryResultMap" type="com.henheang.hphsar.model.category.Category">
+        <id     property="id"          column="id"/>
+        <result property="name"        column="name"/>
+        <result property="createdDate" column="createdDate"/>
+        <result property="updatedDate" column="updatedDate"/>
+    </resultMap>
+
+    <!--
+        RESULT MAP — Product (with nested Category)
+        ════════════════════════════════════════════
+        Most columns are already aliased in the query to match Java camelCase.
+        The category field is populated via a nested sub-select using <association>.
+
+        WHY <association> for category?
+        The Product has a `category` field of type Category.
+        The query selects category_id from tb_store_product_detail.
+        getCategoryByCategoryId is then called with that category_id to load
+        the full Category object.
+    -->
+    <resultMap id="ProductWithCategoryResultMap" type="com.henheang.hphsar.model.product.Product">
+        <id     property="id"          column="id"/>
+        <result property="name"        column="name"/>
+        <result property="qty"         column="qty"/>
+        <result property="price"       column="price"/>
+        <result property="image"       column="image"/>
+        <result property="isPublish"   column="isPublish"/>
+        <result property="createdDate" column="createdDate"/>
+        <result property="updatedDate" column="updatedDate"/>
+        <result property="description" column="description"/>
+        <!--
+            <association> for a single nested object:
+            - column="category_id" → passes category_id to the sub-select
+            - select="getCategoryByCategoryId" → loads the full Category object
+        -->
+        <association property="category" column="category_id" select="getCategoryByCategoryId"/>
+    </resultMap>
+
+    <!-- ─── HELPER: lookup methods used by nested selects ───────────────────── -->
+
+    <select id="getCategoryByCategoryId" resultMap="CategoryResultMap">
+        SELECT id,
+               name,
+               created_date AS createdDate,
+               updated_date AS updatedDate
+        FROM tb_category
+        WHERE id = #{id}
+          AND is_active = true
+    </select>
+
+    <select id="getCategories" resultType="String">
+        SELECT name FROM tb_category WHERE id = #{categoryId} AND is_active = true
+    </select>
+
+    <!-- ─── STORE ──────────────────────────────────────────────────────────── -->
+
+    <select id="getStoreIdByCurrentUserId" resultType="int">
+        SELECT id FROM tb_store WHERE supplier_account_id = #{currentUserId}
+    </select>
+
+    <!-- ─── PRODUCT IMPORT ──────────────────────────────────────────────────── -->
+
+    <select id="insertNewProductImport" resultType="int">
+        INSERT INTO tb_product_import VALUES (DEFAULT, DEFAULT, #{storeId}) RETURNING id
+    </select>
+
+    <insert id="insertNewProductImportDetail">
+        INSERT INTO tb_product_import_detail
+        VALUES (DEFAULT, #{productId}, #{productImportId}, #{proRequest.qty}, #{proRequest.price})
+    </insert>
+
+    <select id="createNewImportRecord" resultType="int">
+        INSERT INTO tb_product_import VALUES (DEFAULT, DEFAULT, #{storeId}) RETURNING id
+    </select>
+
+    <insert id="insertImportDetail">
+        INSERT INTO tb_product_import_detail(id, product_id, product_import_id, qty, price, category_id)
+        VALUES (DEFAULT, #{productId}, #{importId}, #{qty}, #{price}, #{categoryId})
+    </insert>
+
+    <!-- ─── PRODUCT CATEGORY ─────────────────────────────────────────────────── -->
+
+    <select id="getCategoryIdByName" resultType="int">
+        SELECT id FROM tb_category WHERE name = #{categoryName} AND is_active = true
+    </select>
+
+    <insert id="insertNewProductCategory">
+        INSERT INTO tb_product_category VALUES (DEFAULT, #{categoryIdFromName}, #{productId})
+    </insert>
+
+    <!-- ─── CREATE PRODUCT ──────────────────────────────────────────────────── -->
+
+    <select id="createNewProduct" resultType="int">
+        INSERT INTO tb_product VALUES (DEFAULT, #{name}, DEFAULT, DEFAULT, true) RETURNING id
+    </select>
+
+    <select id="insertNewProduct" resultType="String">
+        INSERT INTO tb_store_product_detail(id, store_id, product_id, qty, price, is_publish, image, category_id, description)
+        VALUES (DEFAULT, #{storeId}, #{productId}, 0, 0, #{prod.isPublish}, #{prod.image}, #{prod.categoryId}, #{prod.description})
+        RETURNING id
+    </select>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         GET PRODUCT BY ID — returns Product with nested Category object
+         ═══════════════════════════════════════════════════════════════════════
+    -->
+
+    <select id="getProductById" resultMap="ProductWithCategoryResultMap">
+        SELECT a.id,
+               b.name,
+               a.qty,
+               a.price,
+               a.image,
+               category_id,
+               is_publish   AS isPublish,
+               b.created_date AS createdDate,
+               b.updated_date AS updatedDate,
+               a.description
+        FROM tb_store_product_detail a
+                 JOIN tb_product b ON a.product_id = b.id
+        WHERE a.id = #{productId}
+          AND a.store_id = #{storeId}
+    </select>
+
+    <select id="getStoreProductByStoreProductId" resultMap="ProductWithCategoryResultMap">
+        SELECT a.id,
+               b.name,
+               a.qty,
+               a.price,
+               a.image,
+               category_id,
+               is_publish   AS isPublish,
+               b.created_date AS createdDate,
+               b.updated_date AS updatedDate,
+               a.description
+        FROM tb_store_product_detail a
+                 JOIN tb_product b ON a.product_id = b.id
+        WHERE a.id = #{storeProductDetailId}
+    </select>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         GET ALL PRODUCTS (paginated, sorted)
+         ═══════════════════════════════════════════════════════════════════════
+         ${by} → ORDER BY column name injected directly (not parameterized).
+                 This is safe only if `by` is validated in the service layer.
+    -->
+
+    <select id="getAllProductByQtyASC" resultMap="ProductWithCategoryResultMap">
+        SELECT a.id,
+               b.name,
+               a.qty,
+               a.price,
+               a.image,
+               a.category_id,
+               a.is_publish   AS isPublish,
+               b.created_date AS createdDate,
+               b.updated_date AS updatedDate,
+               a.description
+        FROM tb_store_product_detail a
+                 JOIN tb_product b ON a.product_id = b.id
+        WHERE a.store_id = #{storeId}
+          AND a.is_active = true
+        ORDER BY ${by} ASC
+        LIMIT #{pageSize}
+        OFFSET #{pageSize} * (#{pageNumber} - 1)
+    </select>
+
+    <select id="getAllProductByQtyDESC" resultMap="ProductWithCategoryResultMap">
+        SELECT a.id,
+               b.name,
+               a.qty,
+               a.price,
+               a.image,
+               a.category_id,
+               a.is_publish   AS isPublish,
+               b.created_date AS createdDate,
+               b.updated_date AS updatedDate,
+               a.description
+        FROM tb_store_product_detail a
+                 JOIN tb_product b ON a.product_id = b.id
+        WHERE a.store_id = #{storeId}
+          AND a.is_active = true
+        ORDER BY ${by} DESC
+        LIMIT #{pageSize}
+        OFFSET #{pageSize} * (#{pageNumber} - 1)
+    </select>
+
+    <!-- ─── SEARCH BY NAME ───────────────────────────────────────────────────── -->
+
+    <select id="getAllProductByName" resultMap="ProductWithCategoryResultMap">
+        SELECT x.id,
+               y.name,
+               x.qty,
+               x.price,
+               x.image,
+               x.category_id,
+               x.is_active    AS isActive,
+               x.is_publish   AS isPublish,
+               y.created_date AS createdDate,
+               y.updated_date AS updatedDate
+        FROM tb_store_product_detail x
+                 JOIN tb_product y ON x.product_id = y.id
+        WHERE x.store_id = #{storeId}
+          AND x.is_active = true
+          AND y.name ILIKE '%' || #{name} || '%'
+    </select>
+
+    <select id="getAllProductByUnitPrice" resultType="com.henheang.hphsar.model.product.Product">
+        SELECT p.id, name, qty, price, image,
+               is_active AS isActive, is_publish AS isPublish,
+               created_date AS createdDate, updated_date AS updatedDate
+        FROM tb_product p
+                 INNER JOIN tb_store_product_detail s ON p.id = s.product_id
+        WHERE store_id = #{storeId}
+        ORDER BY price ASC
+    </select>
+
+    <!-- ─── UPDATE OPERATIONS ────────────────────────────────────────────────── -->
+
+    <update id="updateStoreProductDetail">
+        UPDATE tb_store_product_detail
+        SET qty        = qty + #{qty},
+            price      = #{price},
+            is_publish = #{isPublish}
+        WHERE store_id = #{storeId}
+          AND id = #{productId}
+    </update>
+
+    <select id="changeStoreProductDetail" resultType="String">
+        UPDATE tb_store_product_detail
+        SET product_id  = #{productId},
+            price       = #{prod.price},
+            image       = #{prod.image},
+            description = #{prod.description},
+            category_id = #{prod.categoryId},
+            is_publish  = true
+        WHERE store_id = #{storeId}
+          AND id = #{id}
+        RETURNING id
+    </select>
+
+    <select id="unPublishProduct" resultType="int">
+        UPDATE tb_store_product_detail
+        SET is_publish = false
+        WHERE store_id = #{storeId}
+          AND id = #{id}
+        RETURNING id
+    </select>
+
+    <select id="publishProduct" resultType="int">
+        UPDATE tb_store_product_detail
+        SET is_publish = true
+        WHERE store_id = #{storeId}
+          AND id = #{id}
+        RETURNING id
+    </select>
+
+    <!-- ─── DELETE ──────────────────────────────────────────────────────────── -->
+
+    <select id="deleteProductById">
+        DELETE FROM tb_product WHERE id = #{productId}
+    </select>
+
+    <select id="deleteProductDetailById" resultType="String">
+        DELETE FROM tb_store_product_detail
+        WHERE id = #{productId}
+          AND store_id = #{storeId}
+        RETURNING 1
+    </select>
+
+    <!-- ─── CHECK / COUNT ────────────────────────────────────────────────────── -->
+
+    <select id="getProductIdByName" resultType="int">
+        SELECT COALESCE((SELECT id FROM tb_product WHERE name ILIKE #{name}), 0)
+    </select>
+
+    <select id="checkStoreHasProduct" resultType="boolean">
+        SELECT EXISTS(SELECT * FROM tb_store_product_detail WHERE store_id = #{storeId} AND id = #{productId})
+    </select>
+
+    <select id="getAllProduct" resultType="int">
+        SELECT count(*) FROM tb_store_product_detail WHERE store_id = #{store}
+    </select>
+
+    <select id="checkProductPublish" resultType="boolean">
+        SELECT EXISTS(SELECT * FROM tb_store_product_detail
+                      WHERE id = #{id} AND store_id = #{storeId} AND is_publish = true)
+    </select>
+
+    <select id="getProductIdInStoreProduct" resultType="int">
+        SELECT product_id FROM tb_store_product_detail WHERE store_id = #{storeId} AND id = #{id}
+    </select>
+
+    <select id="checkStoreHasAnyProduct" resultType="boolean">
+        SELECT EXISTS(SELECT * FROM tb_store_product_detail WHERE store_id = #{storeId})
+    </select>
+
+    <select id="checkForProductInOrder" resultType="boolean">
+        SELECT EXISTS(
+            SELECT * FROM tb_order x
+                             JOIN tb_order_detail y ON x.id = y.order_id
+            WHERE store_product_id = #{productId}
+              AND store_id = (SELECT id FROM tb_store WHERE supplier_account_id = #{currentUserId})
+        )
+    </select>
+
+</mapper>

@@ -39,17 +39,17 @@ src/main/java/com/henheang/hphsar/
 │
 ├── controller/
 │   ├── BaseController.java                ← ✅ Parent class — all controllers extend this
-│   └── distributor/
+│   └── supplier/
 │       └── product/
-│           └── ProductDistributorController.java
+│           └── SupplierProductController.java
 │
 ├── service/
-│   ├── ProductDistributorService.java     ← Interface (계약서 — the contract)
+│   ├── SupplierProductService.java        ← Interface (계약서 — the contract)
 │   └── implement/
-│       └── ProductDistributorServiceImp.java  ← Actual logic (구현체)
+│       └── SupplierProductServiceImpl.java  ← Actual logic (구현체)
 │
 ├── repository/
-│   └── ProductDistributorRepository.java  ← MyBatis mapper interface
+│   └── SupplierProductRepository.java     ← MyBatis mapper interface
 │
 ├── model/
 │   └── product/
@@ -66,7 +66,7 @@ src/main/java/com/henheang/hphsar/
 
 src/main/resources/
 └── mapper/
-    └── ProductDistributorMapper.xml       ← ✅ Actual SQL queries here
+    └── SupplierProductMapper.xml          ← ✅ Actual SQL queries here
 ```
 
 > ⚠️ **Important:** `model/ApiResponse.java` is the **old version**. Always use `common/api/ApiResponse.java` for new code.
@@ -191,7 +191,7 @@ controller/order/OrderController.java
 ```java
 @RestController
 @Tag(name = "Order Controller")
-@RequestMapping("${base.distributor.v1}/orders")
+@RequestMapping("${base.supplier.v1}/orders")
 @SecurityRequirement(name = "bearerAuth")
 @RequiredArgsConstructor
 public class OrderController extends BaseController {   // ← Must extend BaseController
@@ -372,7 +372,7 @@ For any list query that supports sorting, use `<sql>` fragments and `<choose>` i
 
 ```xml
 <sql id="selectOrderBase">
-    SELECT id, store_id AS storeId, retailer_account_id AS retailerId,
+    SELECT id, store_id AS storeId, buyer_account_id AS buyerId,
            created_date AS date, status_id
     FROM tb_order
 </sql>
@@ -437,7 +437,7 @@ List<Order> orders = repository.getOrders(sort, pageNumber, pageSize, storeId);
 ```
 
 > ⚠️ `${variable}` (dollar sign) injects the value directly into SQL — SQL Injection risk.
-> Only use it when necessary (e.g., ORDER BY column name), and always validate the value in the Service layer first with a whitelist check. See `ProductDistributorServiceImp.getAllProductBySorting()` for an example.
+> Only use it when necessary (e.g., ORDER BY column name), and always validate the value in the Service layer first with a whitelist check. See `SupplierProductServiceImpl.getAllProductBySorting()` for an example.
 
 ---
 

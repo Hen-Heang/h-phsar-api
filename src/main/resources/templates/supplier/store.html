@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head th:replace="~{fragments/layout :: head}">
+  <title>My Store | H-Phsar</title>
+</head>
+<body>
+
+<div th:replace="~{fragments/layout :: sidebar}"></div>
+
+<div class="main-wrapper">
+  <div th:replace="~{fragments/layout :: topbar('My Store')}" ></div>
+
+  <main class="page-content">
+    <div class="page-header">
+      <h2>My Store</h2>
+      <p>Manage your store details and visibility.</p>
+    </div>
+
+    <div class="row g-3">
+
+      <!-- Store preview card -->
+      <div class="col-lg-4">
+        <div class="card overflow-hidden">
+          <div id="store-banner"
+               style="height:140px;background:linear-gradient(135deg,#3b82f6,#8b5cf6);display:flex;align-items:center;justify-content:center;">
+            <i class="bi bi-shop" style="font-size:48px;color:rgba(255,255,255,0.5);"></i>
+          </div>
+          <div class="p-4 text-center">
+            <h5 class="fw-bold mb-1" id="preview-name">—</h5>
+            <p class="text-muted" style="font-size:13px;" id="preview-address">—</p>
+            <div id="preview-status" class="mb-3"></div>
+            <div class="d-flex justify-content-center gap-2 flex-wrap">
+              <button class="btn-primary-custom" onclick="toggleStoreStatus(true)"  id="btn-enable">
+                <i class="bi bi-check-circle"></i> Enable
+              </button>
+              <button class="btn btn-outline-secondary btn-sm" onclick="toggleStoreStatus(false)" id="btn-disable">
+                <i class="bi bi-slash-circle"></i> Disable
+              </button>
+              <button class="btn btn-outline-danger btn-sm" onclick="openDeleteModal()">
+                <i class="bi bi-trash3"></i> Delete
+              </button>
+            </div>
+          </div>
+          <div class="border-top p-3">
+            <div class="d-flex justify-content-between" style="font-size:13px;">
+              <span class="text-muted">Primary Phone</span>
+              <span id="preview-phone" class="fw-semibold">—</span>
+            </div>
+            <div class="d-flex justify-content-between mt-2" style="font-size:13px;">
+              <span class="text-muted">Rating</span>
+              <span id="preview-rating" class="fw-semibold">—</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Store form -->
+      <div class="col-lg-8">
+        <div class="card">
+          <div class="card-header-custom">
+            <h6>Store Information</h6>
+            <div id="store-action-btns"></div>
+          </div>
+          <div class="p-4">
+            <form id="store-form" onsubmit="handleSaveStore(event)">
+              <div class="row g-3">
+                <div class="col-12">
+                  <label class="form-label">Store Name *</label>
+                  <input type="text" id="s-name" class="form-control" placeholder="Your store name" required/>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Primary Phone *</label>
+                  <input type="text" id="s-phone" class="form-control" placeholder="+855 12 345 678" required/>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Additional Phone</label>
+                  <input type="text" id="s-phone2" class="form-control" placeholder="Optional"/>
+                </div>
+                <div class="col-12">
+                  <label class="form-label">Address *</label>
+                  <input type="text" id="s-address" class="form-control" placeholder="Street, City, Country" required/>
+                </div>
+                <div class="col-12">
+                  <label class="form-label">Description</label>
+                  <textarea id="s-description" class="form-control" rows="3" placeholder="What does your store sell?"></textarea>
+                </div>
+                <div class="col-12">
+                  <label class="form-label">Banner Image URL</label>
+                  <input type="text" id="s-banner" class="form-control" placeholder="https://..."/>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label">Publish Status</label>
+                  <select id="s-publish" class="form-select">
+                    <option value="true">Published</option>
+                    <option value="false">Unlisted</option>
+                  </select>
+                </div>
+              </div>
+              <div class="mt-4 d-flex gap-2">
+                <button type="submit" class="btn-primary-custom">
+                  <span id="store-spinner" class="spinner-border spinner-border-sm d-none"></span>
+                  <span id="store-save-label">Save Store</span>
+                </button>
+                <button type="button" class="btn btn-light" onclick="loadStore()">Reset</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Delete confirm -->
+<div class="modal fade" id="deleteStoreModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content" style="border-radius:12px;border:none;">
+      <div class="modal-body p-4 text-center">
+        <div style="font-size:40px;margin-bottom:12px;">⚠️</div>
+        <h6 class="fw-bold mb-1">Delete Store?</h6>
+        <p class="text-muted" style="font-size:13px;">This action cannot be undone.</p>
+        <div class="d-flex gap-2 justify-content-center mt-3">
+          <button class="btn btn-light px-4" data-bs-dismiss="modal">Cancel</button>
+          <button class="btn btn-danger px-4" onclick="confirmDeleteStore()">Delete</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<div th:replace="~{fragments/layout :: scripts}"></div>
+<script>
+  redirectIfNoToken();
+  let storeExists = false;
+
+  async function loadStore() {
+    try {
+      const res  = await api.get('/api/v1/suppliers/stores/user');
+      const s    = res.data;
+      storeExists = true;
+
+      document.getElementById('s-name').value        = s.name || '';
+      document.getElementById('s-phone').value       = s.primaryPhone || '';
+      document.getElementById('s-phone2').value      = s.additionalPhone || '';
+      document.getElementById('s-address').value     = s.address || '';
+      document.getElementById('s-description').value = s.description || '';
+      document.getElementById('s-banner').value      = s.bannerImage || '';
+      document.getElementById('s-publish').value     = String(s.isPublish);
+      document.getElementById('store-save-label').textContent = 'Update Store';
+
+      // Preview
+      document.getElementById('preview-name').textContent    = s.name || '—';
+      document.getElementById('preview-address').textContent = s.address || '—';
+      document.getElementById('preview-phone').textContent   = s.primaryPhone || '—';
+      document.getElementById('preview-rating').textContent  = s.rating != null ? `⭐ ${s.rating} (${s.ratingCount})` : '—';
+      document.getElementById('preview-status').innerHTML    = s.isActive
+        ? '<span class="status-badge status-published">Active</span>'
+        : '<span class="status-badge status-unlisted">Disabled</span>';
+
+      if (s.bannerImage) {
+        document.getElementById('store-banner').style.background = `url(${s.bannerImage}) center/cover`;
+      }
+
+    } catch (e) {
+      if (e?.status === 404 || e?.code === 404) {
+        storeExists = false;
+        document.getElementById('preview-name').textContent = 'No store yet';
+        document.getElementById('store-save-label').textContent = 'Create Store';
+      } else {
+        toast('Could not load store.', 'error');
+      }
+    }
+  }
+
+  async function handleSaveStore(e) {
+    e.preventDefault();
+    const spinner = document.getElementById('store-spinner');
+    spinner.classList.remove('d-none');
+    const body = {
+      name:            document.getElementById('s-name').value,
+      primaryPhone:    document.getElementById('s-phone').value,
+      additionalPhone: document.getElementById('s-phone2').value,
+      address:         document.getElementById('s-address').value,
+      description:     document.getElementById('s-description').value,
+      bannerImage:     document.getElementById('s-banner').value,
+      isPublish:       document.getElementById('s-publish').value === 'true',
+    };
+    try {
+      if (storeExists) {
+        await api.put('/api/v1/suppliers/stores', body);
+        toast('Store updated!', 'success');
+      } else {
+        await api.post('/api/v1/suppliers/stores', body);
+        toast('Store created!', 'success');
+        storeExists = true;
+      }
+      loadStore();
+    } catch (err) {
+      toast(err?.message || 'Save failed.', 'error');
+    } finally { spinner.classList.add('d-none'); }
+  }
+
+  async function toggleStoreStatus(enable) {
+    try {
+      const url = enable ? '/api/v1/suppliers/stores/enable' : '/api/v1/suppliers/stores/disable';
+      await api.put(url);
+      toast(enable ? 'Store enabled!' : 'Store disabled.', 'success');
+      loadStore();
+    } catch (e) { toast('Action failed.', 'error'); }
+  }
+
+  function openDeleteModal() {
+    new bootstrap.Modal(document.getElementById('deleteStoreModal')).show();
+  }
+  async function confirmDeleteStore() {
+    try {
+      await api.delete('/api/v1/suppliers/stores');
+      toast('Store deleted.', 'success');
+      bootstrap.Modal.getInstance(document.getElementById('deleteStoreModal')).hide();
+      storeExists = false;
+      document.getElementById('store-form').reset();
+      document.getElementById('preview-name').textContent = 'No store yet';
+    } catch (e) { toast('Delete failed.', 'error'); }
+  }
+
+  loadStore();
+</script>
+</body>
+</html>

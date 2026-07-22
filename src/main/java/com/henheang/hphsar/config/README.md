@@ -108,8 +108,8 @@ eyJhbGciOiJIUzUxMiJ9   ← Header  (algorithm: HS512)
 | `/authorization/**` | Public — no token needed (login, register, OTP) |
 | `/api/v1/files/**` | Public — no token needed (view uploaded files) |
 | `/swagger-ui/**`, `/v3/api-docs/**` | Public — API documentation |
-| `/api/v1/retailer/**` | Requires `RETAILER` role |
-| `/api/v1/distributor/**` | Requires `DISTRIBUTOR` role |
+| `/api/v1/buyers/**` | Requires `BUYER` role |
+| `/api/v1/suppliers/**` | Requires `SUPPLIER` role |
 | Everything else | Requires any valid token |
 
 **Other settings:**
@@ -138,8 +138,8 @@ eyJhbGciOiJIUzUxMiJ9   ← Header  (algorithm: HS512)
 **What it creates/adds:**
 | SQL | Purpose |
 |---|---|
-| `CREATE TABLE IF NOT EXISTS tb_distributor_otp` | OTP table for distributor email verification |
-| `CREATE TABLE IF NOT EXISTS tb_retailer_otp` | OTP table for retailer email verification |
+| `CREATE TABLE IF NOT EXISTS tb_supplier_otp` | OTP table for supplier email verification |
+| `CREATE TABLE IF NOT EXISTS tb_buyer_otp` | OTP table for buyer email verification |
 | `ALTER TABLE tb_store ADD COLUMN IF NOT EXISTS is_active` | Soft-delete flag for stores |
 | `ALTER TABLE tb_store ADD COLUMN IF NOT EXISTS phone` | Phone number for stores |
 

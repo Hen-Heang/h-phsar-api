@@ -18,11 +18,11 @@
 
     <!-- Role switcher -->
     <div class="tab-pills mb-4 w-100 justify-content-center">
-      <button class="tab-pill active" id="tab-dist" onclick="switchRole('DISTRIBUTOR')">
-        <i class="bi bi-truck me-1"></i>Distributor
+      <button class="tab-pill active" id="tab-supplier" onclick="switchRole('SUPPLIER')">
+        <i class="bi bi-truck me-1"></i>Supplier
       </button>
-      <button class="tab-pill" id="tab-ret" onclick="switchRole('RETAILER')">
-        <i class="bi bi-shop me-1"></i>Retailer
+      <button class="tab-pill" id="tab-buyer" onclick="switchRole('BUYER')">
+        <i class="bi bi-shop me-1"></i>Buyer
       </button>
     </div>
 
@@ -69,12 +69,12 @@
         Wholesale Operations<br/>Made Simple
       </h2>
       <p style="font-size:15px;opacity:0.7;line-height:1.6;">
-        Manage your products, track orders, and grow your distributor network — all in one place.
+        Manage your products, track orders, and grow your supplier network — all in one place.
       </p>
       <div style="display:flex;gap:20px;justify-content:center;margin-top:36px;">
         <div style="background:rgba(255,255,255,0.1);padding:16px 24px;border-radius:12px;text-align:center;">
           <div style="font-size:22px;font-weight:700;">500+</div>
-          <div style="font-size:12px;opacity:0.7;margin-top:2px;">Distributors</div>
+          <div style="font-size:12px;opacity:0.7;margin-top:2px;">Suppliers</div>
         </div>
         <div style="background:rgba(255,255,255,0.1);padding:16px 24px;border-radius:12px;text-align:center;">
           <div style="font-size:22px;font-weight:700;">12K+</div>
@@ -93,12 +93,12 @@
 
 <div th:replace="~{fragments/layout :: scripts}"></div>
 <script>
-  let selectedRole = 'DISTRIBUTOR';
+  let selectedRole = 'SUPPLIER';
 
   function switchRole(role) {
     selectedRole = role;
-    document.getElementById('tab-dist').classList.toggle('active', role === 'DISTRIBUTOR');
-    document.getElementById('tab-ret').classList.toggle('active', role === 'RETAILER');
+    document.getElementById('tab-supplier').classList.toggle('active', role === 'SUPPLIER');
+    document.getElementById('tab-buyer').classList.toggle('active', role === 'BUYER');
   }
 
   function togglePwd() {
@@ -130,8 +130,8 @@
 
       setTimeout(() => {
         const roleId = Number(data.roleId);
-        if (roleId === 1)      window.location.href = '/web/distributor/dashboard';
-        else if (roleId === 2) window.location.href = '/web/retailer/dashboard';
+        if (roleId === 1)      window.location.href = '/web/suppliers/dashboard';
+        else if (roleId === 2) window.location.href = '/web/buyers/dashboard';
         else                   window.location.href = '/web/login';
       }, 800);
 

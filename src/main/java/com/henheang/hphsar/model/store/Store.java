@@ -18,7 +18,7 @@ public class Store {
     private String address;
     private String primaryPhone;
     private List<String> additionalPhone;
-    private Integer distributorAccountId;
+    private Integer supplierAccountId;
     private String description;
     private Boolean isPublish;
     private Boolean isActive;

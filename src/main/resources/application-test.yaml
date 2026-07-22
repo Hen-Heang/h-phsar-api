@@ -1,0 +1,34 @@
+# Test profile — Spring Boot activates this automatically for @SpringBootTest
+# runs unless another profile is explicitly requested. Safe to commit: every
+# value below is either a fixed test-only dummy or points at a disposable
+# local/CI database, never at a shared, development, or production system.
+#
+# LIMITATION (tracked for a future testing-focused step): this repo does not
+# yet use Testcontainers, so nothing here spins up its own database — a real
+# Postgres still has to be reachable at the URL below (or overridden via
+# DB_URL/DB_USERNAME/DB_PASSWORD) for any test that touches a MyBatis mapper.
+# The existing context-load test will fail without one, exactly as it did
+# before this step. Wiring up Testcontainers so tests need no external
+# database at all is out of scope here and belongs to the testing step.
+
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/h_phsar_test}
+    username: ${DB_USERNAME:h_phsar_test}
+    password: ${DB_PASSWORD:h_phsar_test}
+
+  mail:
+    # Deliberately not a real SMTP host — no test run should ever be able to
+    # send a real email, even if a code path tries to.
+    host: localhost
+    port: 3025
+    username: test
+    password: test
+
+jwt:
+  # Fixed, obviously-fake secret used only so test runs are deterministic.
+  # Never reused outside this file.
+  secret: test-only-jwt-secret-do-not-use-outside-automated-tests-0123456789
+
+file:
+  upload-dir: ${FILE_UPLOAD_DIR:build/test-uploads}

@@ -147,7 +147,7 @@ function orderStatusBadge(status) {
     const cls = map[status] || 'status-pending';
     return `<span class="status-badge ${cls}">${status || '—'}</span>`;
 }
-function retailerStatusBadge(status) {
+function buyerStatusBadge(status) {
     const map = {
         PENDING:    'status-pending',
         PROCESSING: 'status-preparing',
@@ -204,8 +204,8 @@ function renderOrderTimeline(status) {
 // ─── Notifications ────────────────────────────────────────────────
 function _notifEndpoint() {
     return getRoleId() === '1'
-        ? { list: '/api/v1/distributor/notifications', markOne: (id) => `/api/v1/distributor/notifications/${id}/read`, markAll: '/api/v1/distributor/notifications/read', orderPage: '/web/distributor/orders' }
-        : { list: '/api/v1/retailer/notifications',    markOne: (id) => `/api/v1/retailer/notifications/${id}/read`,    markAll: '/api/v1/retailer/notifications/read',    orderPage: '/web/retailer/orders'    };
+        ? { list: '/api/v1/suppliers/notifications', markOne: (id) => `/api/v1/suppliers/notifications/${id}/read`, markAll: '/api/v1/suppliers/notifications/read', orderPage: '/web/suppliers/orders' }
+        : { list: '/api/v1/buyers/notifications',    markOne: (id) => `/api/v1/buyers/notifications/${id}/read`,    markAll: '/api/v1/buyers/notifications/read',    orderPage: '/web/buyers/orders'    };
 }
 
 async function openNotifications() {
@@ -285,7 +285,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const path = window.location.pathname;
 
     // Auto-redirect to login if no token (or expired token) on any protected page
-    if (path.startsWith('/web/distributor/') || path.startsWith('/web/retailer/')) {
+    if (path.startsWith('/web/suppliers/') || path.startsWith('/web/buyers/')) {
         const token = getToken();
         if (!token || isTokenExpired(token)) {
             console.warn('[H-Phsar] No valid token on protected page, redirecting to login.');
@@ -302,7 +302,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (userEl) userEl.textContent = getUserId() ? 'User #' + getUserId() : 'Account';
 
     // Load unread notification count on every protected page
-    if (path.startsWith('/web/distributor/') || path.startsWith('/web/retailer/')) {
+    if (path.startsWith('/web/suppliers/') || path.startsWith('/web/buyers/')) {
         _loadNotifBadge();
     }
 });

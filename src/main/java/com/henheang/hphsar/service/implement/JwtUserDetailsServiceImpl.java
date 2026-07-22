@@ -66,16 +66,16 @@ public class JwtUserDetailsServiceImpl implements UserDetailsService, JwtUserDet
 
     /**
      * Called by Spring Security during authentication (login).
-     * Searches distributor table first, then retailer table.
+     * Searches supplier table first, then buyer table.
      * Returns AppUser which implements UserDetails.
      */
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-        // Try distributor account first
-        UserDetails user = appUserRepository.findDistributorUserByEmail(email);
+        // Try supplier account first
+        UserDetails user = appUserRepository.findSupplierUserByEmail(email);
         if (user == null) {
-            // If not found, try retailer account
-            user = appUserRepository.findRetailerUserByEmail(email);
+            // If not found, try buyer account
+            user = appUserRepository.findBuyerUserByEmail(email);
         }
         if (user == null) {
             throw new BadRequestException("Invalid email address. Please input valid email address.");
@@ -97,9 +97,9 @@ public class JwtUserDetailsServiceImpl implements UserDetailsService, JwtUserDet
     @Override
     public AppUserDto insertUser(AppUserRequest appUserRequest) {
 
-        // Step 1: Validate role — only 1 (DISTRIBUTOR) or 2 (RETAILER) allowed
+        // Step 1: Validate role — only 1 (SUPPLIER) or 2 (BUYER) allowed
         if (!(appUserRequest.getRoleId().equals(1) || appUserRequest.getRoleId().equals(2))) {
-            throw new BadRequestException("Invalid roleId. Use 1 for DISTRIBUTOR or 2 for RETAILER.");
+            throw new BadRequestException("Invalid roleId. Use 1 for SUPPLIER or 2 for BUYER.");
         }
 
         // Step 2: Validate email
@@ -119,9 +119,9 @@ public class JwtUserDetailsServiceImpl implements UserDetailsService, JwtUserDet
         }
 
         // Step 4: Check if email is already registered (in either table)
-        AppUser checkDuplicate = appUserRepository.findDistributorUserByEmail(appUserRequest.getEmail());
-        AppUser checkDuplicateRetailer = appUserRepository.findRetailerUserByEmail(appUserRequest.getEmail());
-        if (checkDuplicate != null || checkDuplicateRetailer != null) {
+        AppUser checkDuplicate = appUserRepository.findSupplierUserByEmail(appUserRequest.getEmail());
+        AppUser checkDuplicateBuyer = appUserRepository.findBuyerUserByEmail(appUserRequest.getEmail());
+        if (checkDuplicate != null || checkDuplicateBuyer != null) {
             throw new ConflictException("This email is already taken.");
         }
 
@@ -132,9 +132,9 @@ public class JwtUserDetailsServiceImpl implements UserDetailsService, JwtUserDet
         // Step 6: Insert into the correct table based on role
         AppUser appUser;
         if (appUserRequest.getRoleId() == 1) {
-            appUser = appUserRepository.insertDistributorUser(appUserRequest);
+            appUser = appUserRepository.insertSupplierUser(appUserRequest);
         } else {
-            appUser = appUserRepository.insertRetailerUser(appUserRequest);
+            appUser = appUserRepository.insertBuyerUser(appUserRequest);
         }
 
         return toDto(appUser);
@@ -148,10 +148,10 @@ public class JwtUserDetailsServiceImpl implements UserDetailsService, JwtUserDet
      */
     @Override
     public boolean getVerifyEmail(String email) {
-        // Try distributor first, then retailer
-        Boolean isVerified = appUserRepository.getVerifyDistributorEmail(email);
+        // Try supplier first, then buyer
+        Boolean isVerified = appUserRepository.getVerifySupplierEmail(email);
         if (isVerified == null) {
-            isVerified = appUserRepository.getVerifyRetailerEmail(email);
+            isVerified = appUserRepository.getVerifyBuyerEmail(email);
         }
         if (isVerified == null) {
             throw new BadRequestException("Email does not exist.");
@@ -170,12 +170,12 @@ public class JwtUserDetailsServiceImpl implements UserDetailsService, JwtUserDet
      */
     @Override
     public AppUserDto changePassword(JwtChangePasswordRequest request) {
-        // Step 1: Find user — try distributor first, then retailer
-        boolean isDistributor = true;
-        AppUser appUser = appUserRepository.findDistributorUserByEmail(request.getEmail());
+        // Step 1: Find user — try supplier first, then buyer
+        boolean isSupplier = true;
+        AppUser appUser = appUserRepository.findSupplierUserByEmail(request.getEmail());
         if (appUser == null) {
-            isDistributor = false;
-            appUser = appUserRepository.findRetailerUserByEmail(request.getEmail());
+            isSupplier = false;
+            appUser = appUserRepository.findBuyerUserByEmail(request.getEmail());
         }
         if (appUser == null) {
             throw new NotFoundException("User not found. Invalid email.");
@@ -192,10 +192,10 @@ public class JwtUserDetailsServiceImpl implements UserDetailsService, JwtUserDet
 
         // Step 4: Update password in DB
         AppUser updatedUser;
-        if (isDistributor) {
-            updatedUser = appUserRepository.updateDistributorUser(request);
+        if (isSupplier) {
+            updatedUser = appUserRepository.updateSupplierUser(request);
         } else {
-            updatedUser = appUserRepository.updateRetailerUser(request);
+            updatedUser = appUserRepository.updateBuyerUser(request);
         }
 
         return toDto(updatedUser);
@@ -215,14 +215,14 @@ public class JwtUserDetailsServiceImpl implements UserDetailsService, JwtUserDet
     public String forgetPassword(Integer otp, String email, String newPassword) {
 
         // Step 1: Find user and their latest OTP
-        boolean isDistributor = true;
-        AppUser appUser = appUserRepository.findDistributorUserByEmail(email);
-        Otp otpObj = otpRepository.getDistributorOtpByEmail(email);
+        boolean isSupplier = true;
+        AppUser appUser = appUserRepository.findSupplierUserByEmail(email);
+        Otp otpObj = otpRepository.getSupplierOtpByEmail(email);
 
         if (appUser == null || otpObj == null) {
-            isDistributor = false;
-            appUser = appUserRepository.findRetailerUserByEmail(email);
-            otpObj = otpRepository.getRetailerOtpByEmail(email);
+            isSupplier = false;
+            appUser = appUserRepository.findBuyerUserByEmail(email);
+            otpObj = otpRepository.getBuyerOtpByEmail(email);
         }
 
         if (appUser == null) {
@@ -247,10 +247,10 @@ public class JwtUserDetailsServiceImpl implements UserDetailsService, JwtUserDet
         // Step 3: Encode and save the new password
         String encodedNewPassword = passwordEncoder.encode(newPassword);
         String updatedPassword;
-        if (isDistributor) {
-            updatedPassword = appUserRepository.updateForgetDistributorUser(email, encodedNewPassword);
+        if (isSupplier) {
+            updatedPassword = appUserRepository.updateForgetSupplierUser(email, encodedNewPassword);
         } else {
-            updatedPassword = appUserRepository.updateForgetRetailerUser(email, encodedNewPassword);
+            updatedPassword = appUserRepository.updateForgetBuyerUser(email, encodedNewPassword);
         }
 
         if (Objects.equals(updatedPassword, "null") || updatedPassword == null) {
@@ -260,8 +260,8 @@ public class JwtUserDetailsServiceImpl implements UserDetailsService, JwtUserDet
         // Step 4 (FIX 3): Delete OTP after use — one-time use only
         // WHY: If we don't delete, the same OTP could be reused to change the
         //      password again without the user knowing.
-        otpRepository.deleteDistributorOtp(email);
-        otpRepository.deleteRetailerOtp(email);
+        otpRepository.deleteSupplierOtp(email);
+        otpRepository.deleteBuyerOtp(email);
 
         // Step 5 (FIX 1): Return only a success message — NEVER return the plain text password
         // WHY: If the response is intercepted (man-in-the-middle), the attacker
@@ -283,20 +283,20 @@ public class JwtUserDetailsServiceImpl implements UserDetailsService, JwtUserDet
 
     // ─── Role & User ID Helpers ─────────────────────────────────────────────────
 
-    // Gets the role ID for a given email — checks distributor first, then retailer
+    // Gets the role ID for a given email — checks supplier first, then buyer
     public Integer getRoleIdByMail(String email) {
         Integer roleId = appUserRepository.getRoleIdByMail(email);
         if (roleId == null) {
-            roleId = appUserRepository.getRoleIdByMailRetailer(email);
+            roleId = appUserRepository.getRoleIdByMailBuyer(email);
         }
         return roleId;
     }
 
-    // Gets the user ID for a given email — checks distributor first, then retailer
+    // Gets the user ID for a given email — checks supplier first, then buyer
     public Integer getUserIdByMail(String email) {
-        Integer userId = appUserRepository.getUserIdByMailDistributor(email);
+        Integer userId = appUserRepository.getUserIdByMailSupplier(email);
         if (userId == null) {
-            userId = appUserRepository.getUserIdByMailRetailer(email);
+            userId = appUserRepository.getUserIdByMailBuyer(email);
         }
         return userId;
     }

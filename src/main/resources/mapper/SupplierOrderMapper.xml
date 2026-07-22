@@ -1,0 +1,388 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!--
+    WHAT IS THIS FILE?
+    ══════════════════
+    XML Mapper for SupplierOrderRepository.
+    Handles all order operations from the supplier's perspective.
+
+    The most important resultMap here is OrderResultMap — it is a COMPLEX resultMap
+    that loads 13 fields using nested sub-selects (@One / @Many equivalents).
+
+    WHY are so many nested selecting?
+    The tb_order table only stores: id, store_id, buyer_account_id, status_id, created_date.
+    All the display information (buyer name, store image, phone numbers, etc.) comes from
+    other tables and is loaded via sub-selects that reference methods in OTHER mapper files.
+-->
+
+<mapper namespace="com.henheang.hphsar.repository.SupplierOrderRepository">
+
+    <!--
+        RESULT MAP — ProductOrder
+        ══════════════════════════
+        Maps product line items within an order.
+        All columns aliased to camelCase in the query.
+    -->
+    <resultMap id="ProductOrderResultMap" type="com.henheang.hphsar.model.product.ProductOrder">
+        <id     property="productId"   column="productId"/>
+        <result property="productName" column="productName"/>
+        <result property="image"       column="image"/>
+        <result property="inStock"     column="inStock"/>
+        <result property="qty"         column="qty"/>
+        <result property="unitPrice"   column="unitPrice"/>
+        <result property="subTotal"    column="subTotal"/>
+    </resultMap>
+
+    <!--
+        RESULT MAP — Order (with ALL nested data loaded via sub-selects)
+        ══════════════════════════════════════════════════════════════════
+        The primary query fetches 5 columns from tb_order.
+        All other fields are loaded by calling helper methods in other mappers.
+
+        <association> = @One → loads a single value (String, Double, etc.)
+        <collection> = @Many → loads a List (e.g., List<String> for phone numbers)
+
+        column="columnName" → the value passed as a parameter to the sub-select method
+        select="fully.qualified.MethodId" → the sub-select to call (namespace.methodId)
+    -->
+    <resultMap id="OrderResultMap" type="com.henheang.hphsar.model.order.Order">
+        <id     property="id"         column="id"/>
+        <result property="storeId"    column="storeId"/>
+        <result property="buyerId" column="buyerId"/>
+        <result property="date"       column="date"/>
+
+        <!-- Buyer info (looked up by buyerId) -->
+        <association property="name"
+                     column="buyerId"
+                     select="com.henheang.hphsar.repository.BuyerProfileRepository.getBuyerNameById"/>
+        <association property="address"
+                     column="buyerId"
+                     select="com.henheang.hphsar.repository.BuyerProfileRepository.getBuyerAddressById"/>
+        <association property="buyerImage"
+                     column="buyerId"
+                     select="com.henheang.hphsar.repository.BuyerProfileRepository.getBuyerImageById"/>
+        <association property="buyerPhone"
+                     column="buyerId"
+                     select="com.henheang.hphsar.repository.BuyerProfileRepository.getBuyerPhoneById"/>
+        <association property="buyerEmail"
+                     column="buyerId"
+                     select="com.henheang.hphsar.repository.BuyerProfileRepository.getBuyerEmailById"/>
+
+        <!-- Store info (looked up by storeId) -->
+        <association property="storeImage"
+                     column="storeId"
+                     select="com.henheang.hphsar.repository.StoreRepository.getStoreImageById"/>
+        <association property="storeName"
+                     column="storeId"
+                     select="com.henheang.hphsar.repository.StoreRepository.getStoreNameById"/>
+        <association property="storeAddress"
+                     column="storeId"
+                     select="com.henheang.hphsar.repository.StoreRepository.getStoreAddressById"/>
+        <association property="storePrimaryPhone"
+                     column="storeId"
+                     select="com.henheang.hphsar.repository.StoreRepository.getStorePrimaryPhoneById"/>
+        <association property="storeEmail"
+                     column="storeId"
+                     select="com.henheang.hphsar.repository.StoreRepository.getStoreEmailByStoreId"/>
+
+        <!-- Order aggregate data (looked up by order id) -->
+        <association property="total"
+                     column="id"
+                     select="getTotalOrderAmount"/>
+        <association property="status"
+                     column="status_id"
+                     select="getStatusByStatusId"/>
+
+        <!-- List of additional phone numbers → @Many equivalent -->
+        <collection  property="storeAdditionalPhone"
+                     column="storeId"
+                     select="com.henheang.hphsar.repository.StoreRepository.getAdditionalPhone"/>
+    </resultMap>
+
+    <!--
+        RESULT MAP — OrderDetail
+        ═════════════════════════
+        Wraps a single Order + its product line items.
+        Used when fetching the full detail view of one order.
+    -->
+    <resultMap id="OrderDetailResultMap" type="com.henheang.hphsar.model.order.OrderDetail">
+        <association property="order"    column="id" select="getOrderByOrderId"/>
+        <collection  property="products" column="id" select="getProductOrderForOrderDetail"/>
+    </resultMap>
+
+    <!--
+        RESULT MAP — Invoice
+        ═════════════════════
+        Similar to OrderDetail but uses getProductOrderForOrderDetail for the product list.
+    -->
+    <resultMap id="InvoiceResultMap" type="com.henheang.hphsar.model.invoice.Invoice">
+        <association property="order"    column="id" select="getOrderByOrderId"/>
+        <collection  property="products" column="id" select="getProductOrderForOrderDetail"/>
+    </resultMap>
+
+    <!-- ─── SQL FRAGMENTS ────────────────────────────────────────────────────── -->
+
+    <sql id="selectOrderBase">
+        SELECT id, store_id AS storeId, buyer_account_id AS buyerId, created_date AS date, status_id
+        FROM tb_order
+    </sql>
+
+    <sql id="orderByDate">
+        ORDER BY created_date
+        <choose>
+            <when test="sort != null and sort.equalsIgnoreCase('asc')">ASC</when>
+            <otherwise>DESC</otherwise>
+        </choose>
+    </sql>
+
+    <sql id="paginate">
+        LIMIT #{pageSize} OFFSET #{pageSize} * (#{pageNumber} - 1)
+    </sql>
+
+    <!-- ─── HELPER: get order total ──────────────────────────────────────────── -->
+
+    <select id="getTotalOrderAmount" resultType="double">
+        SELECT sum(unit_price * qty) FROM tb_order_detail WHERE order_id = #{orderId}
+    </select>
+
+    <!-- ─── HELPER: get status name ──────────────────────────────────────────── -->
+
+    <select id="getStatusByStatusId" resultType="String">
+        SELECT name FROM tb_status WHERE id = #{statusId}
+    </select>
+
+    <!-- ─── HELPER: get product order for detail view / invoice ─────────────── -->
+
+    <select id="getProductOrderForOrderDetail" resultMap="ProductOrderResultMap">
+        SELECT tspd.id                                                  AS productId,
+               (SELECT name FROM tb_product WHERE id = tspd.product_id) AS productName,
+               image,
+               tspd.qty                                                 AS inStock,
+               a.qty                                                    AS qty,
+               a.unit_price                                             AS unitPrice,
+               (a.qty * a.unit_price)                                   AS subTotal
+        FROM tb_order_detail AS a
+                 JOIN tb_store_product_detail tspd ON a.store_product_id = tspd.id
+        WHERE order_id = #{orderId}
+    </select>
+
+    <!-- ─── HELPER: get single order by id (used by OrderDetailResultMap) ────── -->
+
+    <select id="getOrderByOrderId" resultMap="OrderResultMap">
+        SELECT id,
+               store_id             AS storeId,
+               buyer_account_id AS buyerId,
+               created_date        AS date,
+               status_id
+        FROM tb_order
+        WHERE id = #{orderId}
+    </select>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         GET ALL ORDERS (paginated, sorted, filtered by status)
+         ═══════════════════════════════════════════════════════════════════════
+         Each unified query filters by a different status_id:
+           status_id IN (1,2,3,4,5) → all active orders
+           status_id = 1  → pending
+           status_id = 2  → preparing
+           status_id = 3  → dispatching
+           status_id = 4  → confirming
+           status_id IN (5,6) → completed
+    -->
+
+    <!-- All orders -->
+    <select id="getAllOrders" resultMap="OrderResultMap">
+        <include refid="selectOrderBase"/>
+        WHERE store_id = #{storeId} AND status_id IN (1, 2, 3, 4, 5)
+        <include refid="orderByDate"/>
+        <include refid="paginate"/>
+    </select>
+
+    <!-- Pending orders (status 1) -->
+    <select id="getPendingOrders" resultMap="OrderResultMap">
+        <include refid="selectOrderBase"/>
+        WHERE store_id = #{storeId} AND status_id = 1
+        <include refid="orderByDate"/>
+        <include refid="paginate"/>
+    </select>
+
+    <!-- Preparing orders (status 2) -->
+    <select id="getPreparingOrders" resultMap="OrderResultMap">
+        <include refid="selectOrderBase"/>
+        WHERE store_id = #{storeId} AND status_id = 2
+        <include refid="orderByDate"/>
+        <include refid="paginate"/>
+    </select>
+
+    <!-- Dispatching orders (status 3) -->
+    <select id="getDispatchingOrders" resultMap="OrderResultMap">
+        <include refid="selectOrderBase"/>
+        WHERE store_id = #{storeId} AND status_id = 3
+        <include refid="orderByDate"/>
+        <include refid="paginate"/>
+    </select>
+
+    <!-- Confirming orders (status 4) -->
+    <select id="getConfirmingOrders" resultMap="OrderResultMap">
+        <include refid="selectOrderBase"/>
+        WHERE store_id = #{storeId} AND status_id = 4
+        <include refid="orderByDate"/>
+        <include refid="paginate"/>
+    </select>
+
+    <!-- Complete orders (status 5 and 6) -->
+    <select id="getCompleteOrders" resultMap="OrderResultMap">
+        <include refid="selectOrderBase"/>
+        WHERE store_id = #{storeId} AND status_id IN (5, 6)
+        <include refid="orderByDate"/>
+        <include refid="paginate"/>
+    </select>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         COUNT QUERIES
+         ═══════════════════════════════════════════════════════════════════════
+    -->
+
+    <select id="getCurrentStoreTotalPreparingOrder" resultType="int">
+        SELECT count(*) FROM tb_order WHERE store_id = #{storeId} AND status_id = 2
+    </select>
+
+    <select id="getCurrentStoreTotalOrder" resultType="int">
+        SELECT count(*) FROM tb_order WHERE store_id = #{storeId}
+    </select>
+
+    <select id="getCurrentStoreTotalNewOrder" resultType="int">
+        SELECT count(*) FROM tb_order WHERE store_id = #{storeId} AND status_id = 1
+    </select>
+
+    <select id="getTotalDispatchingOrder" resultType="int">
+        SELECT count(*) FROM tb_order WHERE store_id = #{storeId} AND status_id = 3
+    </select>
+
+    <select id="getTotalConfirmingOrder" resultType="int">
+        SELECT count(*) FROM tb_order WHERE store_id = #{storeId} AND status_id = 4
+    </select>
+
+    <select id="getTotalCompleteOrder" resultType="int">
+        SELECT count(*) FROM tb_order WHERE store_id = #{storeId} AND status_id = 5
+    </select>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         ORDER DETAIL VIEW
+         ═══════════════════════════════════════════════════════════════════════
+    -->
+
+    <select id="getOrderDetailsByOrderId" resultMap="OrderDetailResultMap">
+        SELECT id, store_id AS storeId, buyer_account_id AS buyerId, created_date AS date, status_id
+        FROM tb_order WHERE id = #{id}
+    </select>
+
+    <select id="getProductOrderByOrderId" resultMap="ProductOrderResultMap">
+        SELECT tspd.id                                                   AS productId,
+               (SELECT name FROM tb_product WHERE id = tspd.product_id) AS productName,
+               tspd.image,
+               tspd.qty                                                  AS inStock,
+               od.qty,
+               od.unit_price                                             AS unitPrice,
+               (od.qty * od.unit_price)                                  AS subTotal
+        FROM tb_order_detail od
+                 JOIN tb_store_product_detail tspd ON od.store_product_id = tspd.id
+        WHERE od.order_id = #{orderId}
+    </select>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         INVOICE VIEW
+         ═══════════════════════════════════════════════════════════════════════
+    -->
+
+    <select id="getInvoiceByOrderId" resultMap="InvoiceResultMap">
+        SELECT id, store_id AS storeId, buyer_account_id AS buyerId, created_date AS date, status_id
+        FROM tb_order WHERE id = #{id}
+    </select>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         CHECK / VALIDATE OPERATIONS
+         ═══════════════════════════════════════════════════════════════════════
+    -->
+
+    <select id="checkOrderExist" resultType="boolean">
+        SELECT EXISTS(SELECT * FROM tb_order WHERE id = #{orderId} AND store_id = #{storeId})
+    </select>
+
+    <select id="checkForPendingOrder" resultType="boolean">
+        SELECT EXISTS(SELECT * FROM tb_order WHERE id = #{orderId} AND status_id = 1)
+    </select>
+
+    <select id="checkForPreparingOrder" resultType="boolean">
+        SELECT EXISTS(SELECT * FROM tb_order WHERE id = #{orderId} AND status_id = 2)
+    </select>
+
+    <select id="checkForDispatchOrder" resultType="boolean">
+        SELECT EXISTS(SELECT * FROM tb_order WHERE id = #{orderId} AND status_id = 3)
+    </select>
+
+    <select id="checkForCompleteOrder" resultType="boolean">
+        SELECT EXISTS(SELECT * FROM tb_order WHERE id = #{orderId} AND status_id = 5)
+    </select>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         ORDER STATUS TRANSITIONS
+         ═══════════════════════════════════════════════════════════════════════
+         Each transition moves an order from one status to the next.
+         Returns '1' as confirmation the update succeeded.
+    -->
+
+    <select id="acceptPendingOrder" resultType="String">
+        UPDATE tb_order SET status_id = 2 WHERE id = #{orderId} RETURNING 1
+    </select>
+
+    <select id="declinePendingOrder" resultType="String">
+        UPDATE tb_order SET status_id = 8 WHERE id = #{orderId} RETURNING 1
+    </select>
+
+    <select id="finishPreparing" resultType="String">
+        UPDATE tb_order SET status_id = 3 WHERE id = #{orderId} RETURNING 1
+    </select>
+
+    <select id="orderDelivered" resultType="String">
+        UPDATE tb_order SET status_id = 6 WHERE id = #{orderId} RETURNING 1
+    </select>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         STOCK MANAGEMENT — deduct inventory when order is confirmed
+         ═══════════════════════════════════════════════════════════════════════
+    -->
+
+    <select id="productEligibleCount" resultType="int">
+        SELECT count(*)
+        FROM tb_store_product_detail AS S
+                 JOIN tb_order_detail O ON S.id = O.store_product_id
+        WHERE O.id IN (SELECT id FROM tb_order_detail WHERE order_id = #{orderId})
+          AND s.qty >= O.qty
+    </select>
+
+    <select id="getProductDetailCount" resultType="int">
+        SELECT count(*) FROM tb_order_detail WHERE order_id = #{orderId}
+    </select>
+
+    <update id="deductStock">
+        UPDATE tb_store_product_detail
+        SET qty = qty - (SELECT qty FROM tb_order_detail WHERE order_id = #{orderId}
+                         AND tb_order_detail.store_product_id = #{productId})
+        WHERE id = (SELECT store_product_id FROM tb_order_detail WHERE order_id = #{orderId}
+                    AND tb_order_detail.store_product_id = #{productId})
+          AND store_id = #{storeId}
+    </update>
+
+    <select id="getAllProductIdFromProductDetails" resultType="int">
+        SELECT store_product_id FROM tb_order_detail WHERE order_id = #{orderId}
+    </select>
+
+    <select id="getSupplierIdByOrderId" resultType="int">
+        SELECT supplier_account_id FROM tb_store
+        WHERE id = (SELECT store_id FROM tb_order WHERE id = #{cartId})
+    </select>
+
+</mapper>

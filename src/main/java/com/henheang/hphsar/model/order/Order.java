@@ -20,12 +20,12 @@ public class Order {
     private String storePrimaryPhone;
     private String storeEmail;
     private List<String> storeAdditionalPhone;
-    private Integer retailerId;
-    private String retailerImage;
-    private String name; // retailer name
-    private String retailerPhone;
-    private String retailerEmail;
-    private String address; // retailer address
+    private Integer buyerId;
+    private String buyerImage;
+    private String name; // buyer name
+    private String buyerPhone;
+    private String buyerEmail;
+    private String address; // buyer address
     private String date; // order date
     private Double total; // grand total price
     private String status;

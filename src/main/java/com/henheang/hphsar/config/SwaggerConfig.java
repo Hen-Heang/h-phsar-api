@@ -32,7 +32,7 @@ public class SwaggerConfig {
         return new OpenAPI()
                 .info(new Info()
                         .title("H-Phsar API")
-                        .description("API for distributor-retailer wholesale operations")
+                        .description("API for supplier-buyer wholesale operations")
                         .version("v1.0.0"))
                 .addSecurityItem(new SecurityRequirement().addList(SECURITY_SCHEME_NAME))
                 .components(new Components()

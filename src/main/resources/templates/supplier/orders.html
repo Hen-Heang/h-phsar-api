@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head th:replace="~{fragments/layout :: head}">
+  <title>Orders | H-Phsar</title>
+</head>
+<body>
+
+<div th:replace="~{fragments/layout :: sidebar}"></div>
+
+<div class="main-wrapper">
+  <div th:replace="~{fragments/layout :: topbar('Orders')}"></div>
+
+  <main class="page-content">
+    <div class="page-header">
+      <h2>Order Management</h2>
+      <p>Review and process orders from your buyers.</p>
+    </div>
+
+    <!-- Status tabs -->
+    <div class="tab-pills mb-3" id="status-tabs">
+      <button class="tab-pill active" onclick="switchTab('pending')">
+        <i class="bi bi-hourglass-split me-1"></i>Pending
+        <span class="badge bg-warning text-dark ms-1" id="badge-pending">0</span>
+      </button>
+      <button class="tab-pill" onclick="switchTab('preparing')">
+        <i class="bi bi-gear me-1"></i>Preparing
+      </button>
+      <button class="tab-pill" onclick="switchTab('dispatching')">
+        <i class="bi bi-truck me-1"></i>Dispatching
+      </button>
+      <button class="tab-pill" onclick="switchTab('confirming')">
+        <i class="bi bi-shield-check me-1"></i>Confirming
+      </button>
+      <button class="tab-pill" onclick="switchTab('complete')">
+        <i class="bi bi-check-circle me-1"></i>Complete
+      </button>
+      <button class="tab-pill" onclick="switchTab('all')">
+        <i class="bi bi-list-ul me-1"></i>All Orders
+      </button>
+    </div>
+
+    <div class="card">
+      <div class="card-header-custom flex-wrap gap-2">
+        <h6 id="tab-title">Pending Orders</h6>
+        <span class="text-muted" style="font-size:13px;" id="order-total-label"></span>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead>
+            <tr>
+              <th>Order ID</th>
+              <th>Store</th>
+              <th>Buyer</th>
+              <th>Total</th>
+              <th>Status</th>
+              <th>Date</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="orders-body">
+            <tr><td colspan="7" class="text-center text-muted py-4">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="pagination-wrapper">
+        <span id="order-page-info" style="font-size:13px;color:#6b7280;"></span>
+        <div class="d-flex gap-1" id="order-page-buttons"></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Order Detail Modal -->
+<div class="modal fade" id="orderDetailModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+    <div class="modal-content" style="border-radius:12px;border:none;">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold" id="order-detail-title">Order Details</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-4" id="order-detail-body">
+        <div class="text-center text-muted">Loading...</div>
+      </div>
+      <div class="modal-footer" id="order-detail-actions"></div>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<div th:replace="~{fragments/layout :: scripts}"></div>
+<script>
+  redirectIfNoToken();
+
+  let activeTab    = 'pending';
+  let currentPage  = 1;
+  let selectedOrderId = null;
+
+  const tabConfig = {
+    pending:     { label: 'Pending Orders',     url: '/api/v1/suppliers/orders/pending',     title: 'Pending Orders' },
+    preparing:   { label: 'Preparing Orders',   url: '/api/v1/suppliers/orders/preparing',   title: 'Preparing Orders' },
+    dispatching: { label: 'Dispatching Orders', url: '/api/v1/suppliers/orders/dispatching', title: 'Dispatching Orders' },
+    confirming:  { label: 'Confirming Orders',  url: '/api/v1/suppliers/orders/confirming',  title: 'Confirming Orders' },
+    complete:    { label: 'Completed Orders',   url: '/api/v1/suppliers/orders/complete',    title: 'Completed Orders' },
+    all:         { label: 'All Orders',         url: '/api/v1/suppliers/orders',             title: 'All Orders' },
+  };
+
+  function switchTab(tab) {
+    activeTab = tab;
+    currentPage = 1;
+    document.querySelectorAll('.tab-pill').forEach((btn, i) => {
+      btn.classList.toggle('active', Object.keys(tabConfig)[i] === tab);
+    });
+    document.getElementById('tab-title').textContent = tabConfig[tab].title;
+    loadOrders();
+  }
+
+  async function loadOrders(page = 1) {
+    currentPage = page;
+    const cfg   = tabConfig[activeTab];
+    const url   = `${cfg.url}?pageNumber=${page}&pageSize=10&sort=desc`;
+    const tbody = document.getElementById('orders-body');
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">Loading...</td></tr>';
+
+    try {
+      const res   = await api.get(url);
+      const list  = res.data || [];
+      const total = res.totalElements || list.length;
+      const pages = res.totalPages   || 1;
+
+      document.getElementById('order-total-label').textContent = `${total} order(s)`;
+      document.getElementById('order-page-info').textContent   = `Page ${page} of ${pages}`;
+      renderPagination('order-page-buttons', page, pages, loadOrders);
+
+      if (!list.length) {
+        tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><i class="bi bi-bag-x"></i><p>No orders found</p></div></td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = list.map(o => `
+        <tr style="cursor:pointer;" onclick="viewOrderDetail(${o.id})">
+          <td><span class="fw-semibold text-primary">#${o.id}</span></td>
+          <td>${o.storeName || '—'}</td>
+          <td>${o.name || '—'}</td>
+          <td>${formatCurrency(o.total)}</td>
+          <td>${orderStatusBadge(o.status)}</td>
+          <td>${formatDate(o.date)}</td>
+          <td onclick="event.stopPropagation()">
+            ${actionButtons(o)}
+          </td>
+        </tr>`).join('');
+
+      // badge for pending count
+      if (activeTab === 'pending') {
+        document.getElementById('badge-pending').textContent = total;
+      }
+
+    } catch (e) {
+      tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><i class="bi bi-exclamation-circle"></i><p>Failed to load orders</p></div></td></tr>';
+    }
+  }
+
+  function actionButtons(o) {
+    switch (o.status) {
+      case 'PENDING':
+        return `
+          <button class="btn btn-sm btn-success me-1" onclick="orderAction('accept', ${o.id})"><i class="bi bi-check2"></i> Accept</button>
+          <button class="btn btn-sm btn-danger"       onclick="orderAction('decline', ${o.id})"><i class="bi bi-x"></i> Decline</button>`;
+      case 'PROCESSING':
+        return `<button class="btn btn-sm btn-primary" onclick="orderAction('dispatch', ${o.id})"><i class="bi bi-truck"></i> Dispatch</button>`;
+      case 'CONFIRMED':
+        return `<button class="btn btn-sm btn-warning" onclick="orderAction('deliver', ${o.id})"><i class="bi bi-box-seam"></i> Mark Delivered</button>`;
+      default:
+        return `<button class="btn btn-sm btn-outline-secondary" onclick="viewOrderDetail(${o.id})"><i class="bi bi-eye"></i> View</button>`;
+    }
+  }
+
+  async function orderAction(action, orderId) {
+    const urls = {
+      accept:   { url: `/api/v1/suppliers/orders/pending/accept/${orderId}`,  msg: 'Order accepted! Now preparing.' },
+      decline:  { url: `/api/v1/suppliers/orders/pending/decline/${orderId}`, msg: 'Order declined.' },
+      dispatch: { url: `/api/v1/suppliers/orders/preparing/${orderId}`,       msg: 'Order dispatched! Buyer notified.' },
+      deliver:  { url: `/api/v1/suppliers/orders/dispatching/${orderId}`,     msg: 'Order marked as delivered. Waiting for buyer to confirm.' },
+    };
+    const cfg = urls[action];
+    if (!cfg) return;
+    try {
+      await api.put(cfg.url);
+      toast(cfg.msg, 'success');
+      loadOrders(currentPage);
+    } catch (e) { toast(e?.message || 'Action failed.', 'error'); }
+  }
+
+  async function viewOrderDetail(orderId) {
+    selectedOrderId = orderId;
+    const body    = document.getElementById('order-detail-body');
+    const actions = document.getElementById('order-detail-actions');
+    body.innerHTML = '<div class="text-center text-muted py-4">Loading...</div>';
+    actions.innerHTML = '';
+    document.getElementById('order-detail-title').textContent = `Order #${orderId}`;
+    new bootstrap.Modal(document.getElementById('orderDetailModal')).show();
+
+    try {
+      const res    = await api.get(`/api/v1/suppliers/orders/${orderId}/details`);
+      const d      = res.data;
+      const order  = d.order  || {};
+      const items  = d.products || [];
+
+      body.innerHTML = `
+        ${renderOrderTimeline(order.status)}
+        <div class="row g-3 mb-4">
+          <div class="col-md-6">
+            <div class="p-3" style="background:#f8fafc;border-radius:8px;">
+              <div style="font-size:11px;color:#9ca3af;font-weight:600;text-transform:uppercase;margin-bottom:8px;">Store Info</div>
+              <div class="fw-semibold">${order.storeName || '—'}</div>
+              <div class="text-muted" style="font-size:13px;">${order.storeAddress || ''}</div>
+              <div class="text-muted" style="font-size:13px;">${order.storePrimaryPhone || ''}</div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="p-3" style="background:#f8fafc;border-radius:8px;">
+              <div style="font-size:11px;color:#9ca3af;font-weight:600;text-transform:uppercase;margin-bottom:8px;">Buyer Info</div>
+              <div class="fw-semibold">${order.name || '—'}</div>
+              <div class="text-muted" style="font-size:13px;">${order.address || ''}</div>
+              <div class="text-muted" style="font-size:13px;">${order.buyerPhone || ''}</div>
+            </div>
+          </div>
+        </div>
+        <div class="mb-3">
+          <div style="font-size:11px;color:#9ca3af;font-weight:600;text-transform:uppercase;margin-bottom:8px;">Order Items</div>
+          <table class="table table-sm">
+            <thead><tr><th>Product</th><th>Qty</th><th>Unit Price</th><th>Subtotal</th></tr></thead>
+            <tbody>
+              ${items.length ? items.map(i => `
+                <tr>
+                  <td>${i.productName || '—'}</td>
+                  <td>${i.qty || 0}</td>
+                  <td>${formatCurrency(i.unitPrice)}</td>
+                  <td>${formatCurrency(i.subTotal)}</td>
+                </tr>`).join('') : '<tr><td colspan="4" class="text-muted text-center">No items</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+        <div class="d-flex justify-content-between align-items-center pt-2 border-top">
+          <span class="fw-semibold">Total Amount</span>
+          <span class="fw-bold" style="font-size:18px;">${formatCurrency(order.total)}</span>
+        </div>
+        <div class="mt-2 d-flex gap-3">
+          <span>Status: ${orderStatusBadge(order.status)}</span>
+          <span class="text-muted" style="font-size:13px;">${formatDate(order.date)}</span>
+        </div>`;
+
+    } catch (e) {
+      body.innerHTML = '<div class="text-center text-danger py-4">Could not load order details.</div>';
+    }
+  }
+
+  loadOrders().then(() => {
+    const orderId = new URLSearchParams(window.location.search).get('orderId');
+    if (orderId) viewOrderDetail(Number(orderId));
+  });
+
+  // Load pending count on startup
+  api.get('/api/v1/suppliers/orders/pending?sort=desc&pageNumber=1&pageSize=1')
+     .then(r => { document.getElementById('badge-pending').textContent = r.totalElements || 0; })
+     .catch(() => {});
+</script>
+</body>
+</html>

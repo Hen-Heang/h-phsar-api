@@ -15,11 +15,11 @@ public interface HistoryService {
 
     Integer findTotalOrderPage(Integer pageSize);
 
-    List<OrderDetailHistory> getRetailerOrderHistory(String sort, Integer pageNumber, Integer pageSize) throws ParseException;
+    List<OrderDetailHistory> getBuyerOrderHistory(String sort, Integer pageNumber, Integer pageSize) throws ParseException;
 
-    Integer findRetailerTotalOrderPage(Integer pageSize);
+    Integer findBuyerTotalOrderPage(Integer pageSize);
 
-    Integer findRetailerTotalDraftPage(Integer pageSize);
+    Integer findBuyerTotalDraftPage(Integer pageSize);
 
     List<OrderDetailHistory> getDraftHistory(String sort, Integer pageNumber, Integer pageSize);
 

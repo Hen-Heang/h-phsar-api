@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head th:replace="~{fragments/layout :: head}">
+  <title>Dashboard | H-Phsar</title>
+</head>
+<body>
+
+<div th:replace="~{fragments/layout :: sidebar}"></div>
+
+<div class="main-wrapper">
+
+  <div th:replace="~{fragments/layout :: topbar('Dashboard')}"></div>
+
+  <main class="page-content">
+
+    <div class="page-header">
+      <h2>Dashboard</h2>
+      <p>Welcome back! Here's an overview of your store activity.</p>
+    </div>
+
+    <!-- ── Stat Cards ── -->
+    <div class="row g-3 mb-4">
+      <div class="col-xl-3 col-sm-6">
+        <div class="stat-card">
+          <div class="stat-icon icon-blue"><i class="bi bi-bag-fill"></i></div>
+          <div class="stat-value" id="stat-new-orders">—</div>
+          <div class="stat-label">New Orders</div>
+          <div class="stat-change up" id="stat-new-orders-sub">loading...</div>
+        </div>
+      </div>
+      <div class="col-xl-3 col-sm-6">
+        <div class="stat-card">
+          <div class="stat-icon icon-yellow"><i class="bi bi-hourglass-split"></i></div>
+          <div class="stat-value" id="stat-pending">—</div>
+          <div class="stat-label">Pending Orders</div>
+          <div class="stat-change" style="color:#6b7280;" id="stat-pending-sub">awaiting action</div>
+        </div>
+      </div>
+      <div class="col-xl-3 col-sm-6">
+        <div class="stat-card">
+          <div class="stat-icon icon-green"><i class="bi bi-box-seam-fill"></i></div>
+          <div class="stat-value" id="stat-products">—</div>
+          <div class="stat-label">Total Products</div>
+          <div class="stat-change" style="color:#6b7280;" id="stat-products-sub">in catalog</div>
+        </div>
+      </div>
+      <div class="col-xl-3 col-sm-6">
+        <div class="stat-card">
+          <div class="stat-icon icon-red"><i class="bi bi-check-circle-fill"></i></div>
+          <div class="stat-value" id="stat-complete">—</div>
+          <div class="stat-label">Completed Orders</div>
+          <div class="stat-change up" id="stat-complete-sub">all time</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Monthly Summary & New Orders ── -->
+    <div class="row g-3 mb-4">
+
+      <!-- Monthly summary -->
+      <div class="col-lg-4">
+        <div class="card h-100">
+          <div class="card-header-custom">
+            <h6><i class="bi bi-bar-chart-fill me-2 text-primary"></i>Monthly Summary</h6>
+            <div class="d-flex gap-2">
+              <label for="month-start"></label><input type="month" id="month-start" class="form-control form-control-sm" style="width:140px;"/>
+              <button class="btn-primary-custom" style="padding:4px 12px;font-size:13px;" onclick="loadMonthly()">
+                <i class="bi bi-arrow-clockwise"></i>
+              </button>
+            </div>
+          </div>
+          <div class="card-body p-4">
+            <div id="monthly-data">
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <span class="text-muted" style="font-size:14px;">Total Orders</span>
+                <span class="fw-bold" id="monthly-orders">—</span>
+              </div>
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <span class="text-muted" style="font-size:14px;">Total Products Sold</span>
+                <span class="fw-bold" id="monthly-products">—</span>
+              </div>
+              <hr/>
+              <div class="text-center mt-3">
+                <div style="font-size:11px;color:#9ca3af;">Selected period</div>
+                <div id="monthly-period" style="font-size:13px;color:#374151;font-weight:500;">—</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- New (recent) orders -->
+      <div class="col-lg-8">
+        <div class="card h-100">
+          <div class="card-header-custom">
+            <h6><i class="bi bi-clock-history me-2 text-primary"></i>Recent New Orders</h6>
+            <a th:href="@{/web/suppliers/orders}" style="font-size:13px;color:#3b82f6;text-decoration:none;">
+              View all <i class="bi bi-arrow-right"></i>
+            </a>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-hover mb-0">
+              <thead>
+                <tr>
+                  <th>Order ID</th>
+                  <th>Store</th>
+                  <th>Buyer</th>
+                  <th>Total</th>
+                  <th>Status</th>
+                  <th>Date</th>
+                </tr>
+              </thead>
+              <tbody id="new-orders-body">
+                <tr><td colspan="6" class="text-center text-muted py-4">Loading...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<div id="toast-container"></div>
+<div th:replace="~{fragments/layout :: scripts}"></div>
+<script>
+  async function loadDashboard() {
+    // ── Stat counts from aggregate endpoint ──────────────────────
+    try {
+      const statsRes = await api.get('/api/v1/suppliers/order_activities');
+      const s = statsRes.data || {};
+      document.getElementById('stat-new-orders').textContent = s.newOrder  ?? 0;
+      document.getElementById('stat-pending').textContent    = s.preparing  ?? 0;
+      document.getElementById('stat-complete').textContent   = s.completed  ?? 0;
+    } catch (e) {
+      toast('Could not load order stats.', 'error');
+    }
+
+    // ── Total products ────────────────────────────────────────────
+    try {
+      const prodRes = await api.get('/api/v1/suppliers/products/sort?sort=desc&by=created_date&pageNumber=1&pageSize=1');
+      document.getElementById('stat-products').textContent = prodRes.totalElements ?? 0;
+    } catch (_) {}
+
+    // ── Recent orders table (latest 5 orders of any status) ───────
+    try {
+      const recentRes = await api.get('/api/v1/suppliers/orders?sort=desc&pageNumber=1&pageSize=5');
+      const orders = recentRes.data || [];
+      const tbody = document.getElementById('new-orders-body');
+      if (orders.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><i class="bi bi-inbox"></i><p>No orders yet</p></div></td></tr>';
+      } else {
+        tbody.innerHTML = orders.map(o => `
+          <tr>
+            <td><span class="fw-semibold">#${o.id}</span></td>
+            <td>${o.storeName || '—'}</td>
+            <td>${o.name || '—'}</td>
+            <td>${formatCurrency(o.total)}</td>
+            <td>${orderStatusBadge(o.status)}</td>
+            <td>${formatDate(o.date)}</td>
+          </tr>`).join('');
+      }
+    } catch (e) {
+      document.getElementById('new-orders-body').innerHTML =
+        '<tr><td colspan="6"><div class="empty-state"><i class="bi bi-exclamation-circle"></i><p>Could not load orders</p></div></td></tr>';
+    }
+  }
+
+  async function loadMonthly() {
+    const monthInput = document.getElementById('month-start').value;
+    if (!monthInput) { toast('Please select a month.', 'info'); return; }
+    // Mapper expects YYYY-MM format — it appends "-01" internally for the date range
+    const startDate = monthInput;   // e.g. "2026-04"
+    const endDate   = monthInput;   // same month for both bounds
+
+    try {
+      const res = await api.get(`/api/v1/suppliers/order_activities/months?startDate=${startDate}&endDate=${endDate}`);
+      const d = res.data || {};
+      document.getElementById('monthly-orders').textContent   = d.totalOrder    ?? 0;
+      document.getElementById('monthly-products').textContent = d.totalProductSold ?? 0;
+      document.getElementById('monthly-period').textContent   = monthInput;
+    } catch (e) {
+      toast('Could not load monthly data.', 'error');
+    }
+  }
+
+  // Default current month
+  document.addEventListener('DOMContentLoaded', () => {
+    redirectIfNoToken();
+    const now = new Date();
+    document.getElementById('month-start').value =
+      `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    loadDashboard();
+    loadMonthly();
+  });
+</script>
+</body>
+</html>

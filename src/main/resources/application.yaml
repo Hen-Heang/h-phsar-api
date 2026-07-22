@@ -2,17 +2,27 @@ spring:
   application:
     name: h-phsar
 
+  profiles:
+    # No env/profile is active by default in most Spring Boot setups; this makes
+    # "local" the default so `application-local.yaml` (copied from the .example
+    # file, gitignored) is picked up automatically during day-to-day development.
+    # CI/production must set SPRING_PROFILES_ACTIVE explicitly (test / prod).
+    default: local
+
   datasource:
     driver-class-name: org.postgresql.Driver
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/postgres}
-    username: ${DB_USERNAME:postgres}
-    password: ${DB_PASSWORD:123}
+    # No fallback values on purpose: the app must fail to start rather than
+    # silently connect with a guessable default. Provide these via env vars
+    # (see .env.example) or an application-local.yaml copied from the example.
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
 
   mail:
-    host: smtp.gmail.com
-    port: 587
-    username: ${MAIL_USERNAME:}
-    password: ${MAIL_PASSWORD:}
+    host: ${MAIL_HOST}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
     properties:
       mail:
         smtp:
@@ -37,14 +47,16 @@ management:
       enabled: false
 
 jwt:
-  # HS512 requires >= 512 bits (64 chars). Override with JWT_SECRET env var in production.
-  secret: ${JWT_SECRET:hPhsarDefaultSecretKeyMustBeAtLeast64CharsForHs512AlgorithmSecurity}
+  # HS512 requires >= 512 bits (64 chars). No default on purpose — startup must
+  # fail if JWT_SECRET is missing rather than sign tokens with a guessable key.
+  # Generate a local value with, e.g.: openssl rand -base64 64
+  secret: ${JWT_SECRET}
 
 base:
-  distributor:
-    v1: /api/v1/distributor
-  retailer:
-    v1: /api/v1/retailer
+  supplier:
+    v1: /api/v1/suppliers
+  buyer:
+    v1: /api/v1/buyers
 
 mybatis:
   mapper-locations: classpath:/mapper/**/*.xml
@@ -53,4 +65,5 @@ mybatis:
     default-statement-timeout: 30
 
 file:
-  upload-dir: uploads
+  # Not a secret — a plain default is fine here, unlike credentials above.
+  upload-dir: ${FILE_UPLOAD_DIR:uploads}

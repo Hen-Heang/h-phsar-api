@@ -1,40 +1,40 @@
 package com.henheang.hphsar.repository;
 
-import com.henheang.hphsar.model.notification.NotificationRetailer;
+import com.henheang.hphsar.model.notification.NotificationBuyer;
 import org.apache.ibatis.annotations.Mapper;
 
 import java.util.List;
 
 @Mapper
 public interface NotificationRepository {
-    Integer createRetailerNotification(Integer retailerId, int notificationType, Integer orderId, String summery, String title, String description, boolean isRead);
+    Integer createBuyerNotification(Integer buyerId, int notificationType, Integer orderId, String summery, String title, String description, boolean isRead);
 
-    Integer createDistributorNotification(Integer distributorId, int notificationType, Integer orderId, String summery, String title, String description, boolean isRead);
+    Integer createSupplierNotification(Integer supplierId, int notificationType, Integer orderId, String summery, String title, String description, boolean isRead);
 
     void deleteNotification(Integer check);
 
-    boolean checkForRetailerNotification(Integer currentUserId);
+    boolean checkForBuyerNotification(Integer currentUserId);
 
-    boolean checkForDistributorNotification(Integer currentUserId);
+    boolean checkForSupplierNotification(Integer currentUserId);
 
-    List<NotificationRetailer> getRetailerUserAllNotification(Integer currentUserId);
+    List<NotificationBuyer> getBuyerUserAllNotification(Integer currentUserId);
 
-    List<NotificationRetailer> getDistributorUserAllNotification(Integer currentUserId);
+    List<NotificationBuyer> getSupplierUserAllNotification(Integer currentUserId);
 
-    boolean checkForRetailerNotificationById(Integer id, Integer currentUserId);
+    boolean checkForBuyerNotificationById(Integer id, Integer currentUserId);
 
-    boolean checkForDistributorNotificationById(Integer id, Integer currentUserId);
+    boolean checkForSupplierNotificationById(Integer id, Integer currentUserId);
 
-    String markAsReadRetailer(Integer id, Integer currentUserId);
+    String markAsReadBuyer(Integer id, Integer currentUserId);
 
-    String markAsReadDistributor(Integer id, Integer currentUserId);
+    String markAsReadSupplier(Integer id, Integer currentUserId);
 
-    boolean checkRetailerUnReadNotification(Integer currentUserId);
+    boolean checkBuyerUnReadNotification(Integer currentUserId);
 
-    boolean checkDistributorUnReadNotification(Integer currentUserId);
+    boolean checkSupplierUnReadNotification(Integer currentUserId);
 
-    String markAllNotificationAsReadRetailer(Integer currentUserId);
+    String markAllNotificationAsReadBuyer(Integer currentUserId);
 
-    String markAllNotificationAsReadDistributor(Integer currentUserId);
+    String markAllNotificationAsReadSupplier(Integer currentUserId);
 
 }

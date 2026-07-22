@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 public class StoreRating {
     private Integer id;
     private Integer storeId;
-    private Integer retailerId;
+    private Integer buyerId;
     private Integer ratedStar;
 //    private String comment;
     private String createdDate;

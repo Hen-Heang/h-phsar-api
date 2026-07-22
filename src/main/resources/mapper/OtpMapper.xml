@@ -58,7 +58,7 @@
          The service layer checks: if null → not verified yet.
     -->
 
-    <select id="checkIfActivatedByDistributorEmail" resultMap="AppUserResultMap">
+    <select id="checkIfActivatedBySupplierEmail" resultMap="AppUserResultMap">
         SELECT  ta.id,
                 ta.email,
                 ta.password,
@@ -66,13 +66,13 @@
                 ta.role_id,
                 ta.is_verified,
                 ta.is_active
-        FROM    tb_distributor_account ta
+        FROM    tb_supplier_account ta
         JOIN    tb_role tr ON ta.role_id = tr.id
         WHERE   ta.email       = #{email}
         AND     ta.is_verified = TRUE
     </select>
 
-    <select id="checkIfActivatedByRetailerEmail" resultMap="AppUserResultMap">
+    <select id="checkIfActivatedByBuyerEmail" resultMap="AppUserResultMap">
         SELECT  ta.id,
                 ta.email,
                 ta.password,
@@ -80,7 +80,7 @@
                 ta.role_id,
                 ta.is_verified,
                 ta.is_active
-        FROM    tb_retailer_account ta
+        FROM    tb_buyer_account ta
         JOIN    tb_role tr ON ta.role_id = tr.id
         WHERE   ta.email       = #{email}
         AND     ta.is_verified = TRUE
@@ -90,10 +90,10 @@
          GET USER BY EMAIL (all users, regardless of verification status)
          ═══════════════════════════════════════════════════════════════════════
          Used before generating OTP — we need to find the user first
-         to know their ID and roleId (1=distributor, 2=retailer).
+         to know their ID and roleId (1=supplier, 2=buyer).
     -->
 
-    <select id="getUserDistributorByEmail" resultMap="AppUserResultMap">
+    <select id="getUserSupplierByEmail" resultMap="AppUserResultMap">
         SELECT  ta.id,
                 ta.email,
                 ta.password,
@@ -101,12 +101,12 @@
                 ta.role_id,
                 ta.is_verified,
                 ta.is_active
-        FROM    tb_distributor_account ta
+        FROM    tb_supplier_account ta
         JOIN    tb_role tr ON ta.role_id = tr.id
         WHERE   ta.email = #{email}
     </select>
 
-    <select id="getUserRetailerByEmail" resultMap="AppUserResultMap">
+    <select id="getUserBuyerByEmail" resultMap="AppUserResultMap">
         SELECT  ta.id,
                 ta.email,
                 ta.password,
@@ -114,7 +114,7 @@
                 ta.role_id,
                 ta.is_verified,
                 ta.is_active
-        FROM    tb_retailer_account ta
+        FROM    tb_buyer_account ta
         JOIN    tb_role tr ON ta.role_id = tr.id
         WHERE   ta.email = #{email}
     </select>
@@ -131,29 +131,29 @@
          #{time} → the current timestamp, used later to check 3-minute expiry.
     -->
 
-    <select id="generateDistributorOtp" resultMap="OtpResultMap">
-        INSERT INTO tb_distributor_otp
-            (distributor_account_id, otp_code, distributor_email, created_date)
+    <select id="generateSupplierOtp" resultMap="OtpResultMap">
+        INSERT INTO tb_supplier_otp
+            (supplier_account_id, otp_code, supplier_email, created_date)
         VALUES
             (#{currentUserId}, #{otpNumber}, #{email}, #{time})
         RETURNING
             id,
-            distributor_account_id  AS account_id,
+            supplier_account_id  AS account_id,
             otp_code,
-            distributor_email       AS email,
+            supplier_email       AS email,
             created_date
     </select>
 
-    <select id="generateRetailerOtp" resultMap="OtpResultMap">
-        INSERT INTO tb_retailer_otp
-            (retailer_account_id, otp_code, retailer_email, created_date)
+    <select id="generateBuyerOtp" resultMap="OtpResultMap">
+        INSERT INTO tb_buyer_otp
+            (buyer_account_id, otp_code, buyer_email, created_date)
         VALUES
             (#{currentUserId}, #{otpNumber}, #{email}, #{time})
         RETURNING
             id,
-            retailer_account_id AS account_id,
+            buyer_account_id AS account_id,
             otp_code,
-            retailer_email      AS email,
+            buyer_email      AS email,
             created_date
     </select>
 
@@ -170,26 +170,26 @@
               rename columns to match the OtpResultMap field names above.
     -->
 
-    <select id="getDistributorOtpByEmail" resultMap="OtpResultMap">
+    <select id="getSupplierOtpByEmail" resultMap="OtpResultMap">
         SELECT  id,
-                distributor_account_id  AS account_id,
+                supplier_account_id  AS account_id,
                 otp_code,
-                distributor_email       AS email,
+                supplier_email       AS email,
                 created_date
-        FROM    tb_distributor_otp
-        WHERE   distributor_email = #{email}
+        FROM    tb_supplier_otp
+        WHERE   supplier_email = #{email}
         ORDER BY created_date DESC
         LIMIT 1
     </select>
 
-    <select id="getRetailerOtpByEmail" resultMap="OtpResultMap">
+    <select id="getBuyerOtpByEmail" resultMap="OtpResultMap">
         SELECT  id,
-                retailer_account_id AS account_id,
+                buyer_account_id AS account_id,
                 otp_code,
-                retailer_email      AS email,
+                buyer_email      AS email,
                 created_date
-        FROM    tb_retailer_otp
-        WHERE   retailer_email = #{email}
+        FROM    tb_buyer_otp
+        WHERE   buyer_email = #{email}
         ORDER BY created_date DESC
         LIMIT 1
     </select>
@@ -204,15 +204,15 @@
          resultType="String" → the result is a single string value, not a full object.
     -->
 
-    <select id="verifyDistributor" resultType="String">
-        UPDATE  tb_distributor_account
+    <select id="verifySupplier" resultType="String">
+        UPDATE  tb_supplier_account
         SET     is_verified = TRUE
         WHERE   email = #{email}
         RETURNING '1'
     </select>
 
-    <select id="verifyRetailer" resultType="String">
-        UPDATE  tb_retailer_account
+    <select id="verifyBuyer" resultType="String">
+        UPDATE  tb_buyer_account
         SET     is_verified = TRUE
         WHERE   email = #{email}
         RETURNING '1'
@@ -228,14 +228,14 @@
          #{email} → the email whose OTP records should be deleted.
     -->
 
-    <delete id="deleteDistributorOtp">
-        DELETE FROM tb_distributor_otp
-        WHERE distributor_email = #{email}
+    <delete id="deleteSupplierOtp">
+        DELETE FROM tb_supplier_otp
+        WHERE supplier_email = #{email}
     </delete>
 
-    <delete id="deleteRetailerOtp">
-        DELETE FROM tb_retailer_otp
-        WHERE retailer_email = #{email}
+    <delete id="deleteBuyerOtp">
+        DELETE FROM tb_buyer_otp
+        WHERE buyer_email = #{email}
     </delete>
 
 </mapper>

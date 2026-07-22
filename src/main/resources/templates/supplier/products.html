@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head th:replace="~{fragments/layout :: head}">
+  <title>Products | H-Phsar</title>
+</head>
+<body>
+
+<div th:replace="~{fragments/layout :: sidebar}"></div>
+
+<div class="main-wrapper">
+  <div th:replace="~{fragments/layout :: topbar('Products')}" ></div>
+
+  <main class="page-content">
+    <div class="page-header d-flex align-items-start justify-content-between">
+      <div>
+        <h2>Products</h2>
+        <p>Manage your product catalog — add, edit, publish or unlist.</p>
+      </div>
+      <button class="btn-primary-custom" onclick="openAddModal()">
+        <i class="bi bi-plus-lg"></i> Add Product
+      </button>
+    </div>
+
+    <div class="card">
+      <!-- Toolbar -->
+      <div class="card-header-custom flex-wrap gap-3">
+        <div class="d-flex gap-3 align-items-center flex-wrap">
+          <div class="search-wrapper">
+            <i class="bi bi-search"></i>
+            <input class="search-input" id="search-input" type="text" placeholder="Search products..."
+                   oninput="debounceSearch()" />
+          </div>
+          <select class="form-select form-select-sm" id="sort-select" style="width:140px;" onchange="loadProducts()">
+            <option value="created_date">Newest</option>
+            <option value="price">Price</option>
+            <option value="name">Name</option>
+            <option value="qty">Stock</option>
+          </select>
+          <select class="form-select form-select-sm" id="order-select" style="width:100px;" onchange="loadProducts()">
+            <option value="desc">DESC</option>
+            <option value="asc">ASC</option>
+          </select>
+        </div>
+        <span class="text-muted" style="font-size:13px;" id="total-label"></span>
+      </div>
+
+      <!-- Table -->
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead>
+            <tr>
+              <th style="width:60px;">#</th>
+              <th>Product Name</th>
+              <th>Category</th>
+              <th>Price</th>
+              <th>Stock</th>
+              <th>Status</th>
+              <th>Created</th>
+              <th style="width:100px;">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="products-body">
+            <tr><td colspan="8" class="text-center text-muted py-4">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      <div class="pagination-wrapper">
+        <span id="page-info" style="font-size:13px;color:#6b7280;"></span>
+        <div class="d-flex gap-1" id="page-buttons"></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ── Add/Edit Product Modal ── -->
+<div class="modal fade" id="productModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content" style="border-radius:12px;border:none;">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold" id="modal-title">Add Product</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-4">
+        <form id="product-form" onsubmit="handleSaveProduct(event)">
+          <input type="hidden" id="product-id"/>
+          <div class="row g-3">
+            <div class="col-md-8">
+              <label class="form-label">Product Name *</label>
+              <input type="text" id="p-name" class="form-control" placeholder="e.g. Fresh Orange Juice" required/>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Category *</label>
+              <select id="p-category" class="form-select" required>
+                <option value="">Select category</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Price *</label>
+              <div class="input-group">
+                <span class="input-group-text">$</span>
+                <input type="number" id="p-price" class="form-control" placeholder="0.00" step="0.01" min="0" required/>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Stock Qty *</label>
+              <input type="number" id="p-qty" class="form-control" placeholder="0" min="0" required/>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Publish Status</label>
+              <select id="p-publish" class="form-select">
+                <option value="true">Published</option>
+                <option value="false">Unlisted</option>
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Description</label>
+              <textarea id="p-description" class="form-control" rows="3" placeholder="Optional description..."></textarea>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Image URL</label>
+              <input type="text" id="p-image" class="form-control" placeholder="https://..."/>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+        <button type="submit" form="product-form" class="btn-primary-custom">
+          <span id="save-spinner" class="spinner-border spinner-border-sm d-none"></span>
+          <span id="save-label">Save Product</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Restock Modal ── -->
+<div class="modal fade" id="restockModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius:12px;border:none;">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold">Restock Product</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-4">
+        <p id="restock-product-name" class="fw-semibold mb-3"></p>
+        <label class="form-label">Quantity to Add *</label>
+        <input type="number" id="restock-qty" class="form-control" placeholder="0" min="1" required/>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn-primary-custom" onclick="handleRestock()">
+          <i class="bi bi-plus-circle"></i> Restock
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Confirm -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content" style="border-radius:12px;border:none;">
+      <div class="modal-body p-4 text-center">
+        <div style="font-size:42px;margin-bottom:12px;">🗑️</div>
+        <h6 class="fw-bold mb-2">Delete Product?</h6>
+        <p class="text-muted" style="font-size:14px;" id="delete-product-name"></p>
+        <div class="d-flex gap-2 justify-content-center mt-3">
+          <button class="btn btn-light px-4" data-bs-dismiss="modal">Cancel</button>
+          <button class="btn btn-danger px-4" onclick="confirmDelete()">Delete</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<div th:replace="~{fragments/layout :: scripts}"></div>
+<script>
+  redirectIfNoToken();
+
+  let currentPage = 1;
+  let totalPages  = 0;
+  let deleteId    = null;
+  let restockId   = null;
+  let searchTimer = null;
+  let categories  = [];
+
+  async function loadCategories() {
+    try {
+      const res = await api.get('/api/v1/suppliers/categories?pageNumber=1&pageSize=100');
+      categories = res.data || [];
+      const sel = document.getElementById('p-category');
+      sel.innerHTML = '<option value="">Select category</option>' +
+        categories.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+    } catch (_) {}
+  }
+
+  async function loadProducts(page = 1) {
+    currentPage = page;
+    const sort   = document.getElementById('sort-select').value;
+    const order  = document.getElementById('order-select').value;
+    const search = document.getElementById('search-input').value.trim();
+    const tbody  = document.getElementById('products-body');
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">Loading...</td></tr>';
+
+    try {
+      let res;
+      if (search) {
+        res = await api.get(`/api/v1/suppliers/products/search?name=${encodeURIComponent(search)}`);
+        const list = res.data || [];
+        renderTable(list);
+        document.getElementById('total-label').textContent = `${list.length} result(s)`;
+        document.getElementById('page-info').textContent   = '';
+        document.getElementById('page-buttons').innerHTML  = '';
+        return;
+      }
+
+      res = await api.get(`/api/v1/suppliers/products/sort?sort=${order}&by=${sort}&pageNumber=${page}&pageSize=10`);
+      const list  = res.data || [];
+      totalPages  = res.totalPage || 0;
+      const total = res.totalElements || 0;
+
+      document.getElementById('total-label').textContent = `${total} product(s)`;
+      document.getElementById('page-info').textContent   = totalPages > 0 ? `Page ${page} of ${totalPages}` : '';
+      renderTable(list);
+      renderPagination('page-buttons', page, totalPages, loadProducts);
+
+    } catch (e) {
+      tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state"><i class="bi bi-exclamation-circle"></i><p>Failed to load products</p></div></td></tr>`;
+    }
+  }
+
+  function renderTable(list) {
+    const tbody = document.getElementById('products-body');
+    if (!list.length) {
+      tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state"><i class="bi bi-box-seam"></i><p>No products found</p></div></td></tr>';
+      return;
+    }
+    tbody.innerHTML = list.map((p, i) => `
+      <tr>
+        <td class="text-muted">${p.id}</td>
+        <td>
+          ${p.image ? `<img src="${p.image}" style="width:32px;height:32px;border-radius:6px;object-fit:cover;margin-right:8px;" onerror="this.style.display='none'"/>` : ''}
+          <span class="fw-semibold">${p.name}</span>
+        </td>
+        <td>${p.category?.name || '—'}</td>
+        <td>${formatCurrency(p.price)}</td>
+        <td>
+          <span class="${p.qty <= 5 ? 'text-danger fw-semibold' : ''}">${p.qty ?? 0}</span>
+          ${p.qty <= 5 ? '<i class="bi bi-exclamation-triangle-fill text-warning ms-1" title="Low stock"></i>' : ''}
+        </td>
+        <td>${publishBadge(p.isPublish)}</td>
+        <td>${formatDate(p.createdDate)}</td>
+        <td>
+          <div class="d-flex gap-1">
+            <button class="btn-icon text-primary" title="Edit" onclick="openEditModal(${p.id})"><i class="bi bi-pencil-fill"></i></button>
+            <button class="btn-icon text-success" title="Restock" onclick="openRestockModal(${p.id}, '${escHtml(p.name)}')"><i class="bi bi-plus-circle-fill"></i></button>
+            ${p.isPublish
+              ? `<button class="btn-icon text-warning" title="Unlist" onclick="togglePublish(${p.id}, false)"><i class="bi bi-eye-slash-fill"></i></button>`
+              : `<button class="btn-icon text-success" title="Publish" onclick="togglePublish(${p.id}, true)"><i class="bi bi-eye-fill"></i></button>`
+            }
+            <button class="btn-icon text-danger" title="Delete" onclick="openDeleteModal(${p.id}, '${escHtml(p.name)}')"><i class="bi bi-trash3-fill"></i></button>
+          </div>
+        </td>
+      </tr>`).join('');
+  }
+
+  function escHtml(str) { return (str || '').replace(/'/g, "\\'"); }
+
+  function debounceSearch() {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => loadProducts(1), 400);
+  }
+
+  // ── Add modal ──
+  function openAddModal() {
+    document.getElementById('product-id').value = '';
+    document.getElementById('modal-title').textContent = 'Add Product';
+    document.getElementById('save-label').textContent  = 'Save Product';
+    document.getElementById('product-form').reset();
+    new bootstrap.Modal(document.getElementById('productModal')).show();
+  }
+
+  // ── Edit modal ──
+  async function openEditModal(id) {
+    try {
+      const res = await api.get(`/api/v1/suppliers/products/${id}`);
+      const p = res.data;
+      document.getElementById('product-id').value = p.id;
+      document.getElementById('p-name').value        = p.name || '';
+      document.getElementById('p-price').value       = p.price || '';
+      document.getElementById('p-qty').value         = p.qty || '';
+      document.getElementById('p-description').value = p.description || '';
+      document.getElementById('p-image').value       = p.image || '';
+      document.getElementById('p-publish').value     = String(p.isPublish);
+      if (p.category?.id) document.getElementById('p-category').value = p.category.id;
+      document.getElementById('modal-title').textContent = 'Edit Product';
+      document.getElementById('save-label').textContent  = 'Update Product';
+      new bootstrap.Modal(document.getElementById('productModal')).show();
+    } catch (_) { toast('Could not load product.', 'error'); }
+  }
+
+  async function handleSaveProduct(e) {
+    e.preventDefault();
+    const id      = document.getElementById('product-id').value;
+    const spinner = document.getElementById('save-spinner');
+    spinner.classList.remove('d-none');
+
+    const body = {
+      name:        document.getElementById('p-name').value,
+      price:       parseFloat(document.getElementById('p-price').value),
+      qty:         parseInt(document.getElementById('p-qty').value),
+      description: document.getElementById('p-description').value,
+      image:       document.getElementById('p-image').value,
+      categoryId:  parseInt(document.getElementById('p-category').value),
+      isPublish:   document.getElementById('p-publish').value === 'true'
+    };
+
+    try {
+      if (id) {
+        await api.put(`/api/v1/suppliers/products/${id}`, body);
+        toast('Product updated!', 'success');
+      } else {
+        await api.post('/api/v1/suppliers/products', [body]);
+        toast('Product added!', 'success');
+      }
+      bootstrap.Modal.getInstance(document.getElementById('productModal')).hide();
+      loadProducts(currentPage);
+    } catch (err) {
+      toast(err?.message || 'Save failed.', 'error');
+    } finally { spinner.classList.add('d-none'); }
+  }
+
+  // ── Publish toggle ──
+  async function togglePublish(id, publish) {
+    try {
+      const endpoint = publish
+        ? `/api/v1/suppliers/products/${id}/publish`
+        : `/api/v1/suppliers/products/${id}/unlist`;
+      await api.put(endpoint);
+      toast(publish ? 'Product published!' : 'Product unlisted.', 'success');
+      loadProducts(currentPage);
+    } catch (e) { toast('Action failed.', 'error'); }
+  }
+
+  // ── Delete ──
+  function openDeleteModal(id, name) {
+    deleteId = id;
+    document.getElementById('delete-product-name').textContent = name;
+    new bootstrap.Modal(document.getElementById('deleteModal')).show();
+  }
+  async function confirmDelete() {
+    try {
+      await api.delete(`/api/v1/suppliers/products/${deleteId}`);
+      toast('Product deleted.', 'success');
+      bootstrap.Modal.getInstance(document.getElementById('deleteModal')).hide();
+      loadProducts(currentPage);
+    } catch (e) { toast('Delete failed.', 'error'); }
+  }
+
+  // ── Restock ──
+  function openRestockModal(id, name) {
+    restockId = id;
+    document.getElementById('restock-product-name').textContent = name;
+    document.getElementById('restock-qty').value = '';
+    new bootstrap.Modal(document.getElementById('restockModal')).show();
+  }
+  async function handleRestock() {
+    const qty = parseInt(document.getElementById('restock-qty').value);
+    if (!qty || qty < 1) { toast('Enter a valid quantity.', 'error'); return; }
+    try {
+      await api.post('/api/v1/suppliers/products/import', [{ id: restockId, qty }]);
+      toast('Stock updated!', 'success');
+      bootstrap.Modal.getInstance(document.getElementById('restockModal')).hide();
+      loadProducts(currentPage);
+    } catch (e) { toast('Restock failed.', 'error'); }
+  }
+
+  loadCategories();
+  loadProducts();
+</script>
+</body>
+</html>

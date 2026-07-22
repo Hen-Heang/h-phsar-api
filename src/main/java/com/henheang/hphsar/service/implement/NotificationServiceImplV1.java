@@ -3,7 +3,7 @@ package com.henheang.hphsar.service.implement;
 import com.henheang.hphsar.exception.InternalServerErrorException;
 import com.henheang.hphsar.exception.NotFoundException;
 import com.henheang.hphsar.model.appUser.AppUser;
-import com.henheang.hphsar.model.notification.NotificationRetailer;
+import com.henheang.hphsar.model.notification.NotificationBuyer;
 import com.henheang.hphsar.repository.NotificationRepository;
 import com.henheang.hphsar.repository.StoreRepository;
 import com.henheang.hphsar.service.NotificationService;
@@ -28,26 +28,26 @@ public class NotificationServiceImplV1 implements NotificationService {
     }
 
     @Override
-    public List<NotificationRetailer> getUserAllNotification() throws ParseException {
+    public List<NotificationBuyer> getUserAllNotification() throws ParseException {
         AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         Integer currentUserId = appUser.getId();
-        List<NotificationRetailer> notifications = new ArrayList<>();
+        List<NotificationBuyer> notifications = new ArrayList<>();
         if (appUser.getRoleId() == 2) {
-            if (!notificationRepository.checkForRetailerNotification(currentUserId)) {
+            if (!notificationRepository.checkForBuyerNotification(currentUserId)) {
                 return notifications; // empty list — no notifications yet
             }
-            notifications = notificationRepository.getRetailerUserAllNotification(currentUserId);
+            notifications = notificationRepository.getBuyerUserAllNotification(currentUserId);
         } else if (appUser.getRoleId() == 1) {
-            if (!notificationRepository.checkForDistributorNotification(currentUserId)) {
+            if (!notificationRepository.checkForSupplierNotification(currentUserId)) {
                 return notifications; // empty list — no notifications yet
             }
-            notifications = notificationRepository.getDistributorUserAllNotification(currentUserId);
+            notifications = notificationRepository.getSupplierUserAllNotification(currentUserId);
         }
         // check and format
         if (notifications == null) {
             throw new InternalServerErrorException("Fail to fetch notification");
         }
-        for (NotificationRetailer notification : notifications) {
+        for (NotificationBuyer notification : notifications) {
             notification.setCreatedDate(formatter.format(formatter.parse(notification.getCreatedDate())));
         }
         return notifications;
@@ -59,29 +59,29 @@ public class NotificationServiceImplV1 implements NotificationService {
         Integer currentUserId = appUser.getId();
         if (appUser.getRoleId() == 2) {
             // check notification exist
-            if (!notificationRepository.checkForRetailerNotificationById(id, currentUserId)) {
+            if (!notificationRepository.checkForBuyerNotificationById(id, currentUserId)) {
                 throw new NotFoundException("This notification does not exist.");
             }
-            // check if retailer have unread notification
-            if (!notificationRepository.checkRetailerUnReadNotification(currentUserId)) {
+            // check if user has unread notification
+            if (!notificationRepository.checkBuyerUnReadNotification(currentUserId)) {
                 throw new NotFoundException("You have no unread notification.");
             }
             // mark as read
-            String confirm = notificationRepository.markAsReadRetailer(id, currentUserId);
+            String confirm = notificationRepository.markAsReadBuyer(id, currentUserId);
             if (!Objects.equals(confirm, "1")) {
                 throw new InternalServerErrorException("Fail to change status");
             }
         } else if (appUser.getRoleId() == 1){
             // check notification exist
-            if (!notificationRepository.checkForDistributorNotificationById(id, currentUserId)) {
+            if (!notificationRepository.checkForSupplierNotificationById(id, currentUserId)) {
                 throw new NotFoundException("This notification does not exist.");
             }
-            // check if retailer have unread notification
-            if (!notificationRepository.checkDistributorUnReadNotification(currentUserId)) {
+            // check if user has unread notification
+            if (!notificationRepository.checkSupplierUnReadNotification(currentUserId)) {
                 throw new NotFoundException("You have no unread notification.");
             }
             // mark as read
-            String confirm = notificationRepository.markAsReadDistributor(id, currentUserId);
+            String confirm = notificationRepository.markAsReadSupplier(id, currentUserId);
             if (!Objects.equals(confirm, "1")) {
                 throw new InternalServerErrorException("Fail to change status");
             }
@@ -95,29 +95,29 @@ public class NotificationServiceImplV1 implements NotificationService {
         Integer currentUserId = appUser.getId();
         if (appUser.getRoleId() == 2) {
             // check if there is notification
-            if (!notificationRepository.checkForRetailerNotification(currentUserId)) {
+            if (!notificationRepository.checkForBuyerNotification(currentUserId)) {
                 throw new NotFoundException("Notification not found.");
             }
-            // check if retailer have unread notification
-            if (!notificationRepository.checkRetailerUnReadNotification(currentUserId)) {
+            // check if user has unread notification
+            if (!notificationRepository.checkBuyerUnReadNotification(currentUserId)) {
                 throw new NotFoundException("You have no unread notification.");
             }
             // mark all as read
-            String confirm = notificationRepository.markAllNotificationAsReadRetailer(currentUserId);
+            String confirm = notificationRepository.markAllNotificationAsReadBuyer(currentUserId);
             if (!Objects.equals(confirm, "1")) {
                 throw new InternalServerErrorException("Fail to change status");
             }
         } else if (appUser.getRoleId() == 1) {
             // check if there is notification
-            if (!notificationRepository.checkForDistributorNotification(currentUserId)) {
+            if (!notificationRepository.checkForSupplierNotification(currentUserId)) {
                 throw new NotFoundException("Notification not found.");
             }
-            // check if retailer have unread notification
-            if (!notificationRepository.checkDistributorUnReadNotification(currentUserId)) {
+            // check if user has unread notification
+            if (!notificationRepository.checkSupplierUnReadNotification(currentUserId)) {
                 throw new NotFoundException("You have no unread notification.");
             }
             // mark all as read
-            String confirm = notificationRepository.markAllNotificationAsReadDistributor(currentUserId);
+            String confirm = notificationRepository.markAllNotificationAsReadSupplier(currentUserId);
             if (!Objects.equals(confirm, "1")) {
                 throw new InternalServerErrorException("Fail to change status");
             }

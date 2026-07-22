@@ -4,7 +4,7 @@
 
 <mapper namespace="com.henheang.hphsar.repository.NotificationRepository">
 
-    <resultMap id="NotificationResultMap" type="com.henheang.hphsar.model.notification.NotificationRetailer">
+    <resultMap id="NotificationResultMap" type="com.henheang.hphsar.model.notification.NotificationBuyer">
         <id     property="id"               column="id"/>
         <result property="notificationType" column="notificationType"/>
         <result property="orderId"          column="orderId"/>
@@ -18,14 +18,14 @@
 
     <!-- ── CREATE ──────────────────────────────────────────────────────────── -->
 
-    <select id="createRetailerNotification" resultType="int">
-        INSERT INTO tb_retailer_notification (id, retailer_id, type_id, order_id, content, is_read, created_date)
+    <select id="createBuyerNotification" resultType="int">
+        INSERT INTO tb_buyer_notification (id, buyer_id, type_id, order_id, content, is_read, created_date)
         VALUES (DEFAULT, #{param1}, #{param2}, #{param3}, #{param4}, #{param7}, NOW())
         RETURNING id
     </select>
 
-    <select id="createDistributorNotification" resultType="int">
-        INSERT INTO tb_distributor_notification (id, distributor_id, type_id, order_id, content, is_read, created_date)
+    <select id="createSupplierNotification" resultType="int">
+        INSERT INTO tb_supplier_notification (id, supplier_id, type_id, order_id, content, is_read, created_date)
         VALUES (DEFAULT, #{param1}, #{param2}, #{param3}, #{param4}, #{param7}, NOW())
         RETURNING id
     </select>
@@ -33,38 +33,38 @@
     <!-- ── DELETE ───────────────────────────────────────────────────────────── -->
 
     <delete id="deleteNotification">
-        DELETE FROM tb_retailer_notification WHERE id = #{check}
+        DELETE FROM tb_buyer_notification WHERE id = #{check}
     </delete>
 
     <!-- ── CHECK EXISTS ─────────────────────────────────────────────────────── -->
 
-    <select id="checkForRetailerNotification" resultType="boolean">
-        SELECT EXISTS(SELECT 1 FROM tb_retailer_notification WHERE retailer_id = #{currentUserId})
+    <select id="checkForBuyerNotification" resultType="boolean">
+        SELECT EXISTS(SELECT 1 FROM tb_buyer_notification WHERE buyer_id = #{currentUserId})
     </select>
 
-    <select id="checkForDistributorNotification" resultType="boolean">
-        SELECT EXISTS(SELECT 1 FROM tb_distributor_notification WHERE distributor_id = #{currentUserId})
+    <select id="checkForSupplierNotification" resultType="boolean">
+        SELECT EXISTS(SELECT 1 FROM tb_supplier_notification WHERE supplier_id = #{currentUserId})
     </select>
 
-    <select id="checkForRetailerNotificationById" resultType="boolean">
-        SELECT EXISTS(SELECT 1 FROM tb_retailer_notification WHERE retailer_id = #{currentUserId} AND id = #{id})
+    <select id="checkForBuyerNotificationById" resultType="boolean">
+        SELECT EXISTS(SELECT 1 FROM tb_buyer_notification WHERE buyer_id = #{currentUserId} AND id = #{id})
     </select>
 
-    <select id="checkForDistributorNotificationById" resultType="boolean">
-        SELECT EXISTS(SELECT 1 FROM tb_distributor_notification WHERE distributor_id = #{currentUserId} AND id = #{id})
+    <select id="checkForSupplierNotificationById" resultType="boolean">
+        SELECT EXISTS(SELECT 1 FROM tb_supplier_notification WHERE supplier_id = #{currentUserId} AND id = #{id})
     </select>
 
-    <select id="checkRetailerUnReadNotification" resultType="boolean">
-        SELECT EXISTS(SELECT 1 FROM tb_retailer_notification WHERE retailer_id = #{currentUserId} AND is_read = false)
+    <select id="checkBuyerUnReadNotification" resultType="boolean">
+        SELECT EXISTS(SELECT 1 FROM tb_buyer_notification WHERE buyer_id = #{currentUserId} AND is_read = false)
     </select>
 
-    <select id="checkDistributorUnReadNotification" resultType="boolean">
-        SELECT EXISTS(SELECT 1 FROM tb_distributor_notification WHERE distributor_id = #{currentUserId} AND is_read = false)
+    <select id="checkSupplierUnReadNotification" resultType="boolean">
+        SELECT EXISTS(SELECT 1 FROM tb_supplier_notification WHERE supplier_id = #{currentUserId} AND is_read = false)
     </select>
 
     <!-- ── GET ALL ───────────────────────────────────────────────────────────── -->
 
-    <select id="getRetailerUserAllNotification" resultMap="NotificationResultMap">
+    <select id="getBuyerUserAllNotification" resultMap="NotificationResultMap">
         SELECT id,
                (SELECT name FROM tb_notification_type WHERE id = type_id) AS notificationType,
                order_id AS orderId,
@@ -74,12 +74,12 @@
                NULL   AS description,
                is_read AS seen,
                created_date AS createdDate
-        FROM tb_retailer_notification
-        WHERE retailer_id = #{currentUserId}
+        FROM tb_buyer_notification
+        WHERE buyer_id = #{currentUserId}
         ORDER BY created_date DESC
     </select>
 
-    <select id="getDistributorUserAllNotification" resultMap="NotificationResultMap">
+    <select id="getSupplierUserAllNotification" resultMap="NotificationResultMap">
         SELECT id,
                (SELECT name FROM tb_notification_type WHERE id = type_id) AS notificationType,
                order_id AS orderId,
@@ -89,38 +89,38 @@
                NULL   AS description,
                is_read AS seen,
                created_date AS createdDate
-        FROM tb_distributor_notification
-        WHERE distributor_id = #{currentUserId}
+        FROM tb_supplier_notification
+        WHERE supplier_id = #{currentUserId}
         ORDER BY created_date DESC
     </select>
 
     <!-- ── MARK AS READ ──────────────────────────────────────────────────────── -->
 
-    <select id="markAsReadRetailer" resultType="String">
-        UPDATE tb_retailer_notification
+    <select id="markAsReadBuyer" resultType="String">
+        UPDATE tb_buyer_notification
         SET is_read = true
-        WHERE retailer_id = #{currentUserId} AND id = #{id}
+        WHERE buyer_id = #{currentUserId} AND id = #{id}
         RETURNING 1
     </select>
 
-    <select id="markAsReadDistributor" resultType="String">
-        UPDATE tb_distributor_notification
+    <select id="markAsReadSupplier" resultType="String">
+        UPDATE tb_supplier_notification
         SET is_read = true
-        WHERE distributor_id = #{currentUserId} AND id = #{id}
+        WHERE supplier_id = #{currentUserId} AND id = #{id}
         RETURNING 1
     </select>
 
-    <select id="markAllNotificationAsReadRetailer" resultType="String">
-        UPDATE tb_retailer_notification
+    <select id="markAllNotificationAsReadBuyer" resultType="String">
+        UPDATE tb_buyer_notification
         SET is_read = true
-        WHERE retailer_id = #{currentUserId}
+        WHERE buyer_id = #{currentUserId}
         RETURNING 1
     </select>
 
-    <select id="markAllNotificationAsReadDistributor" resultType="String">
-        UPDATE tb_distributor_notification
+    <select id="markAllNotificationAsReadSupplier" resultType="String">
+        UPDATE tb_supplier_notification
         SET is_read = true
-        WHERE distributor_id = #{currentUserId}
+        WHERE supplier_id = #{currentUserId}
         RETURNING 1
     </select>
 

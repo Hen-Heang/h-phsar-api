@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS tb_product_category (
     );
 
 -- Accounts and profiles
-CREATE TABLE IF NOT EXISTS tb_distributor_account (
+CREATE TABLE IF NOT EXISTS tb_supplier_account (
                                                       id           SERIAL PRIMARY KEY,
                                                       role_id      INTEGER      NOT NULL REFERENCES tb_role (id),
     email        VARCHAR(255) NOT NULL UNIQUE,
@@ -50,7 +50,7 @@ CREATE TABLE IF NOT EXISTS tb_distributor_account (
     is_active    BOOLEAN      DEFAULT TRUE
     );
 
-CREATE TABLE IF NOT EXISTS tb_retailer_account (
+CREATE TABLE IF NOT EXISTS tb_buyer_account (
                                                    id           SERIAL PRIMARY KEY,
                                                    role_id      INTEGER      NOT NULL REFERENCES tb_role (id),
     email        VARCHAR(255) NOT NULL UNIQUE,
@@ -61,9 +61,9 @@ CREATE TABLE IF NOT EXISTS tb_retailer_account (
     is_active    BOOLEAN      DEFAULT TRUE
     );
 
-CREATE TABLE IF NOT EXISTS tb_distributor_info (
+CREATE TABLE IF NOT EXISTS tb_supplier_info (
                                                    id                     SERIAL PRIMARY KEY,
-                                                   distributor_account_id INTEGER      NOT NULL REFERENCES tb_distributor_account (id) ON DELETE CASCADE,
+                                                   supplier_account_id INTEGER      NOT NULL REFERENCES tb_supplier_account (id) ON DELETE CASCADE,
     first_name             VARCHAR(150),
     last_name              VARCHAR(150),
     gender                 VARCHAR(20),
@@ -73,9 +73,9 @@ CREATE TABLE IF NOT EXISTS tb_distributor_info (
     updated_date           TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
 
-CREATE TABLE IF NOT EXISTS tb_retailer_info (
+CREATE TABLE IF NOT EXISTS tb_buyer_info (
                                                 id                     SERIAL PRIMARY KEY,
-                                                retailer_account_id    INTEGER      NOT NULL REFERENCES tb_retailer_account (id) ON DELETE CASCADE,
+                                                buyer_account_id    INTEGER      NOT NULL REFERENCES tb_buyer_account (id) ON DELETE CASCADE,
     first_name             VARCHAR(150),
     last_name              VARCHAR(150),
     gender                 VARCHAR(20),
@@ -86,22 +86,22 @@ CREATE TABLE IF NOT EXISTS tb_retailer_info (
     updated_date           TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
 
-CREATE TABLE IF NOT EXISTS tb_distributor_phone (
+CREATE TABLE IF NOT EXISTS tb_supplier_phone (
                                                     id                    SERIAL PRIMARY KEY,
-                                                    distributor_info_id   INTEGER NOT NULL REFERENCES tb_distributor_info (id) ON DELETE CASCADE,
+                                                    supplier_info_id   INTEGER NOT NULL REFERENCES tb_supplier_info (id) ON DELETE CASCADE,
     phone_number          VARCHAR(50) NOT NULL
     );
 
-CREATE TABLE IF NOT EXISTS tb_retailer_phone (
+CREATE TABLE IF NOT EXISTS tb_buyer_phone (
                                                  id                 SERIAL PRIMARY KEY,
-                                                 retailer_info_id   INTEGER NOT NULL REFERENCES tb_retailer_info (id) ON DELETE CASCADE,
+                                                 buyer_info_id   INTEGER NOT NULL REFERENCES tb_buyer_info (id) ON DELETE CASCADE,
     phone_number       VARCHAR(50) NOT NULL
     );
 
 -- Stores and catalog
 CREATE TABLE IF NOT EXISTS tb_store (
                                         id                     SERIAL PRIMARY KEY,
-                                        distributor_account_id INTEGER      NOT NULL REFERENCES tb_distributor_account (id) ON DELETE CASCADE,
+                                        supplier_account_id INTEGER      NOT NULL REFERENCES tb_supplier_account (id) ON DELETE CASCADE,
     name                   VARCHAR(255) NOT NULL,
     banner_image           TEXT,
     description            TEXT,
@@ -159,7 +159,7 @@ CREATE TABLE IF NOT EXISTS tb_product_import_detail (
 -- Orders
 CREATE TABLE IF NOT EXISTS tb_order (
                                         id                  SERIAL PRIMARY KEY,
-                                        retailer_account_id INTEGER      NOT NULL REFERENCES tb_retailer_account (id) ON DELETE CASCADE,
+                                        buyer_account_id INTEGER      NOT NULL REFERENCES tb_buyer_account (id) ON DELETE CASCADE,
     store_id            INTEGER      NOT NULL REFERENCES tb_store (id) ON DELETE CASCADE,
     status_id           INTEGER      NOT NULL REFERENCES tb_status (id),
     created_date        TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
@@ -179,7 +179,7 @@ CREATE TABLE IF NOT EXISTS tb_order_detail (
 CREATE TABLE IF NOT EXISTS tb_rating_detail (
                                                 id             SERIAL PRIMARY KEY,
                                                 store_id       INTEGER NOT NULL REFERENCES tb_store (id) ON DELETE CASCADE,
-    retailer_id    INTEGER NOT NULL REFERENCES tb_retailer_account (id) ON DELETE CASCADE,
+    buyer_account_id INTEGER NOT NULL REFERENCES tb_buyer_account (id) ON DELETE CASCADE,
     rated_star     INTEGER CHECK (rated_star BETWEEN 1 AND 5),
     comment        TEXT,
     created_date   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -188,7 +188,7 @@ CREATE TABLE IF NOT EXISTS tb_rating_detail (
 CREATE TABLE IF NOT EXISTS tb_bookmark (
                                            id                   SERIAL PRIMARY KEY,
                                            store_id             INTEGER NOT NULL REFERENCES tb_store (id) ON DELETE CASCADE,
-    retailer_account_id  INTEGER NOT NULL REFERENCES tb_retailer_account (id) ON DELETE CASCADE,
+    buyer_account_id  INTEGER NOT NULL REFERENCES tb_buyer_account (id) ON DELETE CASCADE,
     created_date         TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
 
@@ -199,9 +199,9 @@ CREATE TABLE IF NOT EXISTS tb_notification_type (
     template TEXT
     );
 
-CREATE TABLE IF NOT EXISTS tb_distributor_notification (
+CREATE TABLE IF NOT EXISTS tb_supplier_notification (
                                                            id                SERIAL PRIMARY KEY,
-                                                           distributor_id    INTEGER NOT NULL REFERENCES tb_distributor_account (id) ON DELETE CASCADE,
+                                                           supplier_id    INTEGER NOT NULL REFERENCES tb_supplier_account (id) ON DELETE CASCADE,
     type_id           INTEGER NOT NULL REFERENCES tb_notification_type (id),
     order_id          INTEGER,
     content           TEXT,
@@ -209,9 +209,9 @@ CREATE TABLE IF NOT EXISTS tb_distributor_notification (
     created_date      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
 
-CREATE TABLE IF NOT EXISTS tb_retailer_notification (
+CREATE TABLE IF NOT EXISTS tb_buyer_notification (
                                                         id             SERIAL PRIMARY KEY,
-                                                        retailer_id    INTEGER NOT NULL REFERENCES tb_retailer_account (id) ON DELETE CASCADE,
+                                                        buyer_id    INTEGER NOT NULL REFERENCES tb_buyer_account (id) ON DELETE CASCADE,
     type_id        INTEGER NOT NULL REFERENCES tb_notification_type (id),
     order_id       INTEGER,
     content        TEXT,
@@ -220,25 +220,25 @@ CREATE TABLE IF NOT EXISTS tb_retailer_notification (
     );
 
 -- OTPs
-CREATE TABLE IF NOT EXISTS tb_distributor_otp (
+CREATE TABLE IF NOT EXISTS tb_supplier_otp (
                                                   id                       SERIAL PRIMARY KEY,
-                                                  distributor_account_id   INTEGER      NOT NULL REFERENCES tb_distributor_account (id) ON DELETE CASCADE,
+                                                  supplier_account_id   INTEGER      NOT NULL REFERENCES tb_supplier_account (id) ON DELETE CASCADE,
     otp_code                 INTEGER      NOT NULL,
-    distributor_email        VARCHAR(255) NOT NULL,
+    supplier_email        VARCHAR(255) NOT NULL,
     created_date             TIMESTAMP    DEFAULT CURRENT_TIMESTAMP
     );
 
-CREATE TABLE IF NOT EXISTS tb_retailer_otp (
+CREATE TABLE IF NOT EXISTS tb_buyer_otp (
                                                id                    SERIAL PRIMARY KEY,
-                                               retailer_account_id   INTEGER      NOT NULL REFERENCES tb_retailer_account (id) ON DELETE CASCADE,
+                                               buyer_account_id   INTEGER      NOT NULL REFERENCES tb_buyer_account (id) ON DELETE CASCADE,
     otp_code              INTEGER      NOT NULL,
-    retailer_email        VARCHAR(255) NOT NULL,
+    buyer_email        VARCHAR(255) NOT NULL,
     created_date          TIMESTAMP    DEFAULT CURRENT_TIMESTAMP
     );
 
 -- Seed basic lookup data
-INSERT INTO tb_role (id, name) VALUES (1, 'DISTRIBUTOR') ON CONFLICT (id) DO NOTHING;
-INSERT INTO tb_role (id, name) VALUES (2, 'RETAILER') ON CONFLICT (id) DO NOTHING;
+INSERT INTO tb_role (id, name) VALUES (1, 'SUPPLIER') ON CONFLICT (id) DO NOTHING;
+INSERT INTO tb_role (id, name) VALUES (2, 'BUYER') ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO tb_status (id, name) VALUES
                                      (1, 'PENDING'),

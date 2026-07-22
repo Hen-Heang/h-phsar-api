@@ -6,7 +6,7 @@ import com.henheang.hphsar.model.rating.StoreRating;
 import com.henheang.hphsar.model.rating.StoreRatingRequest;
 import com.henheang.hphsar.model.store.Store;
 import com.henheang.hphsar.model.store.StoreRequest;
-import com.henheang.hphsar.model.store.StoreRetailer;
+import com.henheang.hphsar.model.store.StoreBuyer;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -28,7 +28,7 @@ public interface StoreRepository {
 
     Store getUserStore(Integer currentUserId);
 
-    List<StoreRetailer> getAllStore();
+    List<StoreBuyer> getAllStore();
 
     List<String> getAdditionalPhone(Integer storeId);
 
@@ -46,7 +46,7 @@ public interface StoreRepository {
 
     Boolean checkIfStoreExist(Integer storeId);
 
-    StoreRetailer getStoreById(Integer id);
+    StoreBuyer getStoreById(Integer id);
 
     String bookmarkStoreById(Integer storeId, Integer currentUser);
 
@@ -72,27 +72,27 @@ public interface StoreRepository {
 
     Category getCategoryByCategoryId(Integer id);
 
-    List<StoreRetailer> getAllUserStoreSortByDateASC(Integer pageNumber, Integer pageSize);
+    List<StoreBuyer> getAllUserStoreSortByDateASC(Integer pageNumber, Integer pageSize);
 
-    List<StoreRetailer> getAllUserStoreSortByDateDESC(Integer pageNumber, Integer pageSize);
+    List<StoreBuyer> getAllUserStoreSortByDateDESC(Integer pageNumber, Integer pageSize);
 
     Integer getTotalStores();
 
-    Integer getTotalRatedStores(Integer retailerId);
+    Integer getTotalRatedStores(Integer buyerId);
 
-    List<StoreRetailer> getAllUserStoreSortByCurrentUserFavoriteDESC(Integer pageNumber, Integer pageSize, Integer currentUser);
+    List<StoreBuyer> getAllUserStoreSortByCurrentUserFavoriteDESC(Integer pageNumber, Integer pageSize, Integer currentUser);
 
-    List<StoreRetailer> getAllBookmarkedStore(Integer pageNumber, Integer pageSize, Integer currentUser);
+    List<StoreBuyer> getAllBookmarkedStore(Integer pageNumber, Integer pageSize, Integer currentUser);
 
-    List<StoreRetailer> searchStoreByName(Integer pageNumber, Integer pageSize, String name);
+    List<StoreBuyer> searchStoreByName(Integer pageNumber, Integer pageSize, String name);
 
-    List<StoreRetailer> getAllUserStoreSortByRatedStarASC(Integer pageNumber, Integer pageSize);
+    List<StoreBuyer> getAllUserStoreSortByRatedStarASC(Integer pageNumber, Integer pageSize);
 
-    List<StoreRetailer> getAllUserStoreSortByRatedStarDESC(Integer pageNumber, Integer pageSize);
+    List<StoreBuyer> getAllUserStoreSortByRatedStarDESC(Integer pageNumber, Integer pageSize);
 
-    List<StoreRetailer> getAllUserStoreSortByNameASC(Integer pageNumber, Integer pageSize);
+    List<StoreBuyer> getAllUserStoreSortByNameASC(Integer pageNumber, Integer pageSize);
 
-    List<StoreRetailer> getAllUserStoreSortByNameDESC(Integer pageNumber, Integer pageSize);
+    List<StoreBuyer> getAllUserStoreSortByNameDESC(Integer pageNumber, Integer pageSize);
 
     Integer getStoreIdByProductId(Integer productId);
 
@@ -102,7 +102,7 @@ public interface StoreRepository {
 
     void deleteAdditionalPhone(Integer storeId);
 
-    Integer getTotalBookmarkedStores(Integer retailerId);
+    Integer getTotalBookmarkedStores(Integer buyerId);
 
     String getStoreImageByStoreId(Integer id);
 
@@ -118,25 +118,25 @@ public interface StoreRepository {
 
     List<Integer> checkStock(Integer orderId);
 
-    List<StoreRetailer> getStoresByCategorySearchASC(String name, String by);
+    List<StoreBuyer> getStoresByCategorySearchASC(String name, String by);
 
-    List<StoreRetailer> getStoresByCategorySearchDESC(String name, String by);
+    List<StoreBuyer> getStoresByCategorySearchDESC(String name, String by);
 
     List<Integer> getStoreIdsByCategorySearchASC(String name, String by);
 
     List<Integer> getStoreIdsByCategorySearchDESC(String name, String by);
 
-    List<StoreRetailer> getStoresByProductSearchASC(String name, String by);
+    List<StoreBuyer> getStoresByProductSearchASC(String name, String by);
 
-    List<StoreRetailer> getStoresByProductSearchDESC(String name, String by);
+    List<StoreBuyer> getStoresByProductSearchDESC(String name, String by);
 
     List<Integer> getStoreIdByProductSearchASC(String name, String by);
 
     List<Integer> getStoreIdByProductSearchDESC(String name, String by);
 
-    List<StoreRetailer> getStoresByNameSearchASC(String name, String by);
+    List<StoreBuyer> getStoresByNameSearchASC(String name, String by);
 
-    List<StoreRetailer> getStoresByNameSearchDESC(String name, String by);
+    List<StoreBuyer> getStoresByNameSearchDESC(String name, String by);
 
     List<Integer> getStoresIdByNameSearchASC(String name, String by);
 
@@ -148,9 +148,9 @@ public interface StoreRepository {
 
     String getStoreEmailByStoreId(Integer id);
 
-    List<StoreRetailer> getStoresByStoreIdsASC(String combinedList);
+    List<StoreBuyer> getStoresByStoreIdsASC(String combinedList);
 
-    List<StoreRetailer> getStoresByStoreIdsDESC(String combinedList);
+    List<StoreBuyer> getStoresByStoreIdsDESC(String combinedList);
 
     Integer getStoreIdByDraftId(Integer id);
 }

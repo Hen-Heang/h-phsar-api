@@ -18,53 +18,53 @@ public class WebViewController {
         return "auth/register";
     }
 
-    @GetMapping("/distributor/dashboard")
-    public String distributorDashboard() {
-        return "distributor/dashboard";
+    @GetMapping("/suppliers/dashboard")
+    public String supplierDashboard() {
+        return "supplier/dashboard";
     }
 
-    @GetMapping("/distributor/products")
-    public String distributorProducts() {
-        return "distributor/products";
+    @GetMapping("/suppliers/products")
+    public String supplierProducts() {
+        return "supplier/products";
     }
 
-    @GetMapping("/distributor/orders")
-    public String distributorOrders() {
-        return "distributor/orders";
+    @GetMapping("/suppliers/orders")
+    public String supplierOrders() {
+        return "supplier/orders";
     }
 
-    @GetMapping("/distributor/categories")
-    public String distributorCategories() {
-        return "distributor/categories";
+    @GetMapping("/suppliers/categories")
+    public String supplierCategories() {
+        return "supplier/categories";
     }
 
-    @GetMapping("/distributor/store")
-    public String distributorStore() {
-        return "distributor/store";
+    @GetMapping("/suppliers/store")
+    public String supplierStore() {
+        return "supplier/store";
     }
 
-    @GetMapping("/distributor/profile")
-    public String distributorProfile() {
-        return "distributor/profile";
+    @GetMapping("/suppliers/profile")
+    public String supplierProfile() {
+        return "supplier/profile";
     }
 
-    // ─── Retailer ───────────────────────────────────────────────────────────────
+    // ─── Buyer ───────────────────────────────────────────────────────────────
 
-    @GetMapping("/retailer/dashboard")
-    public String retailerDashboard() { return "retailer/dashboard"; }
+    @GetMapping("/buyers/dashboard")
+    public String buyerDashboard() { return "buyer/dashboard"; }
 
-    @GetMapping("/retailer/stores")
-    public String retailerStores() { return "retailer/stores"; }
+    @GetMapping("/buyers/stores")
+    public String buyerStores() { return "buyer/stores"; }
 
-    @GetMapping("/retailer/cart")
-    public String retailerCart() { return "retailer/cart"; }
+    @GetMapping("/buyers/cart")
+    public String buyerCart() { return "buyer/cart"; }
 
-    @GetMapping("/retailer/orders")
-    public String retailerOrders() { return "retailer/orders"; }
+    @GetMapping("/buyers/orders")
+    public String buyerOrders() { return "buyer/orders"; }
 
-    @GetMapping("/retailer/history")
-    public String retailerHistory() { return "retailer/history"; }
+    @GetMapping("/buyers/history")
+    public String buyerHistory() { return "buyer/history"; }
 
-    @GetMapping("/retailer/profile")
-    public String retailerProfile() { return "retailer/profile"; }
+    @GetMapping("/buyers/profile")
+    public String buyerProfile() { return "buyer/profile"; }
 }

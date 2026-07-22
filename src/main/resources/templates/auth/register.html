@@ -16,7 +16,7 @@
         H
       </div>
       <h1 class="login-title">Create your account</h1>
-      <p class="login-subtitle">Join H-Phsar as a Distributor or Retailer</p>
+      <p class="login-subtitle">Join H-Phsar as a Supplier or Buyer</p>
     </div>
 
     <!-- Step indicator -->
@@ -69,17 +69,17 @@
       <p class="fw-semibold mb-3" style="font-size:15px;">Step 2 — Select Your Role</p>
       <div class="row g-3 mb-4">
         <div class="col-6">
-          <div class="role-card" id="role-dist" onclick="selectRole(1)">
+          <div class="role-card" id="role-supplier" onclick="selectRole(1)">
             <div style="font-size:36px;margin-bottom:10px;">🚛</div>
-            <div class="fw-bold mb-1">Distributor</div>
-            <div style="font-size:12px;color:#6b7280;">Sell products wholesale to retailers</div>
+            <div class="fw-bold mb-1">Supplier</div>
+            <div style="font-size:12px;color:#6b7280;">Sell products wholesale to buyers</div>
           </div>
         </div>
         <div class="col-6">
-          <div class="role-card" id="role-ret" onclick="selectRole(2)">
+          <div class="role-card" id="role-buyer" onclick="selectRole(2)">
             <div style="font-size:36px;margin-bottom:10px;">🏪</div>
-            <div class="fw-bold mb-1">Retailer</div>
-            <div style="font-size:12px;color:#6b7280;">Browse and order from distributors</div>
+            <div class="fw-bold mb-1">Buyer</div>
+            <div style="font-size:12px;color:#6b7280;">Browse and order from suppliers</div>
           </div>
         </div>
       </div>
@@ -149,7 +149,7 @@
     <div style="text-align:center;color:rgba(255,255,255,0.85);max-width:400px;">
       <div style="font-size:90px;margin-bottom:24px;">🤝</div>
       <h2 style="font-size:26px;font-weight:700;margin-bottom:12px;">
-        Connect Distributors<br/>with Retailers
+        Connect Suppliers<br/>with Buyers
       </h2>
       <p style="font-size:15px;opacity:0.7;line-height:1.6;">
         H-Phsar makes wholesale operations seamless — manage products, orders, and your network all in one platform.
@@ -157,7 +157,7 @@
       <div style="display:flex;flex-direction:column;gap:12px;margin-top:32px;text-align:left;">
         <div style="display:flex;align-items:center;gap:12px;background:rgba(255,255,255,0.1);padding:12px 16px;border-radius:10px;">
           <span style="font-size:22px;">✅</span>
-          <span style="font-size:14px;">Free to register as Distributor or Retailer</span>
+          <span style="font-size:14px;">Free to register as Supplier or Buyer</span>
         </div>
         <div style="display:flex;align-items:center;gap:12px;background:rgba(255,255,255,0.1);padding:12px 16px;border-radius:10px;">
           <span style="font-size:22px;">🔒</span>
@@ -263,8 +263,8 @@
   // ── Role selection ───────────────────────────────────────────
   function selectRole(id) {
     selectedRoleId = id;
-    document.getElementById('role-dist').classList.toggle('selected', id === 1);
-    document.getElementById('role-ret').classList.toggle('selected',  id === 2);
+    document.getElementById('role-supplier').classList.toggle('selected', id === 1);
+    document.getElementById('role-buyer').classList.toggle('selected',  id === 2);
   }
 
   // ── OTP ──────────────────────────────────────────────────────
