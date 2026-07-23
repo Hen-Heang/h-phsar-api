@@ -53,3 +53,6 @@ application-secrets.yml
 ### Uploaded / generated content ###
 uploads/
 logs/
+
+### Claude Code personal preferences ###
+CLAUDE.local.md
