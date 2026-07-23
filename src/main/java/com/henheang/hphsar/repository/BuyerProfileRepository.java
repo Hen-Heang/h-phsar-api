@@ -14,7 +14,7 @@ public interface BuyerProfileRepository {
     //get buyer info id in real time
     Integer createBuyerProfile(Integer currentUserId, @Param("re") BuyerRequest buyerRequest);
 
-    void insertAdditinalPhoneNumber(Integer buyerInfoId, String additionalPhoneNumber);
+    void insertAdditionalPhoneNumber(Integer buyerInfoId, String additionalPhoneNumber);
 
     Buyer getBuyerProfile(Integer currentUserId);
 

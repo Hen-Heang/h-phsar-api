@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!--
+    WHAT IS THIS FILE?
+    ══════════════════
+    XML Mapper for OrderStatusHistoryRepository — the append-only audit trail
+    for order status changes (Step 3C). Rows are never updated or deleted by
+    the application.
+-->
+
+<mapper namespace="com.henheang.hphsar.repository.OrderStatusHistoryRepository">
+
+    <resultMap id="OrderStatusHistoryResultMap" type="com.henheang.hphsar.model.order.OrderStatusHistory">
+        <id     property="id"                 column="id"/>
+        <result property="orderId"             column="orderId"/>
+        <result property="previousStatus"      column="previousStatus"/>
+        <result property="newStatus"           column="newStatus"/>
+        <result property="changedByAccountId"  column="changedByAccountId"/>
+        <result property="changedByRole"       column="changedByRole"/>
+        <result property="reason"              column="reason"/>
+        <result property="changedAt"           column="changedAt"/>
+    </resultMap>
+
+    <!-- previousStatus may be NULL (Java null) — the very first status a fresh
+         cart is created with has no "previous" status. The subquery correctly
+         yields NULL for a NULL name, so no special-casing is needed. -->
+    <insert id="insertStatusHistory">
+        INSERT INTO tb_order_status_history
+            (order_id, previous_status_id, new_status_id, changed_by_account_id, changed_by_role, reason)
+        VALUES (
+            #{orderId},
+            (SELECT id FROM tb_status WHERE name = #{previousStatus}),
+            (SELECT id FROM tb_status WHERE name = #{newStatus}),
+            #{changedByAccountId},
+            #{changedByRole},
+            #{reason}
+        )
+    </insert>
+
+    <select id="findByOrderId" resultMap="OrderStatusHistoryResultMap">
+        SELECT h.id                     AS id,
+               h.order_id               AS orderId,
+               ps.name                  AS previousStatus,
+               ns.name                  AS newStatus,
+               h.changed_by_account_id  AS changedByAccountId,
+               h.changed_by_role        AS changedByRole,
+               h.reason                 AS reason,
+               h.changed_at             AS changedAt
+        FROM tb_order_status_history h
+                 LEFT JOIN tb_status ps ON h.previous_status_id = ps.id
+                 JOIN tb_status ns ON h.new_status_id = ns.id
+        WHERE h.order_id = #{orderId}
+        ORDER BY h.changed_at ASC, h.id ASC
+    </select>
+
+</mapper>

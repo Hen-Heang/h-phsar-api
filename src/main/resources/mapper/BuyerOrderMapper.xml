@@ -142,9 +142,14 @@
                       WHERE store_id = #{storeId} AND buyer_account_id = #{buyerId} AND status_id = 9)
     </select>
 
+    <!-- Step 3C fix: added "AND id != #{excludeOrderId}" — without it, this always
+         matched the draft being submitted against itself (its own status is one of
+         the ones being checked for), so submitting ANY draft always hit this
+         "conflict", making draft submission permanently unreachable. -->
     <select id="checkForCartOrPending" resultType="boolean">
         SELECT EXISTS(SELECT * FROM tb_order
-                      WHERE store_id = #{storeId} AND buyer_account_id = #{buyerId} AND status_id IN (8, 9))
+                      WHERE store_id = #{storeId} AND buyer_account_id = #{buyerId} AND status_id IN (8, 9)
+                        AND id != #{excludeOrderId})
     </select>
 
     <select id="createCart" resultType="int">
@@ -260,60 +265,51 @@
         DELETE FROM tb_order WHERE id = #{orderId} AND status_id = 9 RETURNING 1
     </select>
 
-    <select id="saveToDraft" resultType="String">
-        UPDATE tb_order SET status_id = 8 WHERE id = #{orderId} RETURNING 1
-    </select>
-
-    <select id="confirmOrder" resultType="String">
-        UPDATE tb_order SET status_id = 1 WHERE id = #{orderId} RETURNING 1
-    </select>
-
     <!-- ═══════════════════════════════════════════════════════════════════════
          ORDER ACTIVITIES (buyer's order list)
          ═══════════════════════════════════════════════════════════════════════
-         status_id IN (1,2,3,4,5,6) → all active and completed/rejected orders
+         Step 3C status ids: 1=PENDING, 2=PROCESSING, 3=DISPATCHED, 6=COMPLETED,
+         7=CANCELLED, 10=REJECTED — every state after submission. ids 4/5 retired.
     -->
 
     <select id="getUserOrderActivities" resultMap="OrderResultMap">
         <include refid="selectOrderBase"/>
-        WHERE buyer_account_id = #{buyerId} AND status_id IN (1, 2, 3, 4, 5, 6)
+        WHERE buyer_account_id = #{buyerId} AND status_id IN (1, 2, 3, 6, 7, 10)
         <include refid="orderByDate"/>
         <include refid="paginate"/>
     </select>
 
     <select id="getTotalOrder" resultType="int">
         SELECT count(*) FROM tb_order
-        WHERE buyer_account_id = #{buyerId} AND status_id IN (1, 2, 3, 4, 5, 6)
+        WHERE buyer_account_id = #{buyerId} AND status_id IN (1, 2, 3, 6, 7, 10)
     </select>
 
     <!-- ─── ORDER STATUS CHECKS ───────────────────────────────────────────────── -->
 
-    <select id="orderIsConfirming" resultType="boolean">
-        SELECT EXISTS(SELECT * FROM tb_order WHERE id = #{id} AND status_id = 4)
-    </select>
-
     <select id="checkOrderExist" resultType="boolean">
-        SELECT EXISTS(SELECT * FROM tb_order WHERE id = #{id} AND status_id IN (1, 2, 3, 4, 5, 6))
+        SELECT EXISTS(SELECT * FROM tb_order WHERE id = #{id} AND status_id IN (1, 2, 3, 6, 7, 10))
     </select>
 
     <!-- Ownership-scoped existence check — prevents one buyer from acting on another buyer's order (IDOR fix). -->
     <select id="checkOrderExistForBuyer" resultType="boolean">
         SELECT EXISTS(SELECT * FROM tb_order
-                      WHERE id = #{id} AND buyer_account_id = #{buyerId} AND status_id IN (1, 2, 3, 4, 5, 6))
+                      WHERE id = #{id} AND buyer_account_id = #{buyerId} AND status_id IN (1, 2, 3, 6, 7, 10))
     </select>
 
+    <!-- Same ownership scoping, restricted to the buyer-cancellable states (1=PENDING, 8=DRAFT). -->
+    <select id="checkOrderExistForBuyerCancellable" resultType="boolean">
+        SELECT EXISTS(SELECT * FROM tb_order
+                      WHERE id = #{id} AND buyer_account_id = #{buyerId} AND status_id IN (1, 8))
+    </select>
+
+    <!-- Fixed (Step 3C): was status_id = 5, a dead id nothing ever wrote — the
+         invoice view was permanently unreachable. COMPLETED is id 6. -->
     <select id="checkOrderIsComplete" resultType="boolean">
-        SELECT EXISTS(SELECT * FROM tb_order WHERE id = #{id} AND status_id = 5)
+        SELECT EXISTS(SELECT * FROM tb_order WHERE id = #{id} AND status_id = 6)
     </select>
 
     <select id="checkForDispatchingOrder" resultType="boolean">
         SELECT EXISTS(SELECT * FROM tb_order WHERE buyer_account_id = #{currentUserId} AND status_id = 3 AND id = #{id})
-    </select>
-
-    <!-- ─── CONFIRM TRANSACTION (buyer confirms delivery) ─────────────────── -->
-
-    <select id="confirmTransaction" resultType="String">
-        UPDATE tb_order SET status_id = 5 WHERE id = #{id} RETURNING 1
     </select>
 
     <!-- ─── DELETE ORDER / DETAILS ────────────────────────────────────────────── -->

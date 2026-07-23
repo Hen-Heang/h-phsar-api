@@ -371,9 +371,16 @@ tb_role
               └──► tb_bookmark
 
 tb_status ──► tb_order
+tb_status ──► tb_order_status_history (previous_status_id, new_status_id)
+tb_order ──► tb_order_status_history
 tb_notification_type ──► tb_supplier_notification
 tb_notification_type ──► tb_buyer_notification
 ```
+
+`tb_order_status_history` (Step 3C, append-only audit trail) and the current
+tb_status id/name mapping are documented in full in
+[`docs/ORDER_WORKFLOW.md`](ORDER_WORKFLOW.md) — that is the source of truth
+for order-status meanings; treat any status names here as illustrative only.
 
 ---
 

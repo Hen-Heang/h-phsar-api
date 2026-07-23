@@ -18,6 +18,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Objects;
 import java.util.regex.Matcher;
@@ -212,6 +213,7 @@ public class JwtUserDetailsServiceImpl implements UserDetailsService, JwtUserDet
      *   5. FIX 1: Return success message only (no plain text password in response)
      */
     @Override
+    @Transactional
     public String forgetPassword(Integer otp, String email, String newPassword) {
 
         // Step 1: Find user and their latest OTP

@@ -13,7 +13,7 @@ import org.apache.ibatis.annotations.Param;
  * This interface only declares method signatures.
  * MyBatis matches each method here to a SQL block in OtpMapper.xml
  * using the method name as the id.
- *
+ * <p>
  * Example:
  *   Java:  Otp getSupplierOtpByEmail(String email)
  *   XML:   <select id="getSupplierOtpByEmail" ...>SELECT ...</select>

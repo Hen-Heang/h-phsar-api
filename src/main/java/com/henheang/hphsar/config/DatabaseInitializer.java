@@ -1,6 +1,7 @@
 package com.henheang.hphsar.config;
 
 import jakarta.annotation.PostConstruct;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
@@ -32,7 +33,12 @@ import org.springframework.stereotype.Component;
  *   - tb_buyer_otp: stores OTP codes sent to buyers
  *   - tb_store.is_active: adds a soft-delete column if missing
  *   - tb_store.phone: adds phone column if missing
+ *   - tb_store_product_detail.qty: enforced NOT NULL + CHECK (qty >= 0) (Step 3B —
+ *     defense in depth behind the atomic guarded UPDATE that's the real concurrency fix)
+ *   - tb_order_detail: UNIQUE(order_id, store_product_id) when no existing violation,
+ *     plus an index on order_id used by stock deduction during order acceptance
  */
+@Slf4j
 @Component
 public class DatabaseInitializer {
 
@@ -220,6 +226,221 @@ public class DatabaseInitializer {
         // Keep the role labels in sync with the new terminology (roleId values are unchanged: 1, 2)
         jdbcTemplate.execute("UPDATE tb_role SET name = 'SUPPLIER' WHERE id = 1;");
         jdbcTemplate.execute("UPDATE tb_role SET name = 'BUYER' WHERE id = 2;");
+
+        enforceStoreProductQtyInvariant();
+        enforceOrderDetailUniqueness();
+        addOrderDetailOrderIdIndex();
+
+        migrateOrderLifecycleStatuses();
+        createOrderStatusHistoryTable();
+    }
+
+    /**
+     * STEP 3C — order lifecycle status correction.
+     * <p>
+     * The ORIGINAL seed (still in the very first jdbcTemplate.execute block
+     * below, in the class's initial rows) named the nine statuses PENDING,
+     * PROCESSING, CONFIRMED, SHIPPING, DELIVERED, COMPLETED, CANCELLED,
+     * REJECTED, DRAFT for ids 1-9. Auditing every status_id reference in the
+     * mapper layer showed the CODE never agreed with those names:
+     * <p>
+     * - id 9 is used everywhere as the active, editable CART (checkForCart,
+     *   createCart, cancelCart, isCartExist, ...), not "DRAFT".
+     * - id 8 is used as the saved DRAFT (saveToDraft, submitDraftByIdAndBuyerId,
+     *   existsDraftByIdAndBuyerId, ...) in most places — but SupplierOrderMapper's
+     *   declinePendingOrder ALSO writes id 8 to mean "supplier rejected this
+     *   order". Two unrelated terminal/non-terminal meanings sharing one id is
+     *   the single most severe finding of the audit: a rejected order and a
+     *   saved draft were indistinguishable by status_id alone.
+     * - id 3 is used as DISPATCHED (finishPreparing writes it, getDispatchingOrders
+     *   reads it), not "CONFIRMED".
+     * - ids 4 (SHIPPING) and 5 (DELIVERED) are read by several precondition/report
+     *   queries but NO code path ever writes them — status_id 4 and 5 are dead,
+     *   unreachable states. (One concrete downstream bug this caused: buyer's
+     *   confirmTransaction() required status 4 to proceed, which could never be
+     *   true, making that endpoint — and the invoice view gated on status 5 —
+     *   permanently unreachable.)
+     * <p>
+     * This method (a) splits the id-8 collision by moving genuinely-rejected
+     * orders to a new id 10 = REJECTED, using evidence already in the
+     * database (a rejected order always has a "Order Declined" (type_id=5)
+     * buyer notification — saved drafts never generate any notification at
+     * all), and (b) renames ids 3/8/9 to match what the code has always
+     * actually done with them. ids 4/5 are left alone (orphaned/unused) rather
+     * than reused, since any pre-existing row sitting on those unreachable
+     * ids deserves a human look, not a guess.
+     * <p>
+     * Every step is guarded to be a no-op on the next boot. Transitional
+     * technical debt — see the class Javadoc on why this isn't a Flyway
+     * migration yet.
+     */
+    private void migrateOrderLifecycleStatuses() {
+        // Order matters: tb_status.name is UNIQUE, so each rename must free up
+        // its target name before another row claims it, and the id-8 split
+        // must happen before the old "REJECTED" name is reused for id 10.
+
+        // 1) Free "DRAFT" (currently on id 9) by renaming id 9 to its real meaning, CART.
+        jdbcTemplate.execute("UPDATE tb_status SET name = 'CART' WHERE id = 9 AND name = 'DRAFT';");
+
+        // 2) Now safe: rename id 8 from "REJECTED" to its dominant real meaning, DRAFT.
+        //    This also frees the "REJECTED" name for step 4.
+        jdbcTemplate.execute("UPDATE tb_status SET name = 'DRAFT' WHERE id = 8 AND name = 'REJECTED';");
+
+        // 3) Independent rename: id 3 "CONFIRMED" -> DISPATCHED.
+        jdbcTemplate.execute("UPDATE tb_status SET name = 'DISPATCHED' WHERE id = 3 AND name = 'CONFIRMED';");
+
+        // 4) Introduce the dedicated REJECTED id, now that the name is free.
+        jdbcTemplate.execute("INSERT INTO tb_status (id, name) VALUES (10, 'REJECTED') ON CONFLICT (id) DO NOTHING;");
+
+        // 5) Split the id-8 collision: move truly-rejected orders to the new id.
+        //    Evidence: declinePendingOrder is the ONLY code path that ever creates
+        //    a buyer notification of type_id 5 ("Order Declined"); saveToDraft
+        //    creates no notification at all. Presence of that notification is
+        //    reliable proof this order was rejected, not saved as a draft.
+        Integer rejectedToMigrate = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*) FROM tb_order o
+                WHERE o.status_id = 8
+                  AND EXISTS (SELECT 1 FROM tb_buyer_notification n
+                              WHERE n.order_id = o.id AND n.type_id = 5)
+                """, Integer.class);
+        Integer remainingAsDraft = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*) FROM tb_order o
+                WHERE o.status_id = 8
+                  AND NOT EXISTS (SELECT 1 FROM tb_buyer_notification n
+                                  WHERE n.order_id = o.id AND n.type_id = 5)
+                """, Integer.class);
+        if (rejectedToMigrate != null && rejectedToMigrate > 0) {
+            log.warn("Order lifecycle migration: moving {} order(s) with status_id=8 to the new " +
+                    "REJECTED id=10 (evidence: an 'Order Declined' notification exists for each). " +
+                    "{} other order(s) remain classified as DRAFT (no such notification found).",
+                    rejectedToMigrate, remainingAsDraft);
+        }
+        jdbcTemplate.execute("""
+                UPDATE tb_order o
+                SET status_id = 10
+                WHERE o.status_id = 8
+                  AND EXISTS (SELECT 1 FROM tb_buyer_notification n
+                              WHERE n.order_id = o.id AND n.type_id = 5);
+                """);
+    }
+
+    /**
+     * STEP 3C — append-only order status history (audit trail). Every status
+     * change from now on is recorded by OrderStatusServiceImpl; nothing else
+     * writes to this table. changed_by_account_id intentionally has no foreign
+     * key: suppliers and buyers live in two separate account tables, and one
+     * FK can't conditionally point at either without the unified-account
+     * redesign, which is out of scope here (Option A from the audit — the
+     * lowest-migration-risk choice).
+     */
+    private void createOrderStatusHistoryTable() {
+        jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS tb_order_status_history (
+                    id                    SERIAL PRIMARY KEY,
+                    order_id              INTEGER NOT NULL REFERENCES tb_order(id) ON DELETE CASCADE,
+                    previous_status_id    INTEGER REFERENCES tb_status(id),
+                    new_status_id         INTEGER NOT NULL REFERENCES tb_status(id),
+                    changed_by_account_id INTEGER,
+                    changed_by_role       VARCHAR(30) NOT NULL,
+                    reason                VARCHAR(500),
+                    changed_at            TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                );
+                """);
+        jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_order_status_history_order_id ON tb_order_status_history(order_id);");
+        jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_order_status_history_changed_at ON tb_order_status_history(changed_at);");
+        // Supported by real query patterns: nearly every order listing/count query
+        // filters by status_id (getPendingOrders, getDispatchingOrders, dashboard
+        // counts, buyer/supplier history, ...).
+        jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_order_status ON tb_order(status_id);");
+    }
+
+    /**
+     * STEP 3B — non-negative/non-null stock invariant.
+     * <p>
+     * This is defense in depth, not the concurrency fix itself: the atomic
+     * guarded UPDATE in SupplierOrderRepository#deductStockIfAvailable is what
+     * actually prevents overselling. This CHECK constraint only guarantees the
+     * column can never end up negative/null through any OTHER write path
+     * (including ones added later by mistake).
+     * <p>
+     * Transitional technical debt: this belongs in a proper Flyway migration.
+     * It lives here, guarded and idempotent, only because Flyway isn't wired up
+     * yet in this project (see class Javadoc) — do not treat this as the
+     * long-term home for schema changes.
+     */
+    private void enforceStoreProductQtyInvariant() {
+        Integer invalidRows = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*) FROM tb_store_product_detail WHERE qty IS NULL OR qty < 0
+                """, Integer.class);
+        if (invalidRows != null && invalidRows > 0) {
+            // Not a silent conversion: negative/null qty is already an invalid,
+            // corrupt state under the app's model (qty represents available units).
+            // Clamping to 0 is the safest recovery, and it's logged so operators
+            // can investigate how it happened.
+            log.warn("Normalizing {} tb_store_product_detail row(s) with NULL/negative qty to 0 " +
+                    "before enforcing the non-negative stock constraint.", invalidRows);
+            jdbcTemplate.execute("UPDATE tb_store_product_detail SET qty = 0 WHERE qty IS NULL OR qty < 0;");
+        }
+
+        jdbcTemplate.execute("ALTER TABLE tb_store_product_detail ALTER COLUMN qty SET DEFAULT 0;");
+        jdbcTemplate.execute("ALTER TABLE tb_store_product_detail ALTER COLUMN qty SET NOT NULL;");
+
+        Boolean checkConstraintExists = jdbcTemplate.queryForObject("""
+                SELECT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_store_product_qty_non_negative')
+                """, Boolean.class);
+        if (Boolean.FALSE.equals(checkConstraintExists)) {
+            jdbcTemplate.execute("""
+                    ALTER TABLE tb_store_product_detail
+                    ADD CONSTRAINT chk_store_product_qty_non_negative CHECK (qty >= 0);
+                    """);
+        }
+    }
+
+    /**
+     * STEP 3B — one order should not carry two separate line items for the same
+     * store-specific product. Only added when no existing data already violates
+     * it — this project has never had a way to create such duplicates through
+     * normal use (the cart flow checks productIsInCart before insert-vs-update),
+     * but we don't assume the database is clean. If a violation is found, the
+     * constraint is skipped (not force-applied) and logged for manual cleanup.
+     */
+    private void enforceOrderDetailUniqueness() {
+        Boolean constraintExists = jdbcTemplate.queryForObject("""
+                SELECT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uq_order_detail_order_store_product')
+                """, Boolean.class);
+        if (Boolean.TRUE.equals(constraintExists)) {
+            return;
+        }
+
+        Integer duplicateGroups = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*) FROM (
+                    SELECT order_id, store_product_id
+                    FROM tb_order_detail
+                    GROUP BY order_id, store_product_id
+                    HAVING COUNT(*) > 1
+                ) dup
+                """, Integer.class);
+        if (duplicateGroups != null && duplicateGroups > 0) {
+            log.warn("Skipping UNIQUE(order_id, store_product_id) on tb_order_detail: {} existing " +
+                    "duplicate group(s) found. Resolve manually, then this constraint will apply on next boot.",
+                    duplicateGroups);
+            return;
+        }
+
+        jdbcTemplate.execute("""
+                ALTER TABLE tb_order_detail
+                ADD CONSTRAINT uq_order_detail_order_store_product UNIQUE (order_id, store_product_id);
+                """);
+    }
+
+    /**
+     * STEP 3B — order acceptance reads every line item for an order
+     * (tb_order_detail.order_id) inside the transaction that also holds the
+     * per-item stock-deduction locks; an unindexed scan here directly extends
+     * that critical section. Postgres does not auto-index foreign key columns.
+     */
+    private void addOrderDetailOrderIdIndex() {
+        jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_order_detail_order_id ON tb_order_detail (order_id);");
     }
 
     /**

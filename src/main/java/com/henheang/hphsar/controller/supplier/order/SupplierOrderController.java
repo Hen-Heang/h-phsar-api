@@ -219,4 +219,16 @@ public class SupplierOrderController extends BaseController {
                 supplierOrderService.findTotalPage(supplierOrderService.getTotalCompleteOrder(storeId), pageSize)
         );
     }
+
+    @Operation(summary = "Get order status history")
+    @GetMapping("/{orderId}/history")
+    public ResponseEntity<?> getOrderHistory(@PathVariable Integer orderId) {
+        if (orderId > 2147483646) {
+            throw new BadRequestException("Integer value can not exceed 2147483646");
+        }
+        AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        Integer currentUserId = appUser.getId();
+        Integer storeId = storeRepository.getStoreIdByUserId(currentUserId);
+        return ok("Fetched order history.", supplierOrderService.getOrderHistory(orderId, storeId));
+    }
 }

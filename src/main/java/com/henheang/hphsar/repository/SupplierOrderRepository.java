@@ -3,8 +3,10 @@ package com.henheang.hphsar.repository;
 import com.henheang.hphsar.model.invoice.Invoice;
 import com.henheang.hphsar.model.order.Order;
 import com.henheang.hphsar.model.order.OrderDetail;
+import com.henheang.hphsar.model.order.OrderStockLine;
 import com.henheang.hphsar.model.product.ProductOrder;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
 
@@ -43,17 +45,9 @@ public interface SupplierOrderRepository {
 
     Boolean checkForPendingOrder(Integer orderId);
 
-    String acceptPendingOrder(Integer orderId);
-
-    String declinePendingOrder(Integer orderId);
-
     Boolean checkForPreparingOrder(Integer orderId);
 
-    String finishPreparing(Integer orderId);
-
     Boolean checkForDispatchOrder(Integer orderId);
-
-    String orderDelivered(Integer orderId);
 
     OrderDetail getOrderDetailsByOrderId(Integer id);
 
@@ -71,9 +65,20 @@ public interface SupplierOrderRepository {
 
     Integer getProductDetailCount(Integer orderId);
 
-    void deductStock(Integer orderId, Integer productId, Integer storeId);
+    /**
+     * The line items (store-specific inventory row + requested qty) that must be
+     * deducted when this order is accepted.
+     */
+    List<OrderStockLine> getOrderStockLines(Integer orderId);
 
-    List<Integer> getAllProductIdFromProductDetails(Integer orderId);
+    /**
+     * Authoritative, concurrency-safe stock deduction: one atomic guarded UPDATE.
+     * The WHERE clause re-checks {@code qty >= quantity} at the moment of the write,
+     * so the database — not a prior Java-side read — decides whether the deduction
+     * is allowed. Returns the affected-row count: 1 = deducted, 0 = insufficient
+     * stock (or the row no longer exists).
+     */
+    int deductStockIfAvailable(@Param("storeProductId") Integer storeProductId, @Param("quantity") Integer quantity);
 
     Integer getSupplierIdByOrderId(Integer cartId);
 }

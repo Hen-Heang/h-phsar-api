@@ -9,6 +9,7 @@ import com.henheang.hphsar.model.PaginationApiResponse;
 import com.henheang.hphsar.model.invoice.Invoice;
 import com.henheang.hphsar.model.order.Order;
 import com.henheang.hphsar.model.order.OrderDetail;
+import com.henheang.hphsar.model.order.OrderStatusHistory;
 import com.henheang.hphsar.model.product.ProductOrder;
 import com.henheang.hphsar.service.BuyerOrderService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -216,6 +217,36 @@ public class BuyerOrderController {
                 .status(HttpStatus.OK.value())
                 .message("Fetch invoice successfully.")
                 .data(buyerOrderService.viewInvoiceByOrderId(id))
+                .date(formatter.format(new Date()))
+                .build();
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(summary = "Cancel a draft or not-yet-accepted pending order")
+    @PostMapping("/{id}/cancel")
+    public ResponseEntity<?> cancelOrder(@PathVariable Integer id) {
+        if (id > 2147483646){
+            throw new BadRequestException("Integer value can not exceed 2147483646");
+        }
+        ApiResponse<String> response = ApiResponse.<String>builder()
+                .status(HttpStatus.OK.value())
+                .message("Order cancelled.")
+                .data(buyerOrderService.cancelOrder(id))
+                .date(formatter.format(new Date()))
+                .build();
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(summary = "Get order status history")
+    @GetMapping("/{id}/history")
+    public ResponseEntity<?> getOrderHistory(@PathVariable Integer id) {
+        if (id > 2147483646){
+            throw new BadRequestException("Integer value can not exceed 2147483646");
+        }
+        ApiResponse<List<OrderStatusHistory>> response = ApiResponse.<List<OrderStatusHistory>>builder()
+                .status(HttpStatus.OK.value())
+                .message("Fetched order history successfully.")
+                .data(buyerOrderService.getOrderHistory(id))
                 .date(formatter.format(new Date()))
                 .build();
         return ResponseEntity.ok(response);

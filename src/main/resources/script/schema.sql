@@ -134,7 +134,7 @@ CREATE TABLE IF NOT EXISTS tb_store_product_detail (
     id           SERIAL PRIMARY KEY,
     store_id     INTEGER          NOT NULL REFERENCES tb_store   (id) ON DELETE CASCADE,
     product_id   INTEGER          NOT NULL REFERENCES tb_product (id) ON DELETE CASCADE,
-    qty          INTEGER          DEFAULT 0,
+    qty          INTEGER          NOT NULL DEFAULT 0 CHECK (qty >= 0),
     price        DOUBLE PRECISION DEFAULT 0,
     is_publish   BOOLEAN          DEFAULT FALSE,
     image        TEXT,
@@ -179,8 +179,29 @@ CREATE TABLE IF NOT EXISTS tb_order_detail (
     order_id         INTEGER          NOT NULL REFERENCES tb_order              (id) ON DELETE CASCADE,
     qty              INTEGER          NOT NULL,
     unit_price       DOUBLE PRECISION NOT NULL,
-    store_product_id INTEGER          NOT NULL REFERENCES tb_store_product_detail (id)
+    store_product_id INTEGER          NOT NULL REFERENCES tb_store_product_detail (id),
+    UNIQUE (order_id, store_product_id)
 );
+
+CREATE INDEX IF NOT EXISTS idx_order_detail_order_id ON tb_order_detail (order_id);
+CREATE INDEX IF NOT EXISTS idx_order_status ON tb_order (status_id);
+
+-- Step 3C — append-only order status history. changed_by_account_id has no FK:
+-- suppliers and buyers live in separate account tables, so a single FK can't
+-- conditionally target either (see DatabaseInitializer for the full rationale).
+CREATE TABLE IF NOT EXISTS tb_order_status_history (
+    id                    SERIAL PRIMARY KEY,
+    order_id              INTEGER NOT NULL REFERENCES tb_order(id) ON DELETE CASCADE,
+    previous_status_id    INTEGER REFERENCES tb_status(id),
+    new_status_id         INTEGER NOT NULL REFERENCES tb_status(id),
+    changed_by_account_id INTEGER,
+    changed_by_role       VARCHAR(30) NOT NULL,
+    reason                VARCHAR(500),
+    changed_at            TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_order_status_history_order_id ON tb_order_status_history (order_id);
+CREATE INDEX IF NOT EXISTS idx_order_status_history_changed_at ON tb_order_status_history (changed_at);
 
 -- ── Ratings and bookmarks ──────────────────────────────────────
 
@@ -253,16 +274,20 @@ INSERT INTO tb_role (id, name) VALUES
     (2, 'BUYER')
 ON CONFLICT (id) DO NOTHING;
 
+-- Step 3C order lifecycle (see DatabaseInitializer#migrateOrderLifecycleStatuses
+-- for the full audit trail of why these ids/names are what they are — in short,
+-- they match what the mapper layer has always actually done with each id, not
+-- the original, drifted seed names). ids 4/5 (formerly SHIPPING/DELIVERED) are
+-- retired: no code path ever wrote them, so a fresh schema doesn't seed them.
 INSERT INTO tb_status (id, name) VALUES
     (1, 'PENDING'),
     (2, 'PROCESSING'),
-    (3, 'CONFIRMED'),
-    (4, 'SHIPPING'),
-    (5, 'DELIVERED'),
+    (3, 'DISPATCHED'),
     (6, 'COMPLETED'),
     (7, 'CANCELLED'),
-    (8, 'REJECTED'),
-    (9, 'DRAFT')
+    (8, 'DRAFT'),
+    (9, 'CART'),
+    (10, 'REJECTED')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO tb_notification_type (id, name, template) VALUES

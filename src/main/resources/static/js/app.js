@@ -133,13 +133,17 @@ function formatCurrency(n) {
     if (n == null) return '—';
     return '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2 });
 }
+// Step 3C lifecycle: CART, DRAFT, PENDING, PROCESSING, DISPATCHED, COMPLETED,
+// REJECTED, CANCELLED. (CONFIRMED/SHIPPING/DELIVERED were the old, drifted
+// seed names — DISPATCHED is the one real "in transit" state; there is no
+// separate DELIVERED checkpoint, see OrderStatus's Javadoc for why.)
 function orderStatusBadge(status) {
     const map = {
+        CART:       'status-pending',
+        DRAFT:      'status-pending',
         PENDING:    'status-pending',
         PROCESSING: 'status-preparing',
-        CONFIRMED:  'status-dispatching',
-        SHIPPING:   'status-confirming',
-        DELIVERED:  'status-complete',
+        DISPATCHED: 'status-dispatching',
         COMPLETED:  'status-complete',
         REJECTED:   'status-declined',
         CANCELLED:  'status-declined',
@@ -149,11 +153,11 @@ function orderStatusBadge(status) {
 }
 function buyerStatusBadge(status) {
     const map = {
+        CART:       'status-pending',
+        DRAFT:      'status-pending',
         PENDING:    'status-pending',
         PROCESSING: 'status-preparing',
-        CONFIRMED:  'status-dispatching',
-        SHIPPING:   'status-confirming',
-        DELIVERED:  'status-confirming',
+        DISPATCHED: 'status-dispatching',
         COMPLETED:  'status-complete',
         REJECTED:   'status-declined',
         CANCELLED:  'status-declined',
@@ -170,14 +174,16 @@ function publishBadge(isPublish) {
 
 // ─── Order Timeline ───────────────────────────────────────────────
 function renderOrderTimeline(status) {
-    const statusStep = { PENDING:1, PROCESSING:2, CONFIRMED:3, SHIPPING:4, DELIVERED:5, COMPLETED:5 };
+    // Step 3C: PENDING -> PROCESSING -> DISPATCHED -> COMPLETED. No separate
+    // DELIVERED checkpoint — dispatch is the supplier's last step, and the
+    // buyer's own receipt confirmation is what completes the order.
+    const statusStep = { PENDING:1, PROCESSING:2, DISPATCHED:3, COMPLETED:4 };
     const step = statusStep[(status||'').toUpperCase()] || 1;
     const rejected = ['REJECTED','CANCELLED'].includes((status||'').toUpperCase());
     const steps = [
         { label:'Ordered',    icon:'bi-bag-check-fill' },
         { label:'Accepted',   icon:'bi-check2-circle' },
         { label:'Dispatched', icon:'bi-truck' },
-        { label:'Delivered',  icon:'bi-box-seam' },
         { label:'Complete',   icon:'bi-patch-check-fill' },
     ];
     if (rejected) {

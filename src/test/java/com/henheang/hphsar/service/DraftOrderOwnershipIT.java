@@ -174,22 +174,30 @@ class DraftOrderOwnershipIT extends AbstractIntegrationTest {
     }
 
     @Test
-    void service_updateDraftById_ownerPassesTheOwnershipGateAndReachesTheExistingConflictCheck() {
-        // HistoryServiceImplV1.updateDraftById also runs a pre-existing,
-        // unrelated conflict check (checkForCartOrPending) which — as written
-        // before this fix, and unchanged by it — matches the draft being
-        // submitted against itself (status 8 is one of the statuses it looks
-        // for), so a lone draft with no other active order always hits that
-        // conflict once ownership passes. That business-logic quirk predates
-        // this step and is out of scope to redesign here (see the final
-        // report's "unrelated findings" section). What this test proves is
-        // narrower and squarely in scope: Buyer A's OWN draft reaches that
-        // later check at all — i.e. gets past the ownership gate — while a
-        // stranger's request never does (see the two tests above, which get
-        // NotFoundException instead). That difference in *which* exception
-        // is thrown is the observable proof the ownership check is scoped
-        // correctly.
+    void service_updateDraftById_ownerPassesTheOwnershipGateAndSubmitSucceeds() throws Exception {
+        // Step 3C fix: HistoryServiceImplV1.updateDraftById's conflict check
+        // (checkForCartOrPending) used to match the draft being submitted
+        // against ITSELF (status 8 is one of the statuses it looks for), so a
+        // lone draft with no other active order always hit a spurious conflict
+        // once ownership passed — draft submission was permanently unreachable.
+        // The check now excludes the draft's own id, so Buyer A's own draft,
+        // with no other competing cart/draft/pending order, submits cleanly:
+        // DRAFT (8) -> PENDING (1). Cross-user access still gets NotFoundException
+        // (see the two tests above), proving the ownership gate is unaffected.
         loginAs(buyerA);
+
+        historyService.updateDraftById(draftAId);
+
+        assertEquals(PENDING_STATUS_ID, getOrderStatus(jdbc, draftAId));
+    }
+
+    @Test
+    void service_updateDraftById_stillConflictsWhenAnotherActiveOrderExistsInTheSameStore() {
+        // The conflict check still fires for its real purpose: a genuinely
+        // different competing cart/draft in the same store (not the draft itself).
+        loginAs(buyerA);
+        int store = jdbc.queryForObject("SELECT store_id FROM tb_order WHERE id = ?", Integer.class, draftAId);
+        insertOrder(jdbc, buyerA, store, DRAFT_STATUS_ID);
 
         assertThrows(ConflictException.class, () -> historyService.updateDraftById(draftAId));
         assertEquals(DRAFT_STATUS_ID, getOrderStatus(jdbc, draftAId));

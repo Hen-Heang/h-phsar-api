@@ -6,6 +6,7 @@ import com.henheang.hphsar.model.Cart.CartSummery;
 import com.henheang.hphsar.model.invoice.Invoice;
 import com.henheang.hphsar.model.order.Order;
 import com.henheang.hphsar.model.order.OrderDetail;
+import com.henheang.hphsar.model.order.OrderStatusHistory;
 import com.henheang.hphsar.model.product.ProductOrder;
 
 import java.text.ParseException;
@@ -42,4 +43,12 @@ public interface BuyerOrderService {
     List<CartSummery> viewAllCarts();
 
     String markOrderAsArrived(Integer id);
+
+    /**
+     * Cancels the buyer's own draft (DRAFT → CANCELLED) or not-yet-accepted
+     * pending order (PENDING → CANCELLED). Any other status is rejected.
+     */
+    String cancelOrder(Integer id);
+
+    List<OrderStatusHistory> getOrderHistory(Integer id);
 }

@@ -103,7 +103,7 @@ public class BuyerProfileServiceImpl implements BuyerProfileService {
 
         //insert additional phone number to tb_buyer_phone
         for (String additionalPhoneNumber : buyerRequest.getAdditionalPhoneNumber()) {
-            buyerProfileRepository.insertAdditinalPhoneNumber(buyerInfoId, additionalPhoneNumber);
+            buyerProfileRepository.insertAdditionalPhoneNumber(buyerInfoId, additionalPhoneNumber);
         }
 
         return buyerProfileRepository.getBuyerProfile(currentUserId);
@@ -162,12 +162,12 @@ public class BuyerProfileServiceImpl implements BuyerProfileService {
         for (String additionalPhoneNumber : buyerRequest.getAdditionalPhoneNumber()) {
             if (additionalPhoneNumber.startsWith("0")) {
                 additionalPhoneNumber = "855" + additionalPhoneNumber.substring(1);
-                buyerProfileRepository.insertAdditinalPhoneNumber(buyerInfoId, additionalPhoneNumber);
+                buyerProfileRepository.insertAdditionalPhoneNumber(buyerInfoId, additionalPhoneNumber);
             } else if (additionalPhoneNumber.isBlank()) {
-                buyerProfileRepository.insertAdditinalPhoneNumber(buyerInfoId, additionalPhoneNumber);
+                buyerProfileRepository.insertAdditionalPhoneNumber(buyerInfoId, additionalPhoneNumber);
             } else if (!(additionalPhoneNumber.startsWith("0") || additionalPhoneNumber.startsWith("855"))) {
                 throw new BadRequestException("Opps, please input the valid additional phone number start with ( 0 ) or (855)");
-            } else buyerProfileRepository.insertAdditinalPhoneNumber(buyerInfoId, additionalPhoneNumber);
+            } else buyerProfileRepository.insertAdditionalPhoneNumber(buyerInfoId, additionalPhoneNumber);
         }
         return buyerProfileRepository.getBuyerProfile(currentUserId);
     }

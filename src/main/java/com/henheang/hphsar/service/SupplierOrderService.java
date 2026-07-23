@@ -3,6 +3,7 @@ package com.henheang.hphsar.service;
 import com.henheang.hphsar.model.invoice.Invoice;
 import com.henheang.hphsar.model.order.Order;
 import com.henheang.hphsar.model.order.OrderDetail;
+import com.henheang.hphsar.model.order.OrderStatusHistory;
 
 import java.text.ParseException;
 import java.util.List;
@@ -27,4 +28,5 @@ public interface SupplierOrderService {
     String orderDelivered(Integer orderId, Integer storeId);
     OrderDetail getOrderDetailsByOrderId(Integer id, Integer storeId) throws ParseException;
     Invoice getInvoiceByOrderId(Integer orderId, Integer storeId) throws ParseException;
+    List<OrderStatusHistory> getOrderHistory(Integer orderId, Integer storeId);
 }

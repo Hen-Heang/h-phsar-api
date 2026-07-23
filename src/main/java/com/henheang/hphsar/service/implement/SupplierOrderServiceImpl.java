@@ -2,19 +2,26 @@ package com.henheang.hphsar.service.implement;
 
 import com.henheang.hphsar.exception.BadRequestException;
 import com.henheang.hphsar.exception.ConflictException;
+import com.henheang.hphsar.exception.ForbiddenException;
 import com.henheang.hphsar.exception.InternalServerErrorException;
 import com.henheang.hphsar.exception.NotFoundException;
 import com.henheang.hphsar.model.appUser.AppUser;
+import com.henheang.hphsar.model.appUser.Role;
 import com.henheang.hphsar.model.invoice.Invoice;
 import com.henheang.hphsar.model.order.Order;
 import com.henheang.hphsar.model.order.OrderDetail;
+import com.henheang.hphsar.model.order.OrderStatus;
+import com.henheang.hphsar.model.order.OrderStatusHistory;
+import com.henheang.hphsar.model.order.OrderStockLine;
 import com.henheang.hphsar.repository.NotificationRepository;
 import com.henheang.hphsar.repository.SupplierOrderRepository;
 import com.henheang.hphsar.repository.StoreRepository;
+import com.henheang.hphsar.service.OrderStatusService;
 import com.henheang.hphsar.service.SupplierOrderService;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -28,12 +35,14 @@ public class SupplierOrderServiceImpl implements SupplierOrderService {
     private final StoreRepository storeRepository;
     private final NotificationRepository notificationRepository;
     private final SimpMessagingTemplate messagingTemplate;
+    private final OrderStatusService orderStatusService;
 
-    public SupplierOrderServiceImpl(SupplierOrderRepository supplierOrderRepository, StoreRepository storeRepository, NotificationRepository notificationRepository, SimpMessagingTemplate messagingTemplate) {
+    public SupplierOrderServiceImpl(SupplierOrderRepository supplierOrderRepository, StoreRepository storeRepository, NotificationRepository notificationRepository, SimpMessagingTemplate messagingTemplate, OrderStatusService orderStatusService) {
         this.supplierOrderRepository = supplierOrderRepository;
         this.storeRepository = storeRepository;
         this.notificationRepository = notificationRepository;
         this.messagingTemplate = messagingTemplate;
+        this.orderStatusService = orderStatusService;
     }
 
     @Override
@@ -276,6 +285,7 @@ public class SupplierOrderServiceImpl implements SupplierOrderService {
     }
 
     @Override
+    @Transactional
     public String acceptPendingOrder(Integer orderId, Integer storeId) {
         // check if the order is pending or exist
         if (!checkOrderExist(orderId, storeId)) {
@@ -284,50 +294,72 @@ public class SupplierOrderServiceImpl implements SupplierOrderService {
         if (!checkForPendingOrder(orderId)) {
             throw new NotFoundException("This order is not pending");
         }
-        // check if stock is available
+        // Informational pre-check only — gives a fast, friendly rejection for the
+        // common case. It is NOT the authoritative stock decision: it reads then
+        // compares, which is racy under concurrency. deductStockForOrder() below
+        // (one atomic guarded UPDATE per line item) is what actually enforces
+        // stock safety, and its failure is what must trigger rollback.
         if (!checkAvailableProduct(orderId)) {
             throw new ConflictException("Not enough product in stock.");
         }
-        // accept order
-        String confirm = supplierOrderRepository.acceptPendingOrder(orderId);
-        if (!Objects.equals(confirm, "1")) {
-            throw new InternalServerErrorException("Fail to accept order.");
-        }
+        AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        Integer currentUserId = appUser.getId();
+        // accept order — centralized transition + history (Step 3C)
+        orderStatusService.transitionOrder(orderId, OrderStatus.PENDING, OrderStatus.PROCESSING, currentUserId, Role.SUPPLIER, "Supplier accepted order");
         // get order detail
         OrderDetail orderDetail = supplierOrderRepository.getOrderDetailsByOrderId(orderId);
-        // deduct stock
-        deductStock(orderId, storeId);
+        // Authoritative, concurrency-safe stock deduction. If any line item can't
+        // be deducted, this throws — the @Transactional boundary on this method
+        // rolls back the order-acceptance status change above along with it, so
+        // the order remains pending and no notification is committed.
+        deductStockForOrder(orderId);
         // check stock
         List<Integer> productIds = storeRepository.checkStock(orderId);
         StringBuilder id = new StringBuilder();
         for (Integer x : productIds){
             id.append(" ").append(x);
         }
-        AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        Integer currentUserId = appUser.getId();
         if (!productIds.isEmpty()){
             Integer notificationCheck = notificationRepository.createSupplierNotification(currentUserId, 2, orderDetail.getOrder().getId(), "Product out of stock.", "Out of stock.", "Product #"+id+" are out of stock.", false);
             if (notificationCheck == null){
-                notificationRepository.deleteNotification(notificationCheck);
                 throw new InternalServerErrorException("Fail to create notification for out of stock");
             }
         }
         // create notification
-        Integer check = 0;
+        Integer check;
         try {
             check = notificationRepository.createBuyerNotification(orderDetail.getOrder().getBuyerId(), 4, orderDetail.getOrder().getId(), "Your order #" + orderDetail.getOrder().getId() + " at store "+ orderDetail.getOrder().getStoreName() +" was accepted.", "Order accepted.", "Your order #" + orderDetail.getOrder().getId() + " at store "+ orderDetail.getOrder().getStoreName() + " was accepted and is being prepared. Please keep in contact and monitor the order progress.", false);
         } catch (Exception e) {
-            notificationRepository.deleteNotification(check);
             throw new InternalServerErrorException("Fail to create notification. Reason: " + e);
+        }
+        if (check == null) {
+            throw new InternalServerErrorException("Fail to create notification.");
         }
         messagingTemplate.convertAndSend("/topic/notifications/" + orderDetail.getOrder().getBuyerId(), "NEW_NOTIFICATION");
         return "Successfully accept order.";
     }
 
-    private void deductStock(Integer orderId, Integer storeId) {
-        List<Integer> productIds = supplierOrderRepository.getAllProductIdFromProductDetails(orderId);
-        for (Integer product : productIds) {
-            supplierOrderRepository.deductStock(orderId, product, storeId);
+    /**
+     * Deducts stock for every line item on the order, one atomic guarded UPDATE
+     * at a time. Each call re-checks "qty >= quantity" in the database at write
+     * time — the authoritative concurrency-safe decision. If any line item's
+     * affected-row count isn't exactly 1 (insufficient stock, or the row is
+     * gone), this throws immediately; multiple order items therefore succeed or
+     * fail as one unit under the caller's transaction.
+     */
+    private void deductStockForOrder(Integer orderId) {
+        List<OrderStockLine> lines = supplierOrderRepository.getOrderStockLines(orderId);
+        for (OrderStockLine line : lines) {
+            // Defend against invalid quantities already sitting in the database
+            // (legacy/corrupt rows) — not a substitute for request-level validation,
+            // just a last line of defense before we ever touch the database write.
+            if (line.getQty() == null || line.getQty() <= 0) {
+                throw new ConflictException("Invalid quantity recorded for product #" + line.getStoreProductId() + ".");
+            }
+            int updated = supplierOrderRepository.deductStockIfAvailable(line.getStoreProductId(), line.getQty());
+            if (updated != 1) {
+                throw new ConflictException("Insufficient stock for product #" + line.getStoreProductId() + ".");
+            }
         }
     }
 
@@ -341,6 +373,7 @@ public class SupplierOrderServiceImpl implements SupplierOrderService {
     }
 
     @Override
+    @Transactional
     public String declinePendingOrder(Integer orderId, Integer storeId) {
         // check if the order is pending or exist
         if (!checkOrderExist(orderId, storeId)) {
@@ -349,24 +382,26 @@ public class SupplierOrderServiceImpl implements SupplierOrderService {
         if (!checkForPendingOrder(orderId)) {
             throw new NotFoundException("This order is not pending");
         }
-        // decline order
-        String confirm = supplierOrderRepository.declinePendingOrder(orderId);
-        if (!Objects.equals(confirm, "1")) {
-            throw new InternalServerErrorException("Fail to decline order.");
-        }
+        AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        Integer currentUserId = appUser.getId();
+        // decline order — centralized transition + history (Step 3C)
+        orderStatusService.transitionOrder(orderId, OrderStatus.PENDING, OrderStatus.REJECTED, currentUserId, Role.SUPPLIER, "Supplier declined order");
         OrderDetail orderDetail = supplierOrderRepository.getOrderDetailsByOrderId(orderId);
-        Integer check = 0;
+        Integer check;
         try {
             check = notificationRepository.createBuyerNotification(orderDetail.getOrder().getBuyerId(), 5, orderDetail.getOrder().getId(), "Your order #" + orderDetail.getOrder().getId() + " at store "+ orderDetail.getOrder().getStoreName()+" was declined.", "Order declined.", "Your order #" + orderDetail.getOrder().getId() + " at store "+ orderDetail.getOrder().getStoreName() + " was declined. Please try to order from other store or contact the store.", false);
         } catch (Exception e) {
-            notificationRepository.deleteNotification(check);
             throw new InternalServerErrorException("Fail to create notification. Reason: " + e);
+        }
+        if (check == null) {
+            throw new InternalServerErrorException("Fail to create notification.");
         }
         messagingTemplate.convertAndSend("/topic/notifications/" + orderDetail.getOrder().getBuyerId(), "NEW_NOTIFICATION");
         return "Successfully decline order.";
     }
 
     @Override
+    @Transactional
     public String finishPreparing(Integer orderId, Integer storeId) {
         // check if the order is preparing or exist
         if (!checkOrderExist(orderId, storeId)) {
@@ -375,11 +410,10 @@ public class SupplierOrderServiceImpl implements SupplierOrderService {
         if (!checkForPreparingOrder(orderId)) {
             throw new NotFoundException("This order is not preparing");
         }
-        // decline order
-        String confirm = supplierOrderRepository.finishPreparing(orderId);
-        if (!Objects.equals(confirm, "1")) {
-            throw new InternalServerErrorException("Fail to update order.");
-        }
+        AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        Integer currentUserId = appUser.getId();
+        // dispatch order — centralized transition + history (Step 3C)
+        orderStatusService.transitionOrder(orderId, OrderStatus.PROCESSING, OrderStatus.DISPATCHED, currentUserId, Role.SUPPLIER, "Supplier dispatched order");
         // create notification for delivering
         OrderDetail orderDetail = supplierOrderRepository.getOrderDetailsByOrderId(orderId);
         Integer delivering = notificationRepository.createBuyerNotification(orderDetail.getOrder().getBuyerId(), 7, orderDetail.getOrder().getId(), "Your order #" + orderDetail.getOrder().getId() + " at store "+ orderDetail.getOrder().getStoreName()+" is being delivered.", "Order is being delivered.", "Your order #" + orderDetail.getOrder().getId() + " at store "+ orderDetail.getOrder().getStoreName() + " is being delivered. Your order will arrive shortly.", false);
@@ -390,28 +424,22 @@ public class SupplierOrderServiceImpl implements SupplierOrderService {
         return "Finish preparing.";
     }
 
+    /**
+     * Retired (Step 3C): this used to perform the exact same DISPATCHED ->
+     * COMPLETED transition as the buyer's markOrderAsArrived/confirmTransaction
+     * — two actors independently able to complete the same order, one of the
+     * audit's flagged duplicate actions. The redesigned lifecycle gives the
+     * buyer sole ownership of "confirm receipt"; supplier responsibility ends
+     * at dispatch (see finishPreparing). The endpoint stays mapped (old
+     * clients get a clear, typed rejection instead of a 404) but no longer
+     * performs any transition.
+     */
     @Override
     public String orderDelivered(Integer orderId, Integer storeId) {
-        // check if the order is preparing or exist
         if (!checkOrderExist(orderId, storeId)) {
             throw new NotFoundException("Order not found.");
         }
-        if (!checkForDispatchOrder(orderId)) {
-            throw new NotFoundException("This order is not pending");
-        }
-        // order arrived
-        String confirm = supplierOrderRepository.orderDelivered(orderId);
-        if (!Objects.equals(confirm, "1")) {
-            throw new InternalServerErrorException("Fail to update order.");
-        }
-        // create completion notification — order is done, no buyer confirmation needed
-        OrderDetail orderDetail = supplierOrderRepository.getOrderDetailsByOrderId(orderId);
-        Integer delivering = notificationRepository.createBuyerNotification(orderDetail.getOrder().getBuyerId(), 9, orderDetail.getOrder().getId(), "Your order #" + orderDetail.getOrder().getId() + " at store "+ orderDetail.getOrder().getStoreName()+" is complete.", "Order complete.", "Your order #" + orderDetail.getOrder().getId() + " at store "+ orderDetail.getOrder().getStoreName() + " has been delivered and is now complete.", false);
-        if (delivering == null){
-            throw new InternalServerErrorException("Fail to create notification.");
-        }
-        messagingTemplate.convertAndSend("/topic/notifications/" + orderDetail.getOrder().getBuyerId(), "NEW_NOTIFICATION");
-        return "Finish Dispatching. Order is delivered.";
+        throw new ForbiddenException("Only the buyer may confirm receipt of a dispatched order. Supplier responsibility ends at dispatch.");
     }
 
     @Override
@@ -443,6 +471,14 @@ public class SupplierOrderServiceImpl implements SupplierOrderService {
         }
         invoice.getOrder().setDate(formatter.format(formatter.parse(invoice.getOrder().getDate())));
         return invoice;
+    }
+
+    @Override
+    public List<OrderStatusHistory> getOrderHistory(Integer orderId, Integer storeId) {
+        if (!checkOrderExist(orderId, storeId)) {
+            throw new NotFoundException("Order not found.");
+        }
+        return orderStatusService.getHistory(orderId);
     }
 
     private boolean checkForCompleteOrder(Integer orderId) {

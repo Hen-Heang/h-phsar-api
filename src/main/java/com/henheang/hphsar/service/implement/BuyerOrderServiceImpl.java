@@ -5,14 +5,19 @@ import com.henheang.hphsar.model.Cart.Cart;
 import com.henheang.hphsar.model.Cart.CartOrder;
 import com.henheang.hphsar.model.Cart.CartSummery;
 import com.henheang.hphsar.model.appUser.AppUser;
+import com.henheang.hphsar.model.appUser.Role;
 import com.henheang.hphsar.model.invoice.Invoice;
 import com.henheang.hphsar.model.order.Order;
 import com.henheang.hphsar.model.order.OrderDetail;
+import com.henheang.hphsar.model.order.OrderStatus;
+import com.henheang.hphsar.model.order.OrderStatusHistory;
 import com.henheang.hphsar.model.product.ProductOrder;
 import com.henheang.hphsar.repository.*;
 import com.henheang.hphsar.service.BuyerOrderService;
+import com.henheang.hphsar.service.OrderStatusService;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -29,8 +34,9 @@ public class BuyerOrderServiceImpl implements BuyerOrderService {
     private final BuyerOrderRepository buyerOrderRepository;
     private final SupplierOrderRepository supplierOrderRepository;
     private final SupplierProductRepository supplierProductRepository;
+    private final OrderStatusService orderStatusService;
 
-    public BuyerOrderServiceImpl(NotificationRepository notificationRepository, StoreRepository storeRepository, SupplierProfileRepository supplierProfileRepository, BuyerProfileRepository buyerProfileRepository, BuyerOrderRepository buyerOrderRepository, SupplierOrderRepository supplierOrderRepository, SupplierProductRepository supplierProductRepository) {
+    public BuyerOrderServiceImpl(NotificationRepository notificationRepository, StoreRepository storeRepository, SupplierProfileRepository supplierProfileRepository, BuyerProfileRepository buyerProfileRepository, BuyerOrderRepository buyerOrderRepository, SupplierOrderRepository supplierOrderRepository, SupplierProductRepository supplierProductRepository, OrderStatusService orderStatusService) {
         this.notificationRepository = notificationRepository;
         this.storeRepository = storeRepository;
         this.supplierProfileRepository = supplierProfileRepository;
@@ -38,9 +44,11 @@ public class BuyerOrderServiceImpl implements BuyerOrderService {
         this.buyerOrderRepository = buyerOrderRepository;
         this.supplierOrderRepository = supplierOrderRepository;
         this.supplierProductRepository = supplierProductRepository;
+        this.orderStatusService = orderStatusService;
     }
 
     @Override
+    @Transactional
     public List<ProductOrder> addProductToCart(Integer storeId, List<CartOrder> orders) {
         Set<Integer> cartOrderSet = orders.stream().map(CartOrder::getProductId).collect(Collectors.toSet());
         if (orders.size() != cartOrderSet.size()) {
@@ -76,11 +84,6 @@ public class BuyerOrderServiceImpl implements BuyerOrderService {
         for (CartOrder order : orders) {
             Integer productId = order.getProductId();
             if (!supplierProductRepository.checkStoreHasProduct(storeId, productId)) {
-                // delete order detail and then order
-                String confirmDeleteOrder = buyerOrderRepository.deleteOrder(orderId);
-                if (confirmDeleteOrder == null) {
-                    throw new InternalServerErrorException("Fail to delete import.");
-                }
                 throw new NotFoundException("Can not find this product id. Fail on count: " + count);
             }
             Integer qty = order.getQty();
@@ -91,11 +94,6 @@ public class BuyerOrderServiceImpl implements BuyerOrderService {
             }
             // check stock
             if (!buyerOrderRepository.checkStock(productId, qty)) {
-                // delete order detail and then order
-                String confirmDeleteOrder = buyerOrderRepository.deleteOrder(orderId);
-                if (confirmDeleteOrder == null) {
-                    throw new InternalServerErrorException("Fail to delete import detail.");
-                }
                 throw new ConflictException("Not enough product in stock. Fail on count: " + count);
             }
             // Get product unit price
@@ -116,11 +114,6 @@ public class BuyerOrderServiceImpl implements BuyerOrderService {
             }
             ProductOrder productOrder = buyerOrderRepository.getProductFromCart(orderId, productId);
             if (productOrder == null) {
-                // delete order detail and then order
-                String confirmDeleteOrder = buyerOrderRepository.deleteOrder(orderId);
-                if (confirmDeleteOrder == null) {
-                    throw new InternalServerErrorException("Fail to delete import detail.3");
-                }
                 throw new InternalServerErrorException("Fetch product failed. Fail on count: " + count);
             }
             productOrders.add(productOrder);
@@ -239,6 +232,7 @@ public class BuyerOrderServiceImpl implements BuyerOrderService {
     }
 
     @Override
+    @Transactional
     public String saveToDraft() {
         AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         Integer buyerId = appUser.getId();
@@ -247,14 +241,12 @@ public class BuyerOrderServiceImpl implements BuyerOrderService {
         if (!isCartExist(cartId)) {
             throw new NotFoundException("Cart does not exist.");
         }
-        String confirm = buyerOrderRepository.saveToDraft(cartId);
-        if (!Objects.equals(confirm, "1")) {
-            throw new InternalServerErrorException("Save to draft fail.");
-        }
+        orderStatusService.transitionOrder(cartId, OrderStatus.CART, OrderStatus.DRAFT, buyerId, Role.BUYER, "Buyer saved cart as draft");
         return "Saved to draft";
     }
 
     @Override
+    @Transactional
     public String confirmOrder() {
         AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         Integer buyerId = appUser.getId();
@@ -263,10 +255,7 @@ public class BuyerOrderServiceImpl implements BuyerOrderService {
         if (!isCartExist(cartId)) {
             throw new NotFoundException("Cart does not exist.");
         }
-        String confirm = buyerOrderRepository.confirmOrder(cartId);
-        if (!Objects.equals(confirm, "1")) {
-            throw new InternalServerErrorException("Fail to confirm order.");
-        }
+        orderStatusService.transitionOrder(cartId, OrderStatus.CART, OrderStatus.PENDING, buyerId, Role.BUYER, "Buyer submitted cart");
         // create new order notification for supplier
         Integer supplierId = supplierOrderRepository.getSupplierIdByOrderId(cartId);
         String buyerName = buyerProfileRepository.getBuyerNameById(buyerId);
@@ -322,29 +311,17 @@ public class BuyerOrderServiceImpl implements BuyerOrderService {
     }
 
     @Override
+    @Transactional
     public String confirmTransaction(Integer id) {
-        AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        Integer buyerId = appUser.getId();
-        // check order exist AND belongs to this buyer (ownership check — prevents IDOR)
-        if (!buyerOrderRepository.checkOrderExistForBuyer(id, buyerId)) {
-            throw new NotFoundException("Order does not exist");
-        }
-        // check if order is in confirming state
-        if (!checkOrderIsConfirming(id)) {
-            throw new NotFoundException("Can not confirm this transaction. Order is not ready.");
-        }
-        String confirm = buyerOrderRepository.confirmTransaction(id);
-        if (!Objects.equals(confirm, "1")) {
-            throw new InternalServerErrorException("Fail to confirm transaction.");
-        }
-        OrderDetail orderDetail = supplierOrderRepository.getOrderDetailsByOrderId(id);
-        Integer supplierId = supplierProfileRepository.getSupplierIdByStoreId(orderDetail.getOrder().getStoreId());
-        // create order complete for supplier
-        String buyerName = buyerProfileRepository.getBuyerNameById(buyerId);
-        Integer orderComplete = notificationRepository.createSupplierNotification(supplierId, 9, id, "Buyer " + buyerName + " have comfirm transaction of order #" + id, "Buyer have received the delivery.", "Order #" + id + " is completed. The order have been delivered and Buyer have received the product.", false);
-        if (orderComplete == null){
-            throw new InternalServerErrorException("Fail to create notification.");
-        }
+        // Deprecated alias of markOrderAsArrived: the audit found both endpoints
+        // performed (or, in this method's case, were meant to perform) the exact
+        // same buyer action — confirming receipt of a dispatched order. Kept as a
+        // separate route only so any existing caller of PUT /{id}/receive keeps
+        // working; both now delegate to the same centralized transition instead
+        // of maintaining two copies of the same business logic. Previously this
+        // method required status_id=4, a status nothing ever set — it was
+        // permanently unreachable.
+        confirmReceipt(id);
         return "Transaction successfully confirm. Order id " + id;
     }
 
@@ -402,37 +379,59 @@ public class BuyerOrderServiceImpl implements BuyerOrderService {
     }
 
     @Override
+    @Transactional
     public String markOrderAsArrived(Integer id) {
+        // The canonical buyer receipt-confirmation action (DISPATCHED -> COMPLETED).
+        // Supplier's own former "order delivered" action performed this identical
+        // transition — retired: per the redesigned lifecycle, supplier
+        // responsibility ends at dispatch, and only the buyer confirms receipt.
+        confirmReceipt(id);
+        return "Finish Dispatching. Order is delivered.";
+    }
+
+    private void confirmReceipt(Integer id) {
         AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        Integer currentUserId = appUser.getId();
-        // check if the order is preparing or exist
-        if (!buyerOrderRepository.checkOrderExist(id)) {
-            throw new NotFoundException("Order not found.");
+        Integer buyerId = appUser.getId();
+        // Ownership + precondition combined (prevents IDOR and enforces DISPATCHED in one check).
+        if (!buyerOrderRepository.checkForDispatchingOrder(id, buyerId)) {
+            throw new NotFoundException("Order not found or is not ready to confirm.");
         }
-        if (!buyerOrderRepository.checkForDispatchingOrder(id, currentUserId)) {
-            throw new NotFoundException("Order is not dispatching.");
-        }
-        // order arrived
-        String confirm = supplierOrderRepository.orderDelivered(id);
-        if (!Objects.equals(confirm, "1")) {
-            throw new InternalServerErrorException("Fail to update order.");
-        }
-        // create confirming notification / order arrived
+        orderStatusService.transitionOrder(id, OrderStatus.DISPATCHED, OrderStatus.COMPLETED, buyerId, Role.BUYER, "Buyer confirmed receipt");
         OrderDetail orderDetail = supplierOrderRepository.getOrderDetailsByOrderId(id);
         Integer supplierId = supplierProfileRepository.getSupplierIdByStoreId(orderDetail.getOrder().getStoreId());
-        Integer delivering = notificationRepository.createSupplierNotification(supplierId, 8, orderDetail.getOrder().getId(), "Order #" + orderDetail.getOrder().getId() + " has arrived to the destination.", "Order has arrived.", "Order #" + orderDetail.getOrder().getId() + "  has arrived at the destination. Waiting for buyer to confirm the transaction.", false);
-        if (delivering == null){
+        Integer delivered = notificationRepository.createSupplierNotification(supplierId, 9, orderDetail.getOrder().getId(), "Buyer confirmed receipt of order #" + orderDetail.getOrder().getId() + ".", "Order complete.", "Order #" + orderDetail.getOrder().getId() + " is complete. The buyer has confirmed receipt.", false);
+        if (delivered == null) {
             throw new InternalServerErrorException("Fail to create notification.");
         }
-        return "Finish Dispatching. Order is delivered.";
+    }
+
+    @Override
+    @Transactional
+    public String cancelOrder(Integer id) {
+        AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        Integer buyerId = appUser.getId();
+        // Ownership-scoped, restricted to the states a buyer may cancel (DRAFT, PENDING).
+        if (!buyerOrderRepository.checkOrderExistForBuyerCancellable(id, buyerId)) {
+            throw new NotFoundException("Order not found or can no longer be cancelled.");
+        }
+        OrderStatus current = orderStatusService.getCurrentStatus(id);
+        orderStatusService.transitionOrder(id, current, OrderStatus.CANCELLED, buyerId, Role.BUYER, "Buyer cancelled order");
+        return "Order cancelled.";
+    }
+
+    @Override
+    public List<OrderStatusHistory> getOrderHistory(Integer id) {
+        AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        Integer buyerId = appUser.getId();
+        if (!buyerOrderRepository.checkOrderExistForBuyer(id, buyerId)
+                && !buyerOrderRepository.checkOrderExistForBuyerCancellable(id, buyerId)) {
+            throw new NotFoundException("Order not found.");
+        }
+        return orderStatusService.getHistory(id);
     }
 
     private boolean checkOrderIsComplete(Integer id) {
         return buyerOrderRepository.checkOrderIsComplete(id);
-    }
-
-    private boolean checkOrderIsConfirming(Integer id) {
-        return buyerOrderRepository.orderIsConfirming(id);
     }
 
     public Integer getTotalOrderPage(Integer pageSize, Integer totalOrder) {

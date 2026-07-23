@@ -183,19 +183,19 @@
     <!-- ═══════════════════════════════════════════════════════════════════════
          GET ALL ORDERS (paginated, sorted, filtered by status)
          ═══════════════════════════════════════════════════════════════════════
-         Each unified query filters by a different status_id:
-           status_id IN (1,2,3,4,5) → all active orders
-           status_id = 1  → pending
-           status_id = 2  → preparing
-           status_id = 3  → dispatching
-           status_id = 4  → confirming
-           status_id IN (5,6) → completed
+         Step 3C status ids: 1=PENDING, 2=PROCESSING, 3=DISPATCHED, 6=COMPLETED,
+         7=CANCELLED, 10=REJECTED (8=DRAFT and 9=CART never reach the supplier's
+         view — the buyer hasn't submitted them yet). ids 4/5 are retired/dead;
+         see DatabaseInitializer#migrateOrderLifecycleStatuses.
     -->
 
-    <!-- All orders -->
+    <!-- All orders visible to the supplier (everything the buyer has submitted or
+         further along, including terminal states — previously excluded completed
+         and rejected orders entirely because it filtered on the dead ids 4/5
+         instead of the real terminal ids 6/10). -->
     <select id="getAllOrders" resultMap="OrderResultMap">
         <include refid="selectOrderBase"/>
-        WHERE store_id = #{storeId} AND status_id IN (1, 2, 3, 4, 5)
+        WHERE store_id = #{storeId} AND status_id IN (1, 2, 3, 6, 7, 10)
         <include refid="orderByDate"/>
         <include refid="paginate"/>
     </select>
@@ -224,7 +224,13 @@
         <include refid="paginate"/>
     </select>
 
-    <!-- Confirming orders (status 4) -->
+    <!-- Confirming orders — status 4 is retired (Step 3C): the lifecycle audit found
+         no code path ever wrote it, and the redesigned model has no separate
+         "awaiting buyer confirmation" substate between DISPATCHED and COMPLETED.
+         Left querying the dead id on purpose: this always returns empty, which is
+         now the correct answer (the bucket doesn't exist), rather than silently
+         repointing it at a different, misleading meaning. Candidate for removal
+         in a future cleanup step. -->
     <select id="getConfirmingOrders" resultMap="OrderResultMap">
         <include refid="selectOrderBase"/>
         WHERE store_id = #{storeId} AND status_id = 4
@@ -232,10 +238,10 @@
         <include refid="paginate"/>
     </select>
 
-    <!-- Complete orders (status 5 and 6) -->
+    <!-- Complete orders (status 6 — id 5 retired, see above) -->
     <select id="getCompleteOrders" resultMap="OrderResultMap">
         <include refid="selectOrderBase"/>
-        WHERE store_id = #{storeId} AND status_id IN (5, 6)
+        WHERE store_id = #{storeId} AND status_id = 6
         <include refid="orderByDate"/>
         <include refid="paginate"/>
     </select>
@@ -261,12 +267,15 @@
         SELECT count(*) FROM tb_order WHERE store_id = #{storeId} AND status_id = 3
     </select>
 
+    <!-- Retired (Step 3C) — see getConfirmingOrders above. Always 0 by design. -->
     <select id="getTotalConfirmingOrder" resultType="int">
         SELECT count(*) FROM tb_order WHERE store_id = #{storeId} AND status_id = 4
     </select>
 
+    <!-- Fixed (Step 3C): was status_id = 5, a dead id nothing ever wrote — this
+         dashboard total was always 0. COMPLETED is id 6. -->
     <select id="getTotalCompleteOrder" resultType="int">
-        SELECT count(*) FROM tb_order WHERE store_id = #{storeId} AND status_id = 5
+        SELECT count(*) FROM tb_order WHERE store_id = #{storeId} AND status_id = 6
     </select>
 
     <!-- ═══════════════════════════════════════════════════════════════════════
@@ -323,36 +332,28 @@
         SELECT EXISTS(SELECT * FROM tb_order WHERE id = #{orderId} AND status_id = 3)
     </select>
 
+    <!-- Fixed (Step 3C): was status_id = 5 (dead id, never written) — the supplier's
+         invoice view was permanently unreachable. COMPLETED is id 6. -->
     <select id="checkForCompleteOrder" resultType="boolean">
-        SELECT EXISTS(SELECT * FROM tb_order WHERE id = #{orderId} AND status_id = 5)
+        SELECT EXISTS(SELECT * FROM tb_order WHERE id = #{orderId} AND status_id = 6)
     </select>
 
-    <!-- ═══════════════════════════════════════════════════════════════════════
-         ORDER STATUS TRANSITIONS
-         ═══════════════════════════════════════════════════════════════════════
-         Each transition moves an order from one status to the next.
-         Returns '1' as confirmation the update succeeded.
-    -->
-
-    <select id="acceptPendingOrder" resultType="String">
-        UPDATE tb_order SET status_id = 2 WHERE id = #{orderId} RETURNING 1
-    </select>
-
-    <select id="declinePendingOrder" resultType="String">
-        UPDATE tb_order SET status_id = 8 WHERE id = #{orderId} RETURNING 1
-    </select>
-
-    <select id="finishPreparing" resultType="String">
-        UPDATE tb_order SET status_id = 3 WHERE id = #{orderId} RETURNING 1
-    </select>
-
-    <select id="orderDelivered" resultType="String">
-        UPDATE tb_order SET status_id = 6 WHERE id = #{orderId} RETURNING 1
-    </select>
+    <!-- ORDER STATUS TRANSITIONS — Step 3C: these are now performed exclusively by
+         OrderStatusRepository#updateStatusIfCurrent (OrderStatusServiceImpl),
+         which resolves status NAMES, validates the transition matrix, and
+         records history. No status-changing SQL lives in this mapper anymore. -->
 
     <!-- ═══════════════════════════════════════════════════════════════════════
          STOCK MANAGEMENT — deduct inventory when order is confirmed
          ═══════════════════════════════════════════════════════════════════════
+         productEligibleCount / getProductDetailCount are an INFORMATIONAL
+         pre-check only (fast-fail with a friendly message). They read-then-compare,
+         which is inherently racy under concurrency, so they must never be treated
+         as the authoritative stock decision. deductStockIfAvailable is the
+         authoritative check: a single atomic UPDATE whose WHERE clause re-verifies
+         "qty >= quantity" at write time, so the database itself — not a prior Java
+         read — decides whether the deduction is allowed. See
+         SupplierOrderServiceImpl#acceptPendingOrder / #deductStockForOrder.
     -->
 
     <select id="productEligibleCount" resultType="int">
@@ -367,18 +368,21 @@
         SELECT count(*) FROM tb_order_detail WHERE order_id = #{orderId}
     </select>
 
-    <update id="deductStock">
-        UPDATE tb_store_product_detail
-        SET qty = qty - (SELECT qty FROM tb_order_detail WHERE order_id = #{orderId}
-                         AND tb_order_detail.store_product_id = #{productId})
-        WHERE id = (SELECT store_product_id FROM tb_order_detail WHERE order_id = #{orderId}
-                    AND tb_order_detail.store_product_id = #{productId})
-          AND store_id = #{storeId}
-    </update>
-
-    <select id="getAllProductIdFromProductDetails" resultType="int">
-        SELECT store_product_id FROM tb_order_detail WHERE order_id = #{orderId}
+    <select id="getOrderStockLines" resultType="com.henheang.hphsar.model.order.OrderStockLine">
+        SELECT store_product_id AS storeProductId, qty
+        FROM tb_order_detail
+        WHERE order_id = #{orderId}
     </select>
+
+    <!-- Authoritative stock deduction. #{} bindings (never string-concatenated SQL).
+         Returns the affected-row count — the caller must check it: 1 = success,
+         0 = insufficient stock. Deliberately does NOT return a success string. -->
+    <update id="deductStockIfAvailable">
+        UPDATE tb_store_product_detail
+        SET qty = qty - #{quantity}
+        WHERE id = #{storeProductId}
+          AND qty >= #{quantity}
+    </update>
 
     <select id="getSupplierIdByOrderId" resultType="int">
         SELECT supplier_account_id FROM tb_store

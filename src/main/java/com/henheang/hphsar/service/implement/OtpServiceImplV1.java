@@ -8,6 +8,7 @@ import com.henheang.hphsar.repository.OtpRepository;
 import com.henheang.hphsar.service.EmailService;
 import com.henheang.hphsar.service.OtpService;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.sql.Timestamp;
 import java.util.Objects;
@@ -79,6 +80,7 @@ public class OtpServiceImplV1 implements OtpService {
     // ─── Generate OTP ───────────────────────────────────────────────────────────
 
     @Override
+    @Transactional
     public String generateOtp(String email) {
 
         // Step 1: Find the user — must exist before generating OTP
@@ -130,6 +132,7 @@ public class OtpServiceImplV1 implements OtpService {
     // ─── Verify OTP ─────────────────────────────────────────────────────────────
 
     @Override
+    @Transactional
     public String verifyOtp(Integer otp, String email) {
 
         // Step 1: Block re-verification — account is already active

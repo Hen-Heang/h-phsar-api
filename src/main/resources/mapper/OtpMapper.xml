@@ -123,7 +123,7 @@
          GENERATE OTP — INSERT new OTP record
          ═══════════════════════════════════════════════════════════════════════
          parameterType is not needed when @Param is used — MyBatis knows each
-         value by its named placeholder: #{currentUserId}, #{otpNumber}, etc.
+         value by it's named placeholder: #{currentUserId}, #{otpNumber}, etc.
 
          RETURNING * → PostgreSQL returns the inserted row so we get back the Otp object.
          This lets the service layer check: if otp == null → insert failed.

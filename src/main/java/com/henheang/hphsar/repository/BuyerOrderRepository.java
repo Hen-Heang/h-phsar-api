@@ -13,7 +13,11 @@ public interface BuyerOrderRepository {
 
     Boolean checkForCart(Integer storeId, Integer buyerId);
 
-    Boolean checkForCartOrPending(Integer storeId, Integer buyerId);
+    // excludeOrderId — the draft being submitted must not match against itself
+    // (Step 3C fix: this previously always matched the draft's own row, since a
+    // draft's own status is one of the statuses being checked for, so submitting
+    // ANY draft always hit this "conflict" — see updateDraftById).
+    Boolean checkForCartOrPending(@Param("storeId") Integer storeId, @Param("buyerId") Integer buyerId, @Param("excludeOrderId") Integer excludeOrderId);
 
     Integer createCart(Integer storeId, Integer buyerId);
 
@@ -43,22 +47,17 @@ public interface BuyerOrderRepository {
 
     String cancelCart(Integer orderId);
 
-    String saveToDraft(Integer orderId);
-
-    String confirmOrder(Integer orderId);
-
     List<Order> getUserOrderActivities(String sort, Integer buyerId, Integer pageNumber, Integer pageSize);
 
     Integer getTotalOrder(Integer buyerId);
-
-    boolean orderIsConfirming(Integer id);
 
     boolean checkOrderExist(Integer id);
 
     // Ownership-scoped existence check — prevents one buyer from acting on another buyer's order (IDOR fix).
     boolean checkOrderExistForBuyer(Integer id, Integer buyerId);
 
-    String confirmTransaction(Integer id);
+    // Same ownership scoping, but for the buyer-cancellable states (DRAFT, PENDING) only.
+    boolean checkOrderExistForBuyerCancellable(Integer id, Integer buyerId);
 
     boolean checkOrderIsComplete(Integer id);
 

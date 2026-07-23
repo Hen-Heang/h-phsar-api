@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!--
+    WHAT IS THIS FILE?
+    ══════════════════
+    XML Mapper for OrderStatusRepository — the generic status-transition
+    engine (Step 3C). tb_status remains the schema's source of truth for the
+    id↔name mapping (Option A from the audit: keep the FK table, remove magic
+    numbers from application code instead of replacing the table with a plain
+    VARCHAR column). Every statement here resolves status NAMES to ids via a
+    subquery against tb_status — no numeric status id ever appears in Java code
+    for a status-changing action.
+-->
+
+<mapper namespace="com.henheang.hphsar.repository.OrderStatusRepository">
+
+    <select id="findStatusNameByOrderId" resultType="String">
+        SELECT s.name
+        FROM tb_order o
+                 JOIN tb_status s ON o.status_id = s.id
+        WHERE o.id = #{orderId}
+    </select>
+
+    <!-- Optimistic conditional transition — the authoritative concurrency guard,
+         same "guarded UPDATE, check affected rows" pattern as Step 3B's stock
+         deduction. Only applies if the order is still exactly currentStatus at
+         write time; the database decides, not a prior Java-side read. -->
+    <update id="updateStatusIfCurrent">
+        UPDATE tb_order
+        SET status_id = (SELECT id FROM tb_status WHERE name = #{newStatus})
+        WHERE id = #{orderId}
+          AND status_id = (SELECT id FROM tb_status WHERE name = #{currentStatus})
+    </update>
+
+</mapper>

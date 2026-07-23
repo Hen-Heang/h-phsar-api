@@ -24,7 +24,9 @@
     <!-- ─── ORDER COUNTS BY STATUS (single query) ────────────────────────── -->
     <!--
         Returns all 5 status counts in one DB round-trip using CASE WHEN.
-        status_id: 1=New, 2=Preparing, 3=Dispatching, 4=Confirming, 5=Completed
+        Step 3C: status_id 1=New, 2=Preparing, 3=Dispatching, 4=Confirming (id
+        retired — no code path ever writes it, always 0 by design), 6=Completed
+        (was checked against dead id 5 — this "completed" tile was always 0).
     -->
     <resultMap id="SupplierHomepageResultMap" type="com.henheang.hphsar.model.supplier.SupplierHomepage">
         <result property="newOrder"   column="new_order"/>
@@ -40,7 +42,7 @@
             COUNT(CASE WHEN status_id = 2 THEN 1 END) AS preparing,
             COUNT(CASE WHEN status_id = 3 THEN 1 END) AS dispatch,
             COUNT(CASE WHEN status_id = 4 THEN 1 END) AS confirming,
-            COUNT(CASE WHEN status_id = 5 THEN 1 END) AS completed
+            COUNT(CASE WHEN status_id = 6 THEN 1 END) AS completed
         FROM tb_order
         WHERE store_id = #{storeId}
     </select>
@@ -57,12 +59,16 @@
         SELECT count(*) AS dispatch FROM tb_order WHERE store_id = #{storeId} AND status_id = 3
     </select>
 
+    <!-- Retired (Step 3C) — no separate "confirming" substate in the redesigned
+         lifecycle. Always 0 by design; see SupplierOrderMapper#getConfirmingOrders. -->
     <select id="getConfirming" resultType="int">
         SELECT count(*) AS confirming FROM tb_order WHERE store_id = #{storeId} AND status_id = 4
     </select>
 
+    <!-- Fixed (Step 3C): was status_id = 5, a dead id nothing ever wrote — this
+         tile was always 0. COMPLETED is id 6. -->
     <select id="getCompleted" resultType="int">
-        SELECT count(*) AS completed FROM tb_order WHERE store_id = #{storeId} AND status_id = 5
+        SELECT count(*) AS completed FROM tb_order WHERE store_id = #{storeId} AND status_id = 6
     </select>
 
     <!-- ─── MONTHLY STATS ──────────────────────────────────────────────────── -->
@@ -95,13 +101,15 @@
           AND date_trunc('month', created_date) BETWEEN '${startDate}-01' AND '${endDate}-1'
     </select>
 
+    <!-- Fixed (Step 3C): was status_id = 5, a dead id nothing ever wrote — this
+         chart always returned empty/0. COMPLETED is id 6. -->
     <select id="getTotalOrderEachMonth" resultType="int">
         SELECT coalesce(count(tb_order.id), 0) AS totalMonthlyOrder
         FROM tb_order
                  JOIN tb_order_detail tod ON tb_order.id = tod.order_id
         WHERE extract(month FROM created_date) = #{startMonth}
           AND extract(year FROM created_date) = #{startYear}
-          AND status_id = 5
+          AND status_id = 6
           AND store_id = #{storeId}
         GROUP BY date_trunc('month', created_date)
     </select>
@@ -132,12 +140,14 @@
           AND date_trunc('year', created_date) BETWEEN '${startYear}-01-01' AND '${endYear}-01-01'
     </select>
 
+    <!-- Fixed (Step 3C): was status_id = 5, a dead id nothing ever wrote — this
+         chart always returned empty/0. COMPLETED is id 6. -->
     <select id="getTotalOrderEachYear" resultType="int">
         SELECT count(*) AS totalMonthlyOrder
         FROM tb_order
                  JOIN tb_order_detail tod ON tb_order.id = tod.order_id
         WHERE extract(year FROM created_date) = #{startYear}
-          AND status_id = 5
+          AND status_id = 6
           AND store_id = #{storeId}
         GROUP BY date_trunc('year', created_date)
     </select>

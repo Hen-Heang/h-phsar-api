@@ -5,15 +5,19 @@ import com.henheang.hphsar.exception.ConflictException;
 import com.henheang.hphsar.exception.InternalServerErrorException;
 import com.henheang.hphsar.exception.NotFoundException;
 import com.henheang.hphsar.model.appUser.AppUser;
+import com.henheang.hphsar.model.appUser.Role;
 import com.henheang.hphsar.model.history.ImportHistory;
 import com.henheang.hphsar.model.history.OrderDetailHistory;
+import com.henheang.hphsar.model.order.OrderStatus;
 import com.henheang.hphsar.repository.HistoryRepository;
 import com.henheang.hphsar.repository.BuyerOrderRepository;
 import com.henheang.hphsar.repository.BuyerProfileRepository;
 import com.henheang.hphsar.repository.StoreRepository;
 import com.henheang.hphsar.service.HistoryService;
+import com.henheang.hphsar.service.OrderStatusService;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -26,12 +30,14 @@ public class HistoryServiceImplV1 implements HistoryService {
     private final BuyerOrderRepository buyerOrderRepository;
     private final StoreRepository storeRepository;
     private final BuyerProfileRepository buyerProfileRepository;
+    private final OrderStatusService orderStatusService;
 
-    public HistoryServiceImplV1(HistoryRepository historyRepository, BuyerOrderRepository buyerOrderRepository, StoreRepository storeRepository, BuyerProfileRepository buyerProfileRepository) {
+    public HistoryServiceImplV1(HistoryRepository historyRepository, BuyerOrderRepository buyerOrderRepository, StoreRepository storeRepository, BuyerProfileRepository buyerProfileRepository, OrderStatusService orderStatusService) {
         this.historyRepository = historyRepository;
         this.buyerOrderRepository = buyerOrderRepository;
         this.storeRepository = storeRepository;
         this.buyerProfileRepository = buyerProfileRepository;
+        this.orderStatusService = orderStatusService;
     }
 
     @Override
@@ -128,6 +134,7 @@ public class HistoryServiceImplV1 implements HistoryService {
     }
 
     @Override
+    @Transactional
     public OrderDetailHistory updateDraftById(Integer id) throws ParseException {
         // Buyer id always comes from the authenticated principal, never from
         // the request — the caller cannot supply/override whose draft this is.
@@ -139,14 +146,14 @@ public class HistoryServiceImplV1 implements HistoryService {
             throw new NotFoundException("Draft not found.");
         }
         Integer storeId = storeRepository.getStoreIdByDraftId(id);
-        // check for cart or pending request
-        if (buyerOrderRepository.checkForCartOrPending(storeId, currentUserId)) {
+        // Check for another cart/draft already active in this store — excluding
+        // this draft itself (Step 3C fix: without excluding it, a draft always
+        // matched against its own row here, making draft submission permanently
+        // unreachable; see BuyerOrderMapper#checkForCartOrPending).
+        if (buyerOrderRepository.checkForCartOrPending(storeId, currentUserId, id)) {
             throw new ConflictException("You currently have pending order or cart. Can only order once at a time. Please kindly wait for this order to be accepted.");
         }
-        int affected = historyRepository.submitDraftByIdAndBuyerId(id, currentUserId);
-        if (affected != 1) {
-            throw new InternalServerErrorException("Fail to update draft.");
-        }
+        orderStatusService.transitionOrder(id, OrderStatus.DRAFT, OrderStatus.PENDING, currentUserId, Role.BUYER, "Buyer submitted draft");
         OrderDetailHistory orderDetailHistory = historyRepository.getDraftHistory(id, currentUserId);
         if (orderDetailHistory == null){
             throw new InternalServerErrorException("Fail to fetch data.");

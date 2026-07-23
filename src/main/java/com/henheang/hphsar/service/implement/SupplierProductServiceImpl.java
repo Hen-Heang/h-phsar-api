@@ -103,6 +103,10 @@ public class SupplierProductServiceImpl implements SupplierProductService {
             if (productRequest.getName().isBlank() || productRequest.getCategoryId() <= 0) {
                 throw new BadRequestException("Invalid input request on product: " + productRequest.getName());
             }
+            // initial stock can be 0 (unpublished, no import) but never negative
+            if (productRequest.getQty() == null || productRequest.getQty() < 0) {
+                throw new BadRequestException("Quantity can not be negative. Error on product: " + productRequest.getName());
+            }
             // check if store already have this product
             Integer productId = supplierProductRepository.getProductIdByName(productRequest.getName().trim()); // this can be better, but I don't want to change old code.
             System.out.println(storeId+" " + productId);
@@ -420,6 +424,11 @@ public class SupplierProductServiceImpl implements SupplierProductService {
         for (ProductImport productImport : productsImport){
             if (productImport.getId() > 2147483646){
                 throw new BadRequestException("Integer value can not exceed 2147483646. Fail on count " + count);
+            }
+            // restock must be a positive increase — a zero/negative "restock" would silently
+            // deduct stock through this endpoint, bypassing the order-acceptance stock checks entirely
+            if (productImport.getQty() == null || productImport.getQty() <= 0) {
+                throw new BadRequestException("Restock quantity must be greater than 0. Fail on count " + count);
             }
             Integer productId = supplierProductRepository.getProductIdInStoreProduct(storeId, productImport.getId());
             // check product exist in store
