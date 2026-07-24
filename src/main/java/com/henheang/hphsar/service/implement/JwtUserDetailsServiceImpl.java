@@ -79,6 +79,10 @@ public class JwtUserDetailsServiceImpl implements UserDetailsService, JwtUserDet
             user = appUserRepository.findBuyerUserByEmail(email);
         }
         if (user == null) {
+            // If not found, try admin account
+            user = appUserRepository.findAdminUserByEmail(email);
+        }
+        if (user == null) {
             throw new BadRequestException("Invalid email address. Please input valid email address.");
         }
         return user;
@@ -118,6 +122,9 @@ public class JwtUserDetailsServiceImpl implements UserDetailsService, JwtUserDet
         if (appUserRequest.getPassword().isBlank() || appUserRequest.getPassword().equals("string")) {
             throw new BadRequestException("Invalid password. Please provide a real password.");
         }
+        if (!appUserRequest.getPassword().equals(appUserRequest.getConfirmPassword())) {
+            throw new BadRequestException("Password and confirm password do not match.");
+        }
 
         // Step 4: Check if email is already registered (in either table)
         AppUser checkDuplicate = appUserRepository.findSupplierUserByEmail(appUserRequest.getEmail());
@@ -153,6 +160,9 @@ public class JwtUserDetailsServiceImpl implements UserDetailsService, JwtUserDet
         Boolean isVerified = appUserRepository.getVerifySupplierEmail(email);
         if (isVerified == null) {
             isVerified = appUserRepository.getVerifyBuyerEmail(email);
+        }
+        if (isVerified == null) {
+            isVerified = appUserRepository.getVerifyAdminEmail(email);
         }
         if (isVerified == null) {
             throw new BadRequestException("Email does not exist.");
@@ -285,20 +295,26 @@ public class JwtUserDetailsServiceImpl implements UserDetailsService, JwtUserDet
 
     // ─── Role & User ID Helpers ─────────────────────────────────────────────────
 
-    // Gets the role ID for a given email — checks supplier first, then buyer
+    // Gets the role ID for a given email — checks supplier first, then buyer, then admin
     public Integer getRoleIdByMail(String email) {
         Integer roleId = appUserRepository.getRoleIdByMail(email);
         if (roleId == null) {
             roleId = appUserRepository.getRoleIdByMailBuyer(email);
         }
+        if (roleId == null) {
+            roleId = appUserRepository.getRoleIdByMailAdmin(email);
+        }
         return roleId;
     }
 
-    // Gets the user ID for a given email — checks supplier first, then buyer
+    // Gets the user ID for a given email — checks supplier first, then buyer, then admin
     public Integer getUserIdByMail(String email) {
         Integer userId = appUserRepository.getUserIdByMailSupplier(email);
         if (userId == null) {
             userId = appUserRepository.getUserIdByMailBuyer(email);
+        }
+        if (userId == null) {
+            userId = appUserRepository.getUserIdByMailAdmin(email);
         }
         return userId;
     }

@@ -110,6 +110,7 @@ eyJhbGciOiJIUzUxMiJ9   ← Header  (algorithm: HS512)
 | `/swagger-ui/**`, `/v3/api-docs/**` | Public — API documentation |
 | `/api/v1/buyers/**` | Requires `BUYER` role |
 | `/api/v1/suppliers/**` | Requires `SUPPLIER` role |
+| `/api/v1/admin/**` | Requires `ADMIN` role (supplier/buyer account management) |
 | Everything else | Requires any valid token |
 
 **Other settings:**

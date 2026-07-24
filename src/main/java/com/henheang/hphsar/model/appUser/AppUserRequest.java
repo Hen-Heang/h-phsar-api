@@ -24,5 +24,6 @@ import lombok.NoArgsConstructor;
 public class AppUserRequest {
     private String email;
     private String password;
+    private String confirmPassword;
     private Integer roleId;
 }

@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!--
+    Mapper for AdminAccountRepository.
+    Joins tb_supplier_account/tb_buyer_account with their profile tables
+    (tb_supplier_info/tb_buyer_info) so an admin summary can show a name and
+    phone alongside the account row. LEFT JOIN because a profile row may not
+    exist yet for every account.
+-->
+<mapper namespace="com.henheang.hphsar.repository.AdminAccountRepository">
+
+    <resultMap id="AdminUserSummaryResultMap" type="com.henheang.hphsar.model.appUser.AdminUserSummaryDto">
+        <id     property="id"          column="id"/>
+        <result property="email"       column="email"/>
+        <result property="roleId"      column="role_id"/>
+        <result property="fullName"    column="full_name"/>
+        <result property="phone"       column="phone"/>
+        <result property="isVerified"  column="is_verified"/>
+        <result property="isActive"    column="is_active"/>
+        <result property="createdDate" column="created_date"/>
+    </resultMap>
+
+    <!-- ═══════════════════════════════════════════════════════════════════
+         SUPPLIERS
+         ═══════════════════════════════════════════════════════════════════ -->
+
+    <select id="listSuppliers" resultMap="AdminUserSummaryResultMap">
+        SELECT  a.id,
+                a.email,
+                a.role_id,
+                TRIM(CONCAT(COALESCE(i.first_name, ''), ' ', COALESCE(i.last_name, ''))) AS full_name,
+                i.primary_phone_number AS phone,
+                a.is_verified,
+                a.is_active,
+                a.created_date
+        FROM    tb_supplier_account a
+        LEFT JOIN tb_supplier_info i ON i.supplier_account_id = a.id
+        <where>
+            <if test="search != null and search != ''">
+                (a.email ILIKE CONCAT('%', #{search}, '%')
+                 OR i.first_name ILIKE CONCAT('%', #{search}, '%')
+                 OR i.last_name ILIKE CONCAT('%', #{search}, '%'))
+            </if>
+        </where>
+        ORDER BY a.created_date DESC
+        LIMIT #{pageSize} OFFSET #{pageSize} * (#{pageNumber} - 1)
+    </select>
+
+    <select id="countSuppliers" resultType="long">
+        SELECT  COUNT(*)
+        FROM    tb_supplier_account a
+        LEFT JOIN tb_supplier_info i ON i.supplier_account_id = a.id
+        <where>
+            <if test="search != null and search != ''">
+                (a.email ILIKE CONCAT('%', #{search}, '%')
+                 OR i.first_name ILIKE CONCAT('%', #{search}, '%')
+                 OR i.last_name ILIKE CONCAT('%', #{search}, '%'))
+            </if>
+        </where>
+    </select>
+
+    <select id="findSupplierById" resultMap="AdminUserSummaryResultMap">
+        SELECT  a.id,
+                a.email,
+                a.role_id,
+                TRIM(CONCAT(COALESCE(i.first_name, ''), ' ', COALESCE(i.last_name, ''))) AS full_name,
+                i.primary_phone_number AS phone,
+                a.is_verified,
+                a.is_active,
+                a.created_date
+        FROM    tb_supplier_account a
+        LEFT JOIN tb_supplier_info i ON i.supplier_account_id = a.id
+        WHERE   a.id = #{id}
+    </select>
+
+    <update id="updateSupplierActiveStatus">
+        UPDATE  tb_supplier_account
+        SET     is_active = #{isActive},
+                updated_date = NOW()
+        WHERE   id = #{id}
+    </update>
+
+    <!-- ═══════════════════════════════════════════════════════════════════
+         BUYERS
+         ═══════════════════════════════════════════════════════════════════ -->
+
+    <select id="listBuyers" resultMap="AdminUserSummaryResultMap">
+        SELECT  a.id,
+                a.email,
+                a.role_id,
+                TRIM(CONCAT(COALESCE(i.first_name, ''), ' ', COALESCE(i.last_name, ''))) AS full_name,
+                i.primary_phone_number AS phone,
+                a.is_verified,
+                a.is_active,
+                a.created_date
+        FROM    tb_buyer_account a
+        LEFT JOIN tb_buyer_info i ON i.buyer_account_id = a.id
+        <where>
+            <if test="search != null and search != ''">
+                (a.email ILIKE CONCAT('%', #{search}, '%')
+                 OR i.first_name ILIKE CONCAT('%', #{search}, '%')
+                 OR i.last_name ILIKE CONCAT('%', #{search}, '%'))
+            </if>
+        </where>
+        ORDER BY a.created_date DESC
+        LIMIT #{pageSize} OFFSET #{pageSize} * (#{pageNumber} - 1)
+    </select>
+
+    <select id="countBuyers" resultType="long">
+        SELECT  COUNT(*)
+        FROM    tb_buyer_account a
+        LEFT JOIN tb_buyer_info i ON i.buyer_account_id = a.id
+        <where>
+            <if test="search != null and search != ''">
+                (a.email ILIKE CONCAT('%', #{search}, '%')
+                 OR i.first_name ILIKE CONCAT('%', #{search}, '%')
+                 OR i.last_name ILIKE CONCAT('%', #{search}, '%'))
+            </if>
+        </where>
+    </select>
+
+    <select id="findBuyerById" resultMap="AdminUserSummaryResultMap">
+        SELECT  a.id,
+                a.email,
+                a.role_id,
+                TRIM(CONCAT(COALESCE(i.first_name, ''), ' ', COALESCE(i.last_name, ''))) AS full_name,
+                i.primary_phone_number AS phone,
+                a.is_verified,
+                a.is_active,
+                a.created_date
+        FROM    tb_buyer_account a
+        LEFT JOIN tb_buyer_info i ON i.buyer_account_id = a.id
+        WHERE   a.id = #{id}
+    </select>
+
+    <update id="updateBuyerActiveStatus">
+        UPDATE  tb_buyer_account
+        SET     is_active = #{isActive},
+                updated_date = NOW()
+        WHERE   id = #{id}
+    </update>
+
+</mapper>

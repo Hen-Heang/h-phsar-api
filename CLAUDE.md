@@ -15,13 +15,28 @@
 - Java 17, Spring Boot 3.2.5, Maven Wrapper, MyBatis XML, PostgreSQL.
 - Keep MyBatis. Do not introduce JPA or Hibernate.
 - Main flow: Controller → Service → Repository interface → Mapper XML → PostgreSQL.
-- Roles are `SUPPLIER` and `BUYER`. Do not reintroduce Distributor/Retailer terminology.
-- Use `docs/ORDER_WORKFLOW.md` as the source of truth for order states and transitions.
+- Roles are `SUPPLIER`, `BUYER`, and `ADMIN`. Do not reintroduce Distributor/Retailer terminology.
+- Order statuses are `CART`, `DRAFT`, `PENDING`, `PROCESSING`, `DISPATCHED`, `COMPLETED`, `REJECTED`, `CANCELLED`.
+- Use `docs/ORDER_WORKFLOW.md` and `OrderStatus.java` as the source of truth for order states and transitions.
 - Never persist Java enum ordinals or scatter numeric order-status IDs in Java.
 - `README.md` may contain older examples. Verify lifecycle behavior against code and `docs/ORDER_WORKFLOW.md`.
 - `DatabaseInitializer` and `schema.sql` are transitional database setup mechanisms. Do not activate or redesign Flyway unless the task explicitly covers migrations.
 - For new API code, use `common/api` response classes and current exception handling, not legacy response models.
 - Use `DEVELOPER_GUIDE.md` for existing project patterns and `SQL_GUIDE_BEGINNER_TO_ADVANCED.md` only when SQL learning detail is needed.
+
+## Frontend-integration scope
+
+When a task is primarily a UX/UI change, keep it frontend-only.
+
+Change backend files only when a small, verified contract defect blocks an already-supported UI feature. Do not use UI work as a reason to:
+
+- Redesign business workflows
+- Change database schema, transaction boundaries, or inventory semantics
+- Change authentication architecture
+- Add unsupported Admin capabilities
+- Standardize every API response in an unrelated broad refactor
+
+Verify controller paths, HTTP methods, request/response DTOs, pagination, and authorization before frontend changes. Configured base paths include `/api/v1/suppliers` and `/api/v1/buyers`. Confirm Admin endpoints from actual controllers before use — do not guess.
 
 ## Required task workflow
 
@@ -65,6 +80,26 @@
 - Avoid timing-based sleeps in concurrency tests; use synchronization primitives.
 - On test failure, identify the first root cause and inspect only the relevant report or log section.
 - Do not weaken a production rule to make a test pass.
+- Any backend change must be the smallest compatible contract fix, preserve existing behavior outside the issue, and add/update targeted tests before the full suite.
+- Report backend changes separately from frontend changes.
+
+Required checks when backend code changed:
+
+Windows:
+
+```powershell
+.\mvnw.cmd test
+.\mvnw.cmd clean package
+```
+
+Unix-like shell:
+
+```bash
+./mvnw test
+./mvnw clean package
+```
+
+Always run `git diff --check`.
 
 ## Context and token discipline
 

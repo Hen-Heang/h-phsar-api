@@ -1,5 +1,6 @@
 package com.henheang.hphsar.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.cors.CorsConfiguration;
@@ -7,7 +8,6 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
 
 import java.util.Arrays;
-import java.util.Collections;
 
 /**
  * CORS (Cross-Origin Resource Sharing) Configuration
@@ -27,9 +27,20 @@ import java.util.Collections;
  * <p>
  * Related: SecurityConfig disables its own CORS handling (.cors().disable())
  *          because this CorsFilter already handles it at the servlet level.
+ * <p>
+ * allowedOrigins is an explicit list (cors.allowed-origins, comma-separated),
+ * not "*": browsers reject Access-Control-Allow-Origin: * whenever
+ * allowCredentials is true, and it matters here specifically because the
+ * refresh-token cookie (POST /authorization/refresh, /login, /logout) is
+ * ambient — unlike a bearer token in a header, a wildcard-origin + credentials
+ * policy would let ANY site that can get a user's browser to hit this API
+ * ride along on that cookie.
  */
 @Configuration
 public class CorsFilterConfiguration {
+
+    @Value("${cors.allowed-origins}")
+    private String[] allowedOrigins;
 
     @Bean
     public CorsFilter corsFilter() {
@@ -39,9 +50,8 @@ public class CorsFilterConfiguration {
         // Allow credentials (cookies, Authorization headers) to be sent cross-origin
         config.setAllowCredentials(true);
 
-        // Allow requests from any domain (frontend URL)
-        // Use setAllowedOrigins("https://yourdomain.com") in production for security
-        config.setAllowedOriginPatterns(Collections.singletonList("*"));
+        // Explicit origin allowlist — see class Javadoc for why this can't be "*".
+        config.setAllowedOrigins(Arrays.asList(allowedOrigins));
 
         // Allow these headers to be included in cross-origin requests
         config.setAllowedHeaders(Arrays.asList(

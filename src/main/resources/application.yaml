@@ -14,9 +14,9 @@ spring:
     # No fallback values on purpose: the app must fail to start rather than
     # silently connect with a guessable default. Provide these via env vars
     # (see .env.example) or an application-local.yaml copied from the example.
-    url: ${DB_URL}
-    username: ${DB_USERNAME}
-    password: ${DB_PASSWORD}
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/postgres}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:123}
 
   mail:
     host: ${MAIL_HOST:}
@@ -39,24 +39,42 @@ spring:
       max-request-size: 10MB
 
 server:
-  port: 8080
+  # Render (and most PaaS hosts) inject PORT at runtime; 8080 remains the
+  # local-dev default.
+  port: ${PORT:8080}
 
 management:
   health:
     mail:
       enabled: false
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
 
 jwt:
   # HS512 requires >= 512 bits (64 chars). No default on purpose — startup must
   # fail if JWT_SECRET is missing rather than sign tokens with a guessable key.
   # Generate a local value with, e.g.: openssl rand -base64 64
-  secret: ${JWT_SECRET}
+  secret: ${JWT_SECRET:}
+
+cors:
+  # Comma-separated explicit origin list — see CorsFilterConfiguration Javadoc
+  # for why this must never be "*". Override via CORS_ALLOWED_ORIGINS for any
+  # frontend origin beyond the local dev default.
+  allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
 
 base:
   supplier:
     v1: /api/v1/suppliers
   buyer:
+
     v1: /api/v1/buyers
+  admin:
+    v1: /api/v1/admin
 
 mybatis:
   mapper-locations: classpath:/mapper/**/*.xml

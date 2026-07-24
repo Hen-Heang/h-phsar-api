@@ -30,10 +30,12 @@ import java.util.function.Function;
  * The secret key (from application.properties: jwt. Secret) is used
  * to sign tokens when generating, and to verify them when validating.
  * <p>
- * Token lifetime: 24 hours (JWT_TOKEN_VALIDITY)
+ * Token lifetime: 15 minutes (JWT_TOKEN_VALIDITY) — deliberately short now that
+ * a refresh-token flow exists (see RefreshTokenService / POST /authorization/refresh)
+ * to obtain a new access token without the user re-entering credentials.
  * <p>
  * Used by:
- *   - JwtAuthenticationController → generateToken() after successful login
+ *   - JwtAuthenticationController → generateToken() after successful login and after refresh
  *   - JwtRequestFilter            → getUsernameFromToken() + validateToken() on every request
  */
 @Component
@@ -42,8 +44,9 @@ public class JwtTokenUtil implements Serializable {
     @Serial
     private static final long serialVersionUID = -2550188375426007488L;
 
-    // Token is valid for 7 days (in seconds)
-    public static final long JWT_TOKEN_VALIDITY = 7 * 24 * 60 * 60;
+    // Access token is short-lived (in seconds) — the refresh token, not this,
+    // is what keeps a session alive long-term.
+    public static final long JWT_TOKEN_VALIDITY = 15 * 60;
 
     // Secret key loaded from application.properties: jwt.secret=your-secret-key
     @Value("${jwt.secret}")
@@ -107,7 +110,7 @@ public class JwtTokenUtil implements Serializable {
      * Builds and signs the JWT token:
      *   - Subject   : user's email
      *   - IssuedAt  : now
-     *   - Expiration: now + 24 hours
+     *   - Expiration: now + JWT_TOKEN_VALIDITY
      *   - Signature : HS512 algorithm with the secret key
      */
     private String doGenerateToken(Map<String, Object> claims, String subject) {

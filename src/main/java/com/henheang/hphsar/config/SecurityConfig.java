@@ -66,6 +66,7 @@ public class SecurityConfig {
      * Protected endpoints (token required):
      *   - /api/v1/buyers/**       → BUYER role only
      *   - /api/v1/suppliers/**    → SUPPLIER role only
+     *   - /api/v1/admin/**        → ADMIN role only (supplier/buyer account management)
      *   - anything else           → any authenticated user
      */
     @Bean
@@ -77,6 +78,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers("/api/v1/buyers/**").hasAuthority(Role.BUYER.name())
                 .requestMatchers("/api/v1/suppliers/**").hasAuthority(Role.SUPPLIER.name())
+                .requestMatchers("/api/v1/admin/**").hasAuthority(Role.ADMIN.name())
                 .requestMatchers(
                         "/authorization/**",
                         "/api/v1/files/**",
@@ -87,7 +89,8 @@ public class SecurityConfig {
                         "/web/**",
                         "/css/**",
                         "/js/**",
-                        "/images/**"
+                        "/images/**",
+                        "/actuator/health"
                 ).permitAll()
                 .anyRequest().authenticated()
             )

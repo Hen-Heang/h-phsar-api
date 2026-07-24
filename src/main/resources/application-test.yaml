@@ -30,5 +30,8 @@ jwt:
   # Never reused outside this file.
   secret: test-only-jwt-secret-do-not-use-outside-automated-tests-0123456789
 
+cors:
+  allowed-origins: http://localhost:3000
+
 file:
   upload-dir: ${FILE_UPLOAD_DIR:build/test-uploads}

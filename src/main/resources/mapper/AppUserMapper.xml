@@ -146,6 +146,20 @@
         WHERE   ta.email = #{email}
     </select>
 
+    <!-- Find an admin user by their email address -->
+    <select id="findAdminUserByEmail" resultMap="AppUserResultMap">
+        SELECT  ta.id,
+                ta.email,
+                ta.password,
+                tr.name     AS role,
+                ta.role_id,
+                ta.is_verified,
+                ta.is_active
+        FROM    tb_admin_account ta
+        JOIN    tb_role tr ON ta.role_id = tr.id
+        WHERE   ta.email = #{email}
+    </select>
+
     <!-- ═══════════════════════════════════════════════════════════════════════
          PHONE NUMBER DUPLICATE CHECK QUERIES
          ═══════════════════════════════════════════════════════════════════════
@@ -189,6 +203,10 @@
         SELECT role_id FROM tb_buyer_account WHERE email = #{email}
     </select>
 
+    <select id="getRoleIdByMailAdmin" resultType="int">
+        SELECT role_id FROM tb_admin_account WHERE email = #{email}
+    </select>
+
     <!-- Check if the email has been OTP-verified (is_verified column) -->
     <select id="getVerifySupplierEmail" resultType="boolean">
         SELECT is_verified FROM tb_supplier_account WHERE email = #{email}
@@ -198,6 +216,12 @@
         SELECT is_verified FROM tb_buyer_account WHERE email = #{email}
     </select>
 
+    <!-- Admin accounts are seeded already verified — this just lets the shared
+         login flow's email-verification gate treat admin the same as supplier/buyer. -->
+    <select id="getVerifyAdminEmail" resultType="boolean">
+        SELECT is_verified FROM tb_admin_account WHERE email = #{email}
+    </select>
+
     <!-- Get the numeric user ID by email -->
     <select id="getUserIdByMailSupplier" resultType="int">
         SELECT id FROM tb_supplier_account WHERE email = #{email}
@@ -205,6 +229,10 @@
 
     <select id="getUserIdByMailBuyer" resultType="int">
         SELECT id FROM tb_buyer_account WHERE email = #{email}
+    </select>
+
+    <select id="getUserIdByMailAdmin" resultType="int">
+        SELECT id FROM tb_admin_account WHERE email = #{email}
     </select>
 
     <!-- ═══════════════════════════════════════════════════════════════════════

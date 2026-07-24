@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!--
+    Mapper for RefreshTokenRepository — backs tb_refresh_token (created by
+    DatabaseInitializer#createRefreshTokenTable). Only a SHA-256 hash of the
+    raw refresh token is ever read/written here — see RefreshToken.java.
+-->
+<mapper namespace="com.henheang.hphsar.repository.RefreshTokenRepository">
+
+    <resultMap id="RefreshTokenResultMap" type="com.henheang.hphsar.model.jwt.RefreshToken">
+        <id     property="id"          column="id"/>
+        <result property="email"       column="email"/>
+        <result property="roleId"      column="role_id"/>
+        <result property="tokenHash"   column="token_hash"/>
+        <result property="expiresAt"   column="expires_at"/>
+        <result property="revokedAt"   column="revoked_at"/>
+        <result property="createdDate" column="created_date"/>
+    </resultMap>
+
+    <select id="insertRefreshToken" resultMap="RefreshTokenResultMap">
+        INSERT INTO tb_refresh_token (email, role_id, token_hash, expires_at)
+        VALUES (#{email}, #{roleId}, #{tokenHash}, #{expiresAt})
+        RETURNING id, email, role_id, token_hash, expires_at, revoked_at, created_date
+    </select>
+
+    <select id="findByTokenHash" resultMap="RefreshTokenResultMap">
+        SELECT id, email, role_id, token_hash, expires_at, revoked_at, created_date
+        FROM   tb_refresh_token
+        WHERE  token_hash = #{tokenHash}
+    </select>
+
+    <update id="revokeByTokenHash">
+        UPDATE tb_refresh_token
+        SET    revoked_at = NOW()
+        WHERE  token_hash = #{tokenHash}
+          AND  revoked_at IS NULL
+    </update>
+
+    <update id="revokeAllActiveByEmail">
+        UPDATE tb_refresh_token
+        SET    revoked_at = NOW()
+        WHERE  email = #{email}
+          AND  revoked_at IS NULL
+    </update>
+
+</mapper>

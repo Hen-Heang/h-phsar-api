@@ -29,6 +29,8 @@ public class AppUser implements UserDetails {
             role = Role.SUPPLIER.name();
         } else if (roleId != null && roleId == 2) {
             role = Role.BUYER.name();
+        } else if (roleId != null && roleId == 3) {
+            role = Role.ADMIN.name();
         }
         if (role == null) return Collections.emptyList();
         SimpleGrantedAuthority authority = new SimpleGrantedAuthority(role.toUpperCase());

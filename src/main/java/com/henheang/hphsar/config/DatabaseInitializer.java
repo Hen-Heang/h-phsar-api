@@ -37,6 +37,7 @@ import org.springframework.stereotype.Component;
  *     defense in depth behind the atomic guarded UPDATE that's the real concurrency fix)
  *   - tb_order_detail: UNIQUE(order_id, store_product_id) when no existing violation,
  *     plus an index on order_id used by stock deduction during order acceptance
+ *   - tb_refresh_token: opaque refresh tokens (hashed) backing POST /authorization/refresh
  */
 @Slf4j
 @Component
@@ -226,6 +227,9 @@ public class DatabaseInitializer {
         // Keep the role labels in sync with the new terminology (roleId values are unchanged: 1, 2)
         jdbcTemplate.execute("UPDATE tb_role SET name = 'SUPPLIER' WHERE id = 1;");
         jdbcTemplate.execute("UPDATE tb_role SET name = 'BUYER' WHERE id = 2;");
+
+        createAdminAccountTable();
+        createRefreshTokenTable();
 
         enforceStoreProductQtyInvariant();
         enforceOrderDetailUniqueness();
@@ -441,6 +445,60 @@ public class DatabaseInitializer {
      */
     private void addOrderDetailOrderIdIndex() {
         jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_order_detail_order_id ON tb_order_detail (order_id);");
+    }
+
+    /**
+     * ADMIN role support (login, plus Phase 2 supplier/buyer account management
+     * in AdminAccountController — see service/implement/AdminAccountServiceImpl.java).
+     * <p>
+     * tb_admin_account mirrors tb_supplier_account/tb_buyer_account so the existing
+     * shared login flow (JwtUserDetailsServiceImpl) can treat admin the same way.
+     * There is no public registration endpoint for this table by design — the first
+     * admin row must be inserted manually (see docs), since anyone hitting a public
+     * "create admin" endpoint would be a privilege-escalation hole.
+     */
+    private void createAdminAccountTable() {
+        jdbcTemplate.execute("INSERT INTO tb_role (id, name) VALUES (3, 'ADMIN') ON CONFLICT (id) DO NOTHING;");
+
+        jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS tb_admin_account (
+                    id           SERIAL PRIMARY KEY,
+                    role_id      INTEGER      NOT NULL REFERENCES tb_role (id),
+                    email        VARCHAR(255) NOT NULL UNIQUE,
+                    password     TEXT         NOT NULL,
+                    created_date TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+                    updated_date TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+                    is_verified  BOOLEAN      DEFAULT TRUE,
+                    is_active    BOOLEAN      DEFAULT TRUE
+                );
+                """);
+    }
+
+    /**
+     * Refresh-token flow support (access + refresh tokens, POST /authorization/refresh,
+     * POST /authorization/logout — see RefreshTokenService / JwtAuthenticationController).
+     * <p>
+     * A single table, not split per role like the account tables: this is a
+     * cross-cutting session concept, not an account type, so email + role_id
+     * together identify the account (email is what loadUserByUsername keys off
+     * of; role_id is captured at issuance so it doesn't need a re-lookup on
+     * refresh). token_hash is a SHA-256 hex digest of the raw token — the raw
+     * value itself is never persisted.
+     */
+    private void createRefreshTokenTable() {
+        jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS tb_refresh_token (
+                    id           SERIAL PRIMARY KEY,
+                    email        VARCHAR(255) NOT NULL,
+                    role_id      INTEGER      NOT NULL REFERENCES tb_role (id),
+                    token_hash   VARCHAR(64)  NOT NULL UNIQUE,
+                    expires_at   TIMESTAMP    NOT NULL,
+                    revoked_at   TIMESTAMP,
+                    created_date TIMESTAMP    DEFAULT CURRENT_TIMESTAMP
+                );
+                """);
+        jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_refresh_token_email ON tb_refresh_token(email);");
+        jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_refresh_token_expires_at ON tb_refresh_token(expires_at);");
     }
 
     /**

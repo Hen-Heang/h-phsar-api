@@ -47,6 +47,7 @@ public interface AppUserRepository {
     AppUser findSupplierUserByEmail(String email);
     AppUser findSupplierUserById(Integer id);
     AppUser findBuyerUserByEmail(String email);
+    AppUser findAdminUserByEmail(String email);
 
     // ─── CHECK DUPLICATE PHONE ─────────────────────────────────────────────────
     Boolean checkPhoneNumberFromSupplierPhone(String phone);
@@ -57,10 +58,12 @@ public interface AppUserRepository {
     // ─── GET ROLE ID ───────────────────────────────────────────────────────────
     Integer getRoleIdByMail(String email);
     Integer getRoleIdByMailBuyer(String email);
+    Integer getRoleIdByMailAdmin(String email);
 
     // ─── GET VERIFICATION STATUS ───────────────────────────────────────────────
     Boolean getVerifySupplierEmail(String email);
     Boolean getVerifyBuyerEmail(String email);
+    Boolean getVerifyAdminEmail(String email);
 
     // ─── UPDATE PASSWORD ───────────────────────────────────────────────────────
     // @Param is needed here because the method has multiple parameters
@@ -73,4 +76,5 @@ public interface AppUserRepository {
     // ─── GET USER ID ───────────────────────────────────────────────────────────
     Integer getUserIdByMailSupplier(String email);
     Integer getUserIdByMailBuyer(String email);
+    Integer getUserIdByMailAdmin(String email);
 }
