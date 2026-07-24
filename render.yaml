@@ -31,3 +31,12 @@ services:
         value: "587"
       - key: FILE_UPLOAD_DIR
         value: /var/lib/h-phsar/uploads
+    disk:
+      # Persists uploaded files (see FileController/WebMvcConfig) across
+      # deploys and restarts — without this, Render's container filesystem
+      # is ephemeral and every redeploy wipes FILE_UPLOAD_DIR. A disk pins
+      # the service to a single instance (no autoscaling), which is already
+      # the case here since Render disks don't support horizontal scaling.
+      name: h-phsar-uploads
+      mountPath: /var/lib/h-phsar/uploads
+      sizeGB: 1
