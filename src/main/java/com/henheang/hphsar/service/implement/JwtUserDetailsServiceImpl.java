@@ -16,7 +16,6 @@ import com.henheang.hphsar.repository.AppUserRepository;
 import com.henheang.hphsar.repository.OtpRepository;
 import com.henheang.hphsar.service.JwtUserDetailsService;
 import com.henheang.hphsar.service.OtpService;
-import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
@@ -25,6 +24,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -45,7 +45,6 @@ import java.util.Objects;
  *   forgetPassword()  → reset password using OTP verification
  */
 @Service
-@RequiredArgsConstructor
 public class JwtUserDetailsServiceImpl implements UserDetailsService, JwtUserDetailsService {
 
     private final AppUserRepository appUserRepository;
@@ -53,6 +52,24 @@ public class JwtUserDetailsServiceImpl implements UserDetailsService, JwtUserDet
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final OtpService otpService;
+
+    // AuthenticationManager is backed by DaoAuthenticationProvider, which in turn depends
+    // on this class as its UserDetailsService — an eager reference here would recreate the
+    // same bean-creation cycle. @Lazy defers real resolution until authenticateLogin()
+    // actually calls it, after the context has finished starting. @RequiredArgsConstructor
+    // does not propagate field annotations to the generated constructor, so this
+    // constructor is written explicitly.
+    public JwtUserDetailsServiceImpl(AppUserRepository appUserRepository,
+                                      OtpRepository otpRepository,
+                                      PasswordEncoder passwordEncoder,
+                                      @Lazy AuthenticationManager authenticationManager,
+                                      OtpService otpService) {
+        this.appUserRepository = appUserRepository;
+        this.otpRepository = otpRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.authenticationManager = authenticationManager;
+        this.otpService = otpService;
+    }
 
     // ─── Load User For Spring Security ─────────────────────────────────────────
 

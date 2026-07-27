@@ -29,17 +29,20 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final JwtUserDetailsServiceImpl jwtUserDetailsService;
     private final PasswordEncoder passwordEncoder;
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
-    private final JwtRequestFilter jwtRequestFilter;
 
     /**
      * Configures how Spring loads and verifies user credentials.
      * Uses the database (via jwtUserDetailsService) + Bcrypt password encoder.
+     * <p>
+     * jwtUserDetailsService is a method parameter (not a constructor field) to avoid a
+     * circular bean dependency: JwtUserDetailsServiceImpl depends on AuthenticationManager,
+     * whose @Bean method lives in this same class, so this class must not require
+     * JwtUserDetailsServiceImpl at construction time.
      */
     @Bean
-    DaoAuthenticationProvider daoAuthenticationProvider() {
+    DaoAuthenticationProvider daoAuthenticationProvider(JwtUserDetailsServiceImpl jwtUserDetailsService) {
         DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
         provider.setUserDetailsService(jwtUserDetailsService);
         provider.setPasswordEncoder(passwordEncoder);
@@ -61,7 +64,8 @@ public class SecurityConfig {
      *   - anything else           → any authenticated user
      */
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtRequestFilter jwtRequestFilter,
+                                                     DaoAuthenticationProvider daoAuthenticationProvider) throws Exception {
         http
             .cors(AbstractHttpConfigurer::disable)
             .csrf(AbstractHttpConfigurer::disable) // disable CSRF since we use stateless JWT, not cookies
@@ -89,7 +93,7 @@ public class SecurityConfig {
             .exceptionHandling(ex -> ex.authenticationEntryPoint(jwtAuthenticationEntryPoint))
             // Stateless: no HTTP session is created or used — every request must carry a JWT
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authenticationProvider(daoAuthenticationProvider());
+            .authenticationProvider(daoAuthenticationProvider);
 
         // Run JwtRequestFilter before Spring's default username/password filter
         http.addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class);
