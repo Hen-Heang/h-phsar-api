@@ -9,6 +9,9 @@ import java.text.ParseException;
 import java.util.List;
 
 public interface SupplierOrderService {
+    /** Resolves the store id owned by the currently authenticated supplier. */
+    Integer getCurrentStoreId();
+
     Integer findTotalPage(Integer totalOrder, Integer pageSize);
     List<Order> getAllOrderCurrentUserSortByCreatedDate(String sort, Integer pageNumber, Integer pageSize, Integer storeId) throws ParseException;
     Integer getTotalOrder(Integer storeId);

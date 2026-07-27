@@ -22,7 +22,7 @@
 - `README.md` may contain older examples. Verify lifecycle behavior against code and `docs/ORDER_WORKFLOW.md`.
 - `DatabaseInitializer` and `schema.sql` are transitional database setup mechanisms. Do not activate or redesign Flyway unless the task explicitly covers migrations.
 - For new API code, use `common/api` response classes and current exception handling, not legacy response models.
-- Use `DEVELOPER_GUIDE.md` for existing project patterns and `SQL_GUIDE_BEGINNER_TO_ADVANCED.md` only when SQL learning detail is needed.
+- Use `docs/DEVELOPER_GUIDE.md` for existing project patterns and `docs/SQL_GUIDE_BEGINNER_TO_ADVANCED.md` only when SQL learning detail is needed.
 
 ## Frontend-integration scope
 
@@ -89,15 +89,17 @@ Windows:
 
 ```powershell
 .\mvnw.cmd test
-.\mvnw.cmd clean package
+.\mvnw.cmd verify
 ```
 
 Unix-like shell:
 
 ```bash
 ./mvnw test
-./mvnw clean package
+./mvnw verify
 ```
+
+`test` runs unit tests. `verify` also runs PostgreSQL Testcontainers integration tests named `*IT` and therefore requires Docker.
 
 Always run `git diff --check`.
 

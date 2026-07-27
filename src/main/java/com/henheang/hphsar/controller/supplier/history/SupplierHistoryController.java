@@ -1,7 +1,7 @@
 package com.henheang.hphsar.controller.supplier.history;
+import com.henheang.hphsar.utils.ValidationUtils;
 
 import com.henheang.hphsar.controller.BaseController;
-import com.henheang.hphsar.exception.BadRequestException;
 import com.henheang.hphsar.service.HistoryService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -24,9 +24,7 @@ public class SupplierHistoryController extends BaseController {
 
     @GetMapping("/import")
     public ResponseEntity<?> getProductImportHistory(@RequestParam(defaultValue = "asc") String sort, @RequestParam Integer pageNumber, @RequestParam Integer pageSize) throws ParseException {
-        if (pageNumber > 2147483646 || pageSize > 2147483646) {
-            throw new BadRequestException("Integer value can not exceed 2147483646");
-        }
+        ValidationUtils.rejectIfExceedsIntLimit(pageNumber, pageSize);
         return okPage(
                 "Fetched import history successfully.",
                 historyService.getProductImportHistory(sort, pageNumber, pageSize),
@@ -38,9 +36,7 @@ public class SupplierHistoryController extends BaseController {
 
     @GetMapping("/order")
     public ResponseEntity<?> getOrderHistory(@RequestParam(defaultValue = "asc") String sort, @RequestParam Integer pageNumber, @RequestParam Integer pageSize) throws ParseException {
-        if (pageNumber > 2147483646 || pageSize > 2147483646) {
-            throw new BadRequestException("Integer value can not exceed 2147483646");
-        }
+        ValidationUtils.rejectIfExceedsIntLimit(pageNumber, pageSize);
 
         return okPage(
                 "Fetched order history  successfully.",

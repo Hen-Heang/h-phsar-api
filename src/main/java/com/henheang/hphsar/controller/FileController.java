@@ -1,8 +1,7 @@
 package com.henheang.hphsar.controller;
 
-import com.henheang.hphsar.model.ApiResponse;
+import com.henheang.hphsar.common.api.ApiResponse;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -13,21 +12,17 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
-import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/files")
-public class FileController {
+public class FileController extends BaseController {
 
     @Value("${file.upload-dir}")
     private String uploadDir;
 
-    SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-
     @PostMapping("/upload")
-    public ResponseEntity<?> uploadFile(@RequestParam("file") MultipartFile file) throws IOException {
+    public ResponseEntity<ApiResponse<String>> uploadFile(@RequestParam("file") MultipartFile file) throws IOException {
         String originalFilename = file.getOriginalFilename();
         String extension = (originalFilename != null && originalFilename.contains("."))
                 ? originalFilename.substring(originalFilename.lastIndexOf("."))
@@ -43,12 +38,6 @@ public class FileController {
                 .path(filename)
                 .toUriString();
 
-        ApiResponse<String> response = ApiResponse.<String>builder()
-                .status(HttpStatus.OK.value())
-                .message("File uploaded successfully.")
-                .data(fileUrl)
-                .date(formatter.format(new Date()))
-                .build();
-        return ResponseEntity.ok(response);
+        return ok("File uploaded successfully.", fileUrl);
     }
 }

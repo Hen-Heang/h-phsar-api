@@ -1,4 +1,5 @@
 package com.henheang.hphsar.service.implement;
+import com.henheang.hphsar.common.ExceptionMessages;
 
 import com.henheang.hphsar.exception.BadRequestException;
 import com.henheang.hphsar.exception.ConflictException;
@@ -18,49 +19,49 @@ import com.henheang.hphsar.repository.SupplierOrderRepository;
 import com.henheang.hphsar.repository.StoreRepository;
 import com.henheang.hphsar.service.OrderStatusService;
 import com.henheang.hphsar.service.SupplierOrderService;
+import com.henheang.hphsar.service.support.CurrentUserProvider;
+import com.henheang.hphsar.utils.PaginationUtils;
+import com.henheang.hphsar.utils.SortDirectionUtils;
+import com.henheang.hphsar.utils.DateTimeUtil;
+import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.List;
 import java.util.Objects;
 
 @Service
+@RequiredArgsConstructor
 public class SupplierOrderServiceImpl implements SupplierOrderService {
-    SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
     private final SupplierOrderRepository supplierOrderRepository;
     private final StoreRepository storeRepository;
     private final NotificationRepository notificationRepository;
     private final SimpMessagingTemplate messagingTemplate;
     private final OrderStatusService orderStatusService;
+    private final CurrentUserProvider currentUserProvider;
 
-    public SupplierOrderServiceImpl(SupplierOrderRepository supplierOrderRepository, StoreRepository storeRepository, NotificationRepository notificationRepository, SimpMessagingTemplate messagingTemplate, OrderStatusService orderStatusService) {
-        this.supplierOrderRepository = supplierOrderRepository;
-        this.storeRepository = storeRepository;
-        this.notificationRepository = notificationRepository;
-        this.messagingTemplate = messagingTemplate;
-        this.orderStatusService = orderStatusService;
+    @Override
+    public Integer getCurrentStoreId() {
+        return storeRepository.getStoreIdByUserId(currentUserProvider.getCurrentUserId());
     }
 
     @Override
     public List<Order> getAllOrderCurrentUserSortByCreatedDate(String sort, Integer pageNumber, Integer pageSize, Integer storeId) throws ParseException {
         // check sort spelling
-        if (!(sort.equalsIgnoreCase("asc") || sort.equalsIgnoreCase("desc") || sort.isEmpty())) {
-            throw new BadRequestException("Field 'sort' is invalid. Please input either 'ASC' or 'DESC'. Case sensitive not required.");
-        }
+        SortDirectionUtils.validate(sort);
         // validate page number and size
         if (pageNumber <= 0 || pageSize <= 0) {
-            throw new BadRequestException("Page number and size should be higher than 0.");
+            throw new BadRequestException(ExceptionMessages.PAGE_SIZE_MUST_BE_POSITIVE);
         }
         // fetch order
         List<Order> orders = supplierOrderRepository.getAllOrders(sort, pageNumber, pageSize, storeId);
         // find total order
         Integer totalOrder = getTotalOrder(storeId);
         if (totalOrder <= 0) {
-            throw new NotFoundException("There is no order currently.");
+            throw new NotFoundException(ExceptionMessages.THERE_IS_NO_ORDER_CURRENTLY);
         }
         // find total page
         Integer totalPage = findTotalPage(totalOrder, pageSize);
@@ -69,10 +70,10 @@ public class SupplierOrderServiceImpl implements SupplierOrderService {
             throw new NotFoundException("Out of range. Total page is " + totalPage);
         }
         if (orders.isEmpty()) {
-            throw new NotFoundException("Order not found");
+            throw new NotFoundException(ExceptionMessages.ORDER_NOT_FOUND);
         }
         for (Order order : orders) {
-            order.setDate(formatter.format(formatter.parse(order.getDate())));
+            order.setDate(DateTimeUtil.format(DateTimeUtil.parse(order.getDate())));
         }
         return orders;
     }
@@ -81,19 +82,17 @@ public class SupplierOrderServiceImpl implements SupplierOrderService {
     @Override
     public List<Order> getNewOrderCurrentUserSortByCreatedDate(String sort, Integer pageNumber, Integer pageSize, Integer storeId) throws ParseException {
         // check sort spelling
-        if (!(sort.equalsIgnoreCase("asc") || sort.equalsIgnoreCase("desc") || sort.isEmpty())) {
-            throw new BadRequestException("Field 'sort' is invalid. Please input either 'ASC' or 'DESC'. Case sensitive not required.");
-        }
+        SortDirectionUtils.validate(sort);
         // validate page number and size
         if (pageNumber <= 0 || pageSize <= 0) {
-            throw new BadRequestException("Page number and size should be higher than 0.");
+            throw new BadRequestException(ExceptionMessages.PAGE_SIZE_MUST_BE_POSITIVE);
         }
         // fetch order
         List<Order> orders = supplierOrderRepository.getPendingOrders(sort, pageNumber, pageSize, storeId);
         // find total order
         Integer totalOrder = getTotalNewOrder(storeId);
         if (totalOrder <= 0) {
-            throw new NotFoundException("There is no order currently.");
+            throw new NotFoundException(ExceptionMessages.THERE_IS_NO_ORDER_CURRENTLY);
         }
         // find total page
         Integer totalPage = findTotalPage(totalOrder, pageSize);
@@ -103,10 +102,10 @@ public class SupplierOrderServiceImpl implements SupplierOrderService {
         }
         System.out.println(orders);
         if (orders.isEmpty()) {
-            throw new NotFoundException("Order not found");
+            throw new NotFoundException(ExceptionMessages.ORDER_NOT_FOUND);
         }
         for (Order order : orders) {
-            order.setDate(formatter.format(formatter.parse(order.getDate())));
+            order.setDate(DateTimeUtil.format(DateTimeUtil.parse(order.getDate())));
         }
         return orders;
     }
@@ -114,19 +113,17 @@ public class SupplierOrderServiceImpl implements SupplierOrderService {
     @Override
     public List<Order> getPreparingOrderCurrentUserSortByCreatedDate(String sort, Integer pageNumber, Integer pageSize, Integer storeId) throws ParseException {
         // check sort spelling
-        if (!(sort.equalsIgnoreCase("asc") || sort.equalsIgnoreCase("desc") || sort.isEmpty())) {
-            throw new BadRequestException("Field 'sort' is invalid. Please input either 'ASC' or 'DESC'. Case sensitive not required.");
-        }
+        SortDirectionUtils.validate(sort);
         // validate page number and size
         if (pageNumber <= 0 || pageSize <= 0) {
-            throw new BadRequestException("Page number and size should be higher than 0.");
+            throw new BadRequestException(ExceptionMessages.PAGE_SIZE_MUST_BE_POSITIVE);
         }
         // fetch order
         List<Order> orders = supplierOrderRepository.getPreparingOrders(sort, pageNumber, pageSize, storeId);
         // find total order
         Integer totalOrder = getTotalPreparingOrder(storeId);
         if (totalOrder <= 0) {
-            throw new NotFoundException("There is no order currently.");
+            throw new NotFoundException(ExceptionMessages.THERE_IS_NO_ORDER_CURRENTLY);
         }
         // find total page
         Integer totalPage = findTotalPage(totalOrder, pageSize);
@@ -136,10 +133,10 @@ public class SupplierOrderServiceImpl implements SupplierOrderService {
         }
         System.out.println(orders);
         if (orders.isEmpty()) {
-            throw new NotFoundException("Order not found");
+            throw new NotFoundException(ExceptionMessages.ORDER_NOT_FOUND);
         }
         for (Order order : orders) {
-            order.setDate(formatter.format(formatter.parse(order.getDate())));
+            order.setDate(DateTimeUtil.format(DateTimeUtil.parse(order.getDate())));
         }
         return orders;
     }
@@ -147,19 +144,17 @@ public class SupplierOrderServiceImpl implements SupplierOrderService {
     @Override
     public List<Order> getDispatchingOrderCurrentUserSortByCreatedDate(String sort, Integer pageNumber, Integer pageSize, Integer storeId) throws ParseException {
         // check sort spelling
-        if (!(sort.equalsIgnoreCase("asc") || sort.equalsIgnoreCase("desc") || sort.isEmpty())) {
-            throw new BadRequestException("Field 'sort' is invalid. Please input either 'ASC' or 'DESC'. Case sensitive not required.");
-        }
+        SortDirectionUtils.validate(sort);
         // validate page number and size
         if (pageNumber <= 0 || pageSize <= 0) {
-            throw new BadRequestException("Page number and size should be higher than 0.");
+            throw new BadRequestException(ExceptionMessages.PAGE_SIZE_MUST_BE_POSITIVE);
         }
         // fetch order
         List<Order> orders = supplierOrderRepository.getDispatchingOrders(sort, pageNumber, pageSize, storeId);
         // find total order
         Integer totalOrder = getTotalDispatchingOrder(storeId);
         if (totalOrder <= 0) {
-            throw new NotFoundException("There is no order currently.");
+            throw new NotFoundException(ExceptionMessages.THERE_IS_NO_ORDER_CURRENTLY);
         }
         // find total page
         Integer totalPage = findTotalPage(totalOrder, pageSize);
@@ -169,10 +164,10 @@ public class SupplierOrderServiceImpl implements SupplierOrderService {
         }
         System.out.println(orders);
         if (orders.isEmpty()) {
-            throw new NotFoundException("Order not found");
+            throw new NotFoundException(ExceptionMessages.ORDER_NOT_FOUND);
         }
         for (Order order : orders) {
-            order.setDate(formatter.format(formatter.parse(order.getDate())));
+            order.setDate(DateTimeUtil.format(DateTimeUtil.parse(order.getDate())));
         }
         return orders;
     }
@@ -180,19 +175,17 @@ public class SupplierOrderServiceImpl implements SupplierOrderService {
     @Override
     public List<Order> getConfirmingOrderCurrentUserSortByCreatedDate(String sort, Integer pageNumber, Integer pageSize, Integer storeId) throws ParseException {
         // check sort spelling
-        if (!(sort.equalsIgnoreCase("asc") || sort.equalsIgnoreCase("desc") || sort.isEmpty())) {
-            throw new BadRequestException("Field 'sort' is invalid. Please input either 'ASC' or 'DESC'. Case sensitive not required.");
-        }
+        SortDirectionUtils.validate(sort);
         // validate page number and size
         if (pageNumber <= 0 || pageSize <= 0) {
-            throw new BadRequestException("Page number and size should be higher than 0.");
+            throw new BadRequestException(ExceptionMessages.PAGE_SIZE_MUST_BE_POSITIVE);
         }
         // fetch order
         List<Order> orders = supplierOrderRepository.getConfirmingOrders(sort, pageNumber, pageSize, storeId);
         // find total order
         Integer totalOrder = getTotalConfirmingOrder(storeId);
         if (totalOrder <= 0) {
-            throw new NotFoundException("There is no order currently.");
+            throw new NotFoundException(ExceptionMessages.THERE_IS_NO_ORDER_CURRENTLY);
         }
         // find total page
         Integer totalPage = findTotalPage(totalOrder, pageSize);
@@ -202,10 +195,10 @@ public class SupplierOrderServiceImpl implements SupplierOrderService {
         }
         System.out.println(orders);
         if (orders.isEmpty()) {
-            throw new NotFoundException("Order not found");
+            throw new NotFoundException(ExceptionMessages.ORDER_NOT_FOUND);
         }
         for (Order order : orders) {
-            order.setDate(formatter.format(formatter.parse(order.getDate())));
+            order.setDate(DateTimeUtil.format(DateTimeUtil.parse(order.getDate())));
         }
         return orders;
     }
@@ -213,12 +206,10 @@ public class SupplierOrderServiceImpl implements SupplierOrderService {
     @Override
     public List<Order> getCompleteOrderCurrentUserSortByCreatedDate(String sort, Integer pageNumber, Integer pageSize, Integer storeId) throws ParseException {
         // check sort spelling
-        if (!(sort.equalsIgnoreCase("asc") || sort.equalsIgnoreCase("desc") || sort.isEmpty())) {
-            throw new BadRequestException("Field 'sort' is invalid. Please input either 'ASC' or 'DESC'. Case sensitive not required.");
-        }
+        SortDirectionUtils.validate(sort);
         // validate page number and size
         if (pageNumber <= 0 || pageSize <= 0) {
-            throw new BadRequestException("Page number and size should be higher than 0.");
+            throw new BadRequestException(ExceptionMessages.PAGE_SIZE_MUST_BE_POSITIVE);
         }
         // fetch order
         List<Order> orders = supplierOrderRepository.getCompleteOrders(sort, pageNumber, pageSize, storeId);
@@ -235,10 +226,10 @@ public class SupplierOrderServiceImpl implements SupplierOrderService {
         }
         System.out.println(orders);
         if (orders.isEmpty()) {
-            throw new NotFoundException("Order not found");
+            throw new NotFoundException(ExceptionMessages.ORDER_NOT_FOUND);
         }
         for (Order order : orders) {
-            order.setDate(formatter.format(formatter.parse(order.getDate())));
+            order.setDate(DateTimeUtil.format(DateTimeUtil.parse(order.getDate())));
         }
         return orders;
     }
@@ -255,13 +246,7 @@ public class SupplierOrderServiceImpl implements SupplierOrderService {
 
     @Override
     public Integer findTotalPage(Integer totalOrder, Integer pageSize) {
-        int totalPage;
-        if (totalOrder % pageSize == 0) {
-            totalPage = totalOrder / pageSize;
-        } else {
-            totalPage = (totalOrder / pageSize) + 1;
-        }
-        return totalPage;
+        return PaginationUtils.totalPages(totalOrder, pageSize);
     }
 
     @Override
@@ -289,10 +274,10 @@ public class SupplierOrderServiceImpl implements SupplierOrderService {
     public String acceptPendingOrder(Integer orderId, Integer storeId) {
         // check if the order is pending or exist
         if (!checkOrderExist(orderId, storeId)) {
-            throw new NotFoundException("Order not found.");
+            throw new NotFoundException(ExceptionMessages.ORDER_NOT_FOUND);
         }
         if (!checkForPendingOrder(orderId)) {
-            throw new NotFoundException("This order is not pending");
+            throw new NotFoundException(ExceptionMessages.THIS_ORDER_IS_NOT_PENDING);
         }
         // Informational pre-check only — gives a fast, friendly rejection for the
         // common case. It is NOT the authoritative stock decision: it reads then
@@ -300,10 +285,9 @@ public class SupplierOrderServiceImpl implements SupplierOrderService {
         // (one atomic guarded UPDATE per line item) is what actually enforces
         // stock safety, and its failure is what must trigger rollback.
         if (!checkAvailableProduct(orderId)) {
-            throw new ConflictException("Not enough product in stock.");
+            throw new ConflictException(ExceptionMessages.NOT_ENOUGH_PRODUCT_IN_STOCK);
         }
-        AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        Integer currentUserId = appUser.getId();
+        Integer currentUserId = currentUserProvider.getCurrentUserId();
         // accept order — centralized transition + history (Step 3C)
         orderStatusService.transitionOrder(orderId, OrderStatus.PENDING, OrderStatus.PROCESSING, currentUserId, Role.SUPPLIER, "Supplier accepted order");
         // get order detail
@@ -333,7 +317,7 @@ public class SupplierOrderServiceImpl implements SupplierOrderService {
             throw new InternalServerErrorException("Fail to create notification. Reason: " + e);
         }
         if (check == null) {
-            throw new InternalServerErrorException("Fail to create notification.");
+            throw new InternalServerErrorException(ExceptionMessages.FAIL_TO_CREATE_NOTIFICATION);
         }
         messagingTemplate.convertAndSend("/topic/notifications/" + orderDetail.getOrder().getBuyerId(), "NEW_NOTIFICATION");
         return "Successfully accept order.";
@@ -377,13 +361,12 @@ public class SupplierOrderServiceImpl implements SupplierOrderService {
     public String declinePendingOrder(Integer orderId, Integer storeId) {
         // check if the order is pending or exist
         if (!checkOrderExist(orderId, storeId)) {
-            throw new NotFoundException("Order not found.");
+            throw new NotFoundException(ExceptionMessages.ORDER_NOT_FOUND);
         }
         if (!checkForPendingOrder(orderId)) {
-            throw new NotFoundException("This order is not pending");
+            throw new NotFoundException(ExceptionMessages.THIS_ORDER_IS_NOT_PENDING);
         }
-        AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        Integer currentUserId = appUser.getId();
+        Integer currentUserId = currentUserProvider.getCurrentUserId();
         // decline order — centralized transition + history (Step 3C)
         orderStatusService.transitionOrder(orderId, OrderStatus.PENDING, OrderStatus.REJECTED, currentUserId, Role.SUPPLIER, "Supplier declined order");
         OrderDetail orderDetail = supplierOrderRepository.getOrderDetailsByOrderId(orderId);
@@ -394,7 +377,7 @@ public class SupplierOrderServiceImpl implements SupplierOrderService {
             throw new InternalServerErrorException("Fail to create notification. Reason: " + e);
         }
         if (check == null) {
-            throw new InternalServerErrorException("Fail to create notification.");
+            throw new InternalServerErrorException(ExceptionMessages.FAIL_TO_CREATE_NOTIFICATION);
         }
         messagingTemplate.convertAndSend("/topic/notifications/" + orderDetail.getOrder().getBuyerId(), "NEW_NOTIFICATION");
         return "Successfully decline order.";
@@ -405,20 +388,19 @@ public class SupplierOrderServiceImpl implements SupplierOrderService {
     public String finishPreparing(Integer orderId, Integer storeId) {
         // check if the order is preparing or exist
         if (!checkOrderExist(orderId, storeId)) {
-            throw new NotFoundException("Order not found.");
+            throw new NotFoundException(ExceptionMessages.ORDER_NOT_FOUND);
         }
         if (!checkForPreparingOrder(orderId)) {
             throw new NotFoundException("This order is not preparing");
         }
-        AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        Integer currentUserId = appUser.getId();
+        Integer currentUserId = currentUserProvider.getCurrentUserId();
         // dispatch order — centralized transition + history (Step 3C)
         orderStatusService.transitionOrder(orderId, OrderStatus.PROCESSING, OrderStatus.DISPATCHED, currentUserId, Role.SUPPLIER, "Supplier dispatched order");
         // create notification for delivering
         OrderDetail orderDetail = supplierOrderRepository.getOrderDetailsByOrderId(orderId);
         Integer delivering = notificationRepository.createBuyerNotification(orderDetail.getOrder().getBuyerId(), 7, orderDetail.getOrder().getId(), "Your order #" + orderDetail.getOrder().getId() + " at store "+ orderDetail.getOrder().getStoreName()+" is being delivered.", "Order is being delivered.", "Your order #" + orderDetail.getOrder().getId() + " at store "+ orderDetail.getOrder().getStoreName() + " is being delivered. Your order will arrive shortly.", false);
         if (delivering == null){
-            throw new InternalServerErrorException("Fail to create notification.");
+            throw new InternalServerErrorException(ExceptionMessages.FAIL_TO_CREATE_NOTIFICATION);
         }
         messagingTemplate.convertAndSend("/topic/notifications/" + orderDetail.getOrder().getBuyerId(), "NEW_NOTIFICATION");
         return "Finish preparing.";
@@ -437,7 +419,7 @@ public class SupplierOrderServiceImpl implements SupplierOrderService {
     @Override
     public String orderDelivered(Integer orderId, Integer storeId) {
         if (!checkOrderExist(orderId, storeId)) {
-            throw new NotFoundException("Order not found.");
+            throw new NotFoundException(ExceptionMessages.ORDER_NOT_FOUND);
         }
         throw new ForbiddenException("Only the buyer may confirm receipt of a dispatched order. Supplier responsibility ends at dispatch.");
     }
@@ -446,13 +428,13 @@ public class SupplierOrderServiceImpl implements SupplierOrderService {
     public OrderDetail getOrderDetailsByOrderId(Integer id, Integer storeId) throws ParseException {
         // check if the order is preparing or exist
         if (!checkOrderExist(id, storeId)) {
-            throw new NotFoundException("Order not found.");
+            throw new NotFoundException(ExceptionMessages.ORDER_NOT_FOUND);
         }
         OrderDetail orderDetail = supplierOrderRepository.getOrderDetailsByOrderId(id);
         if (orderDetail == null) {
-            throw new InternalServerErrorException("Fail to fetch order details.");
+            throw new InternalServerErrorException(ExceptionMessages.FAIL_TO_FETCH_ORDER_DETAILS);
         }
-        orderDetail.getOrder().setDate(formatter.format(formatter.parse(orderDetail.getOrder().getDate())));
+        orderDetail.getOrder().setDate(DateTimeUtil.format(DateTimeUtil.parse(orderDetail.getOrder().getDate())));
         return orderDetail;
     }
 
@@ -460,23 +442,23 @@ public class SupplierOrderServiceImpl implements SupplierOrderService {
     public Invoice getInvoiceByOrderId(Integer orderId, Integer storeId) throws ParseException {
         // check if the order is preparing or exist
         if (!checkOrderExist(orderId, storeId)) {
-            throw new NotFoundException("Order not found.");
+            throw new NotFoundException(ExceptionMessages.ORDER_NOT_FOUND);
         }
         if (!checkForCompleteOrder(orderId)) {
             throw new BadRequestException("Invoice not yet generated. Please complete order to view invoice.");
         }
         Invoice invoice = supplierOrderRepository.getInvoiceByOrderId(orderId);
         if (invoice == null) {
-            throw new InternalServerErrorException("Fail to fetch order invoice.");
+            throw new InternalServerErrorException(ExceptionMessages.FAIL_TO_FETCH_ORDER_INVOICE);
         }
-        invoice.getOrder().setDate(formatter.format(formatter.parse(invoice.getOrder().getDate())));
+        invoice.getOrder().setDate(DateTimeUtil.format(DateTimeUtil.parse(invoice.getOrder().getDate())));
         return invoice;
     }
 
     @Override
     public List<OrderStatusHistory> getOrderHistory(Integer orderId, Integer storeId) {
         if (!checkOrderExist(orderId, storeId)) {
-            throw new NotFoundException("Order not found.");
+            throw new NotFoundException(ExceptionMessages.ORDER_NOT_FOUND);
         }
         return orderStatusService.getHistory(orderId);
     }

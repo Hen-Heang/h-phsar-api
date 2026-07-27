@@ -12,7 +12,9 @@
       "Bash(git branch:*)",
       "Bash(./mvnw.cmd test)",
       "Bash(./mvnw.cmd clean test)",
-      "Bash(./mvnw.cmd clean package)"
+      "Bash(./mvnw.cmd clean package)",
+      "Bash(./mvnw.cmd verify)",
+      "Bash(./mvnw.cmd clean verify)"
     ],
     "ask": [
       "Bash(git add:*)",

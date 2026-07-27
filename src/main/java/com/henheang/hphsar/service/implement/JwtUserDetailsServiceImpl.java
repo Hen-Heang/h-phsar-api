@@ -1,6 +1,8 @@
 package com.henheang.hphsar.service.implement;
+import com.henheang.hphsar.common.ExceptionMessages;
 
-import com.henheang.hphsar.common.utils.OtpUtils;
+import com.henheang.hphsar.utils.EmailValidatorUtils;
+import com.henheang.hphsar.utils.OtpUtils;
 import com.henheang.hphsar.exception.BadRequestException;
 import com.henheang.hphsar.exception.ConflictException;
 import com.henheang.hphsar.exception.InternalServerErrorException;
@@ -13,6 +15,12 @@ import com.henheang.hphsar.model.otp.Otp;
 import com.henheang.hphsar.repository.AppUserRepository;
 import com.henheang.hphsar.repository.OtpRepository;
 import com.henheang.hphsar.service.JwtUserDetailsService;
+import com.henheang.hphsar.service.OtpService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.DisabledException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -21,8 +29,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Objects;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * JwtUserDetailsServiceImpl — Core User & Auth Business Logic
@@ -32,36 +38,21 @@ import java.util.regex.Pattern;
  *   - JwtUserDetailsService (our own) → register, change password, forget password
  * <p>
  * PROCESSES:
- *   insertUser()      → register new account with validation + BCrypt hashing
+ *   insertUser()      → register new account with validation + Bcrypt hashing
  *   loadUserByUsername() → load user from DB for Spring Security authentication
  *   getVerifyEmail()  → check if email is verified before allowing login
- *   changePassword()  → verify old password then update to new BCrypt hash
+ *   changePassword()  → verify old password then update to new Bcrypt hash
  *   forgetPassword()  → reset password using OTP verification
  */
 @Service
+@RequiredArgsConstructor
 public class JwtUserDetailsServiceImpl implements UserDetailsService, JwtUserDetailsService {
 
     private final AppUserRepository appUserRepository;
     private final OtpRepository otpRepository;
     private final PasswordEncoder passwordEncoder;
-    public JwtUserDetailsServiceImpl(AppUserRepository appUserRepository,
-                                     OtpRepository otpRepository,
-                                     PasswordEncoder passwordEncoder) {
-        this.appUserRepository = appUserRepository;
-        this.otpRepository = otpRepository;
-        this.passwordEncoder = passwordEncoder;
-    }
-
-    // ─── Email Validation ───────────────────────────────────────────────────────
-
-    // Regex pattern: allows standard email formats like user@domain.com
-    private static final String EMAIL_PATTERN = "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,6}$";
-    private final Pattern pattern = Pattern.compile(EMAIL_PATTERN);
-
-    private boolean validateEmail(final String email) {
-        Matcher matcher = pattern.matcher(email);
-        return matcher.matches();
-    }
+    private final AuthenticationManager authenticationManager;
+    private final OtpService otpService;
 
     // ─── Load User For Spring Security ─────────────────────────────────────────
 
@@ -111,7 +102,7 @@ public class JwtUserDetailsServiceImpl implements UserDetailsService, JwtUserDet
         if (appUserRequest.getEmail().isBlank()) {
             throw new BadRequestException("Email cannot be empty.");
         }
-        if (!validateEmail(appUserRequest.getEmail())) {
+        if (!EmailValidatorUtils.isValid(appUserRequest.getEmail())) {
             throw new BadRequestException("Please follow email format (e.g. user@domain.com).");
         }
 
@@ -189,10 +180,10 @@ public class JwtUserDetailsServiceImpl implements UserDetailsService, JwtUserDet
             appUser = appUserRepository.findBuyerUserByEmail(request.getEmail());
         }
         if (appUser == null) {
-            throw new NotFoundException("User not found. Invalid email.");
+            throw new NotFoundException(ExceptionMessages.USER_NOT_FOUND_INVALID_EMAIL);
         }
 
-        // Step 2: Verify old password matches the stored BCrypt hash
+        // Step 2: Verify old password matches the stored Bcrypt hash
         // BCrypt.matches() compares raw password against hash safely
         if (!passwordEncoder.matches(request.getOldPassword(), appUser.getPassword())) {
             throw new NotFoundException("Old password is incorrect.");
@@ -238,7 +229,7 @@ public class JwtUserDetailsServiceImpl implements UserDetailsService, JwtUserDet
         }
 
         if (appUser == null) {
-            throw new NotFoundException("User not found. Invalid email.");
+            throw new NotFoundException(ExceptionMessages.USER_NOT_FOUND_INVALID_EMAIL);
         }
         if (otpObj == null) {
             throw new BadRequestException("No OTP found. Please request a new OTP first.");
@@ -279,6 +270,30 @@ public class JwtUserDetailsServiceImpl implements UserDetailsService, JwtUserDet
         // WHY: If the response is intercepted (man-in-the-middle), the attacker
         //      would get the user's new password in plain text.
         return "Password updated successfully. Please log in with your new password.";
+    }
+
+    // ─── Login Authentication ───────────────────────────────────────────────────
+
+    /**
+     * PROCESS — authenticateLogin():
+     *   1. Block login if email not yet verified via OTP — auto-send a new OTP
+     *   2. Verify email + password combination via Spring Security
+     *      (internally: load user from DB + BCrypt.matches(raw, hash))
+     */
+    @Override
+    public void authenticateLogin(String email, String password) throws Exception {
+        if (!getVerifyEmail(email)) {
+            otpService.generateOtp(email);
+            throw new ConflictException("Email is not verified. We just sent you a verification code.");
+        }
+
+        try {
+            authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(email, password));
+        } catch (DisabledException e) {
+            throw new Exception("USER_DISABLED", e);
+        } catch (BadCredentialsException e) {
+            throw new BadRequestException("Invalid password. Please enter the correct password.");
+        }
     }
 
     // ─── Mapping Helper ─────────────────────────────────────────────────────────

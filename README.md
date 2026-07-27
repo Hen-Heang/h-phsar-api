@@ -24,7 +24,7 @@ http://localhost:8080/swagger-ui/index.html
    - Open browser and type http://localhost:8080/swagger-ui/index.html
 
 3. Read the coding standards before adding features
-   - See [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md) for patterns, conventions, and common mistakes
+   - See [DEVELOPER_GUIDE.md](docs/DEVELOPER_GUIDE.md) for patterns, conventions, and common mistakes
 
 > **H-Phsar** is a Cambodian B2B online marketplace (ផ្សារ) for business between Supplier and Buyer. Business owners can trade more efficiently with lower operational complexity.
 
@@ -446,14 +446,14 @@ These issues reduce reliability, make the codebase harder to maintain, and can c
 - **Fix:** Update the Dockerfile `COPY` and `ENTRYPOINT` to use the correct artifact ID.
 
 #### B3. No database migration tool
-- **What:** Database schema is managed through raw SQL files (`table.sql`, `create_all_tables.sql`) that must be run manually. Two OTP tables are created at runtime in `DatabaseInitializer.java`.
+- **What:** Database schema is managed through a raw SQL baseline (`src/main/resources/script/schema.sql`, run manually and by integration tests) plus idempotent runtime additions in `DatabaseInitializer.java`.
 - **Why:** There is no way to track which schema version the database is at, apply incremental changes safely, or roll back a bad migration. Teams working together will get out of sync.
 - **Fix:** Integrate **Flyway** and convert all SQL scripts into versioned migration files (e.g., `V1__init_schema.sql`).
 
-#### B4. Duplicate `ApiResponse` class
-- **What:** There are two separate `ApiResponse` classes — one in `common/api/` and one in `model/`.
+#### B4. Duplicate `ApiResponse` class 🟡 PARTIALLY RESOLVED
+- **What:** There were two separate `ApiResponse` classes — one in `common/api/` and one in `model/`. All controllers have since been migrated to `common/api/ApiResponse`/`PagedResponse`, so `model/ApiResponse.java` and `model/PaginationApiResponse.java` are now unused dead code. `model/ApiErrorResponse.java` is still referenced by `JwtAuthenticationEntryPoint.java`.
 - **Why:** Developers may import the wrong one, causing inconsistent API responses. It also creates confusion about which one to use.
-- **Fix:** Delete the `model/ApiResponse.java` duplicate. Use only `common/api/ApiResponse.java` everywhere.
+- **Fix:** Migrate `JwtAuthenticationEntryPoint` to `common/api/ApiErrorResponse`, then delete all three legacy classes in `model/`.
 
 #### B5. Inconsistent service implementation naming
 - **What:** Service implementations use mixed suffixes: `ServiceImplV1`, `ServiceImp`, `ServiceImpleV1`, `ServiceImpl`.
@@ -523,7 +523,7 @@ These issues make it very hard to debug problems and monitor the application in 
 | Group | Area | Priority | Items |
 |-------|------|----------|-------|
 | A | Security | Critical | ~~A1~~ ~~A2~~ A3 ~~A4~~ A5 |
-| B | Code Quality | High | B1 B2 B3 B4 B5 B6 |
+| B | Code Quality | High | B1 B2 B3 B4 🟡 B5 B6 |
 | C | Observability | Medium | C1 C2 C3 C4 C5 |
 | D | Testing | Medium | D1 🟡 |
 | E | Database | Low-Medium | E1 |

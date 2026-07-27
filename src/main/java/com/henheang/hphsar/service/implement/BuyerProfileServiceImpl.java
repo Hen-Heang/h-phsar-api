@@ -1,4 +1,5 @@
 package com.henheang.hphsar.service.implement;
+import com.henheang.hphsar.common.ExceptionMessages;
 
 
 import com.henheang.hphsar.exception.BadRequestException;
@@ -9,25 +10,21 @@ import com.henheang.hphsar.model.buyer.BuyerRequest;
 import com.henheang.hphsar.repository.BuyerProfileRepository;
 import com.henheang.hphsar.repository.StoreRepository;
 import com.henheang.hphsar.service.BuyerProfileService;
+import com.henheang.hphsar.utils.DateTimeUtil;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 @Service
+@RequiredArgsConstructor
 public class BuyerProfileServiceImpl implements BuyerProfileService {
-    SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
     private final BuyerProfileRepository buyerProfileRepository;
     private final StoreRepository storeRepository;
-
-    public BuyerProfileServiceImpl(BuyerProfileRepository buyerProfileRepository, StoreRepository storeRepository) {
-        this.buyerProfileRepository = buyerProfileRepository;
-        this.storeRepository = storeRepository;
-    }
 
 
     @Override
@@ -72,7 +69,7 @@ public class BuyerProfileServiceImpl implements BuyerProfileService {
             }
         if(!(additionalPhone.isEmpty() && additionalPhone.isBlank())) {
             if (!(additionalPhone.startsWith("0") || additionalPhone.startsWith("855"))) {
-                throw new BadRequestException("Opps, please input the valid additional phone number start with ( 0 ) or (855)");
+                throw new BadRequestException(ExceptionMessages.ADDITIONAL_PHONE_PREFIX_INVALID);
             }
         }
 
@@ -122,8 +119,8 @@ public class BuyerProfileServiceImpl implements BuyerProfileService {
         if(buyer== null){
             throw new NotFoundException("Buyer profile not found!");
         }
-        buyer.setUpdatedDate(formatter.format(formatter.parse(buyer.getUpdatedDate())));
-        buyer.setCreatedDate(formatter.format(formatter.parse(buyer.getCreatedDate())));
+        buyer.setUpdatedDate(DateTimeUtil.format(DateTimeUtil.parse(buyer.getUpdatedDate())));
+        buyer.setCreatedDate(DateTimeUtil.format(DateTimeUtil.parse(buyer.getCreatedDate())));
         return buyer;
     }
 
@@ -166,7 +163,7 @@ public class BuyerProfileServiceImpl implements BuyerProfileService {
             } else if (additionalPhoneNumber.isBlank()) {
                 buyerProfileRepository.insertAdditionalPhoneNumber(buyerInfoId, additionalPhoneNumber);
             } else if (!(additionalPhoneNumber.startsWith("0") || additionalPhoneNumber.startsWith("855"))) {
-                throw new BadRequestException("Opps, please input the valid additional phone number start with ( 0 ) or (855)");
+                throw new BadRequestException(ExceptionMessages.ADDITIONAL_PHONE_PREFIX_INVALID);
             } else buyerProfileRepository.insertAdditionalPhoneNumber(buyerInfoId, additionalPhoneNumber);
         }
         return buyerProfileRepository.getBuyerProfile(currentUserId);

@@ -1,66 +1,44 @@
 package com.henheang.hphsar.controller.buyer.notification;
 
-import com.henheang.hphsar.model.ApiResponse;
+import com.henheang.hphsar.controller.BaseController;
+import com.henheang.hphsar.common.api.ApiResponse;
+import com.henheang.hphsar.common.api.Code;
 import com.henheang.hphsar.model.notification.NotificationBuyer;
 import com.henheang.hphsar.service.NotificationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.http.HttpStatus;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.List;
 
 @Tag(name = "Buyer Notification Controller")
 @RequestMapping("${base.buyer.v1}/notifications")
 @SecurityRequirement(name = "bearerAuth")
 @RestController
-public class BuyerNotificationController {
-    SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+@RequiredArgsConstructor
+public class BuyerNotificationController extends BaseController {
     private final NotificationService notificationService;
-
-    public BuyerNotificationController(NotificationService notificationService) {
-        this.notificationService = notificationService;
-    }
 
     @Operation(summary = "Get all notification")
     @GetMapping
-    public ResponseEntity<?> getUserAllNotification() throws ParseException {
-        ApiResponse<List<NotificationBuyer>> response = ApiResponse.<List<NotificationBuyer>>builder()
-                .status(HttpStatus.OK.value())
-                .message("Fetch notifications successfully")
-                .data(notificationService.getUserAllNotification())
-                .date(formatter.format(new Date()))
-                .build();
-        return ResponseEntity.ok(response);
+    public ResponseEntity<ApiResponse<List<NotificationBuyer>>> getUserAllNotification() throws ParseException {
+        return ok("Fetch notifications successfully", notificationService.getUserAllNotification());
     }
 
     @Operation(summary = "Mark as read")
     @PutMapping("/{id}/read")
-    public ResponseEntity<?> markNotificationAsRead(@PathVariable Integer id){
-        ApiResponse<String> response = ApiResponse.<String>builder()
-                .status(HttpStatus.OK.value())
-                .message("Mark all as read.")
-                .data(notificationService.markAsRead(id))
-                .date(formatter.format(new Date()))
-                .build();
-        return ResponseEntity.ok(response);
+    public ResponseEntity<ApiResponse<String>> markNotificationAsRead(@PathVariable Integer id){
+        return ok("Mark all as read.", notificationService.markAsRead(id));
     }
 
     @Operation(summary = "Mark all as read")
     @PutMapping("/read")
-    public ResponseEntity<?> markAllNotificationAsRead(){
-        ApiResponse<String> response = ApiResponse.<String>builder()
-                .status(HttpStatus.OK.value())
-                .message("fetched notification detail.")
-                .data(notificationService.markAllNotificationAsRead())
-                .date(formatter.format(new Date()))
-                .build();
-        return ResponseEntity.ok(response);
+    public ResponseEntity<ApiResponse<String>> markAllNotificationAsRead(){
+        return ok(Code.NOTIFICATION_FETCHED, notificationService.markAllNotificationAsRead());
     }
 
 }

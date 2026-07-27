@@ -1,6 +1,7 @@
 package com.henheang.hphsar.config;
 
 import jakarta.annotation.PostConstruct;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
@@ -41,13 +42,10 @@ import org.springframework.stereotype.Component;
  */
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class DatabaseInitializer {
 
     private final JdbcTemplate jdbcTemplate;
-
-    public DatabaseInitializer(JdbcTemplate jdbcTemplate) {
-        this.jdbcTemplate = jdbcTemplate;
-    }
 
     @PostConstruct
     public void initializeDatabaseSchema() {
@@ -583,8 +581,8 @@ public class DatabaseInitializer {
                         ALTER TABLE tb_bookmark RENAME COLUMN retailer_account_id TO buyer_account_id;
                     END IF;
 
-                    -- tb_rating_detail: the original create_all_tables.sql/schema.sql/table.sql called this
-                    -- column "retailer_id" while every mapper query actually used "retailer_account_id" —
+                    -- tb_rating_detail: the original baseline SQL script called this column
+                    -- "retailer_id" while every mapper query actually used "retailer_account_id" —
                     -- pre-existing drift between the baseline script and the real schema. Both legacy names
                     -- are handled here; the column is now called "buyer_account_id" everywhere.
                     IF EXISTS (SELECT 1 FROM information_schema.columns

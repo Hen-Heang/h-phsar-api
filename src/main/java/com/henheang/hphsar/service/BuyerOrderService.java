@@ -32,7 +32,7 @@ public interface BuyerOrderService {
 
     List<Order> getOrderActivities(String sort, Integer pageNumber, Integer pageSize) throws ParseException;
 
-    Integer getTotalOrderPage(Integer pageSize);
+    Integer getTotalOrderElements();
 
     String confirmTransaction(Integer id);
 

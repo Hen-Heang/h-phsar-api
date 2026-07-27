@@ -1,12 +1,14 @@
 package com.henheang.hphsar.service.implement;
+import com.henheang.hphsar.common.ExceptionMessages;
 
-import com.henheang.hphsar.common.utils.OtpUtils;
+import com.henheang.hphsar.utils.OtpUtils;
 import com.henheang.hphsar.exception.*;
 import com.henheang.hphsar.model.appUser.AppUser;
 import com.henheang.hphsar.model.otp.Otp;
 import com.henheang.hphsar.repository.OtpRepository;
 import com.henheang.hphsar.service.EmailService;
 import com.henheang.hphsar.service.OtpService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,15 +35,11 @@ import java.util.Random;
  *   5. FIX 3: Delete OTP from DB after use (one-time use only)
  */
 @Service
+@RequiredArgsConstructor
 public class OtpServiceImplV1 implements OtpService {
 
     private final OtpRepository otpRepository;
     private final EmailService emailService;
-
-    public OtpServiceImplV1(OtpRepository otpRepository, EmailService emailService) {
-        this.otpRepository = otpRepository;
-        this.emailService = emailService;
-    }
 
     // ─── Helper: Check If User Account Is Already Verified ─────────────────────
 
@@ -86,7 +84,7 @@ public class OtpServiceImplV1 implements OtpService {
         // Step 1: Find the user — must exist before generating OTP
         AppUser appUser = getUserByEmail(email);
         if (appUser == null) {
-            throw new BadRequestException("This user does not exist.");
+            throw new BadRequestException(ExceptionMessages.THIS_USER_DOES_NOT_EXIST);
         }
 
         // Step 2 (FIX 8 — Rate Limiting):
@@ -145,7 +143,7 @@ public class OtpServiceImplV1 implements OtpService {
         Otp otpObj = getLatestOtpByEmail(email);
 
         if (appUser == null) {
-            throw new BadRequestException("This user does not exist.");
+            throw new BadRequestException(ExceptionMessages.THIS_USER_DOES_NOT_EXIST);
         }
         if (otpObj == null) {
             throw new BadRequestException("No OTP found. Please request a new one.");

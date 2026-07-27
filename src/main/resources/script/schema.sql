@@ -279,6 +279,7 @@ ON CONFLICT (id) DO NOTHING;
 -- they match what the mapper layer has always actually done with each id, not
 -- the original, drifted seed names). ids 4/5 (formerly SHIPPING/DELIVERED) are
 -- retired: no code path ever wrote them, so a fresh schema doesn't seed them.
+
 INSERT INTO tb_status (id, name) VALUES
     (1, 'PENDING'),
     (2, 'PROCESSING'),

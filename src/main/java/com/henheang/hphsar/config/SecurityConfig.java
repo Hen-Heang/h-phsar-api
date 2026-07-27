@@ -2,6 +2,7 @@ package com.henheang.hphsar.config;
 
 import com.henheang.hphsar.model.appUser.Role;
 import com.henheang.hphsar.service.implement.JwtUserDetailsServiceImpl;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -25,23 +26,13 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
  * - JWT filter runs before Spring's default auth filter
  */
 @Configuration
+@RequiredArgsConstructor
 public class SecurityConfig {
 
     private final JwtUserDetailsServiceImpl jwtUserDetailsService;
     private final PasswordEncoder passwordEncoder;
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
     private final JwtRequestFilter jwtRequestFilter;
-
-    public SecurityConfig(
-            JwtUserDetailsServiceImpl jwtUserDetailsService,
-            PasswordEncoder passwordEncoder,
-            JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint,
-            JwtRequestFilter jwtRequestFilter) {
-        this.jwtUserDetailsService = jwtUserDetailsService;
-        this.passwordEncoder = passwordEncoder;
-        this.jwtAuthenticationEntryPoint = jwtAuthenticationEntryPoint;
-        this.jwtRequestFilter = jwtRequestFilter;
-    }
 
     /**
      * Configures how Spring loads and verifies user credentials.

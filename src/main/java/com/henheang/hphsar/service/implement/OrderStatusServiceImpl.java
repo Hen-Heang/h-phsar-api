@@ -1,4 +1,5 @@
 package com.henheang.hphsar.service.implement;
+import com.henheang.hphsar.common.ExceptionMessages;
 
 import com.henheang.hphsar.exception.ConflictException;
 import com.henheang.hphsar.exception.InternalServerErrorException;
@@ -9,29 +10,25 @@ import com.henheang.hphsar.model.order.OrderStatusHistory;
 import com.henheang.hphsar.repository.OrderStatusHistoryRepository;
 import com.henheang.hphsar.repository.OrderStatusRepository;
 import com.henheang.hphsar.service.OrderStatusService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 public class OrderStatusServiceImpl implements OrderStatusService {
 
     private final OrderStatusRepository orderStatusRepository;
     private final OrderStatusHistoryRepository orderStatusHistoryRepository;
-
-    public OrderStatusServiceImpl(OrderStatusRepository orderStatusRepository,
-                                   OrderStatusHistoryRepository orderStatusHistoryRepository) {
-        this.orderStatusRepository = orderStatusRepository;
-        this.orderStatusHistoryRepository = orderStatusHistoryRepository;
-    }
 
     @Override
     @Transactional(readOnly = true)
     public OrderStatus getCurrentStatus(Integer orderId) {
         String name = orderStatusRepository.findStatusNameByOrderId(orderId);
         if (name == null) {
-            throw new NotFoundException("Order not found.");
+            throw new NotFoundException(ExceptionMessages.ORDER_NOT_FOUND);
         }
         return parseStatus(name);
     }

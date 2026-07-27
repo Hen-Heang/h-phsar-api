@@ -9,10 +9,10 @@ import com.henheang.hphsar.model.supplier.SupplierRequest;
 import com.henheang.hphsar.repository.SupplierProfileRepository;
 import com.henheang.hphsar.service.SupplierProfileService;
 import com.henheang.hphsar.utils.DateTimeUtil;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
@@ -21,15 +21,11 @@ import java.util.regex.Pattern;
 
 
 @Service
+@RequiredArgsConstructor
 public class SupplierProfileServiceImpl implements SupplierProfileService {
 
     private final SupplierProfileRepository userProfileRepository;
 
-    public SupplierProfileServiceImpl(SupplierProfileRepository userProfileRepository) {
-        this.userProfileRepository = userProfileRepository;
-    }
-
-    SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
 
     public Boolean checkUserProfileIfCreated(Integer currentUserId) {
@@ -44,8 +40,8 @@ public class SupplierProfileServiceImpl implements SupplierProfileService {
         if (userProfile == null) {
             throw new NotFoundException("Supplier profile not found");
         }
-        userProfile.setCreatedDate(formatter.format(formatter.parse(userProfile.getCreatedDate())));
-        userProfile.setUpdatedDate(formatter.format(formatter.parse(userProfile.getUpdatedDate())));
+        userProfile.setCreatedDate(DateTimeUtil.format(DateTimeUtil.parse(userProfile.getCreatedDate())));
+        userProfile.setUpdatedDate(DateTimeUtil.format(DateTimeUtil.parse(userProfile.getUpdatedDate())));
         return userProfile;
     }
 
@@ -78,8 +74,8 @@ public class SupplierProfileServiceImpl implements SupplierProfileService {
         if (supplier == null) {
             throw new InternalServerErrorException("Fail to insert user profile");
         }
-        supplier.setCreatedDate(formatter.format(formatter.parse(supplier.getCreatedDate())));
-        supplier.setUpdatedDate(formatter.format(formatter.parse(supplier.getUpdatedDate())));
+        supplier.setCreatedDate(DateTimeUtil.format(DateTimeUtil.parse(supplier.getCreatedDate())));
+        supplier.setUpdatedDate(DateTimeUtil.format(DateTimeUtil.parse(supplier.getUpdatedDate())));
         return supplier;
     }
 
@@ -100,8 +96,8 @@ public class SupplierProfileServiceImpl implements SupplierProfileService {
         if (supplier == null) {
             throw new InternalServerErrorException("Fail to update profile");
         }
-        supplier.setCreatedDate(formatter.format(formatter.parse(supplier.getCreatedDate())));
-        supplier.setUpdatedDate(formatter.format(formatter.parse(supplier.getUpdatedDate())));
+        supplier.setCreatedDate(DateTimeUtil.format(DateTimeUtil.parse(supplier.getCreatedDate())));
+        supplier.setUpdatedDate(DateTimeUtil.format(DateTimeUtil.parse(supplier.getUpdatedDate())));
 
         return supplier;
     }

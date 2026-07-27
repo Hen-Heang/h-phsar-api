@@ -5,6 +5,7 @@ import com.henheang.hphsar.model.jwt.RefreshToken;
 import com.henheang.hphsar.model.jwt.RefreshedSession;
 import com.henheang.hphsar.repository.RefreshTokenRepository;
 import com.henheang.hphsar.service.RefreshTokenService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,15 +28,12 @@ import java.util.HexFormat;
  * a usable token, the same reason passwords are hashed rather than stored.
  */
 @Service
+@RequiredArgsConstructor
 public class RefreshTokenServiceImpl implements RefreshTokenService {
 
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final RefreshTokenRepository refreshTokenRepository;
-
-    public RefreshTokenServiceImpl(RefreshTokenRepository refreshTokenRepository) {
-        this.refreshTokenRepository = refreshTokenRepository;
-    }
 
     @Override
     @Transactional

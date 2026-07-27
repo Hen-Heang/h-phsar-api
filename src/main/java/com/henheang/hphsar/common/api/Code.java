@@ -5,9 +5,12 @@ import lombok.Getter;
 @Getter
 public enum Code {
     SUCCESS(200, "Success", 200),
+    FETCHED(2000, "Fetched successfully.", 200),
     PROFILE_FETCHED(2101, "Fetched successfully.", 200),
     PROFILE_CREATED(2102, "User profile added", 201),
     PROFILE_UPDATED(2103, "Successfully updated", 200),
+    NOTIFICATION_FETCHED(2201, "fetched notification detail.", 200),
+    DELIVERY_ACCEPTED(2301, "Accepted delivery.", 200),
 
     // General HTTP Errors (HTTP 일반 에러)
     BAD_REQUEST(400, "Bad request", 400),

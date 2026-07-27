@@ -1,23 +1,22 @@
 package com.henheang.hphsar.service.implement;
+import com.henheang.hphsar.common.ExceptionMessages;
 
 import com.henheang.hphsar.exception.BadRequestException;
 import com.henheang.hphsar.exception.NotFoundException;
 import com.henheang.hphsar.model.appUser.AdminUserSummaryDto;
 import com.henheang.hphsar.repository.AdminAccountRepository;
 import com.henheang.hphsar.service.AdminAccountService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 public class AdminAccountServiceImpl implements AdminAccountService {
 
     private final AdminAccountRepository adminAccountRepository;
-
-    public AdminAccountServiceImpl(AdminAccountRepository adminAccountRepository) {
-        this.adminAccountRepository = adminAccountRepository;
-    }
 
     @Override
     public List<AdminUserSummaryDto> listSuppliers(String search, Integer pageNumber, Integer pageSize) {
@@ -34,7 +33,7 @@ public class AdminAccountServiceImpl implements AdminAccountService {
     public AdminUserSummaryDto getSupplierById(Integer id) {
         AdminUserSummaryDto supplier = adminAccountRepository.findSupplierById(id);
         if (supplier == null) {
-            throw new NotFoundException("Supplier not found.");
+            throw new NotFoundException(ExceptionMessages.SUPPLIER_NOT_FOUND);
         }
         return supplier;
     }
@@ -43,11 +42,11 @@ public class AdminAccountServiceImpl implements AdminAccountService {
     @Transactional
     public AdminUserSummaryDto updateSupplierActiveStatus(Integer id, Boolean isActive) {
         if (isActive == null) {
-            throw new BadRequestException("isActive is required.");
+            throw new BadRequestException(ExceptionMessages.INACTIVE_IS_REQUIRED);
         }
         Integer rowsAffected = adminAccountRepository.updateSupplierActiveStatus(id, isActive);
         if (rowsAffected == null || rowsAffected == 0) {
-            throw new NotFoundException("Supplier not found.");
+            throw new NotFoundException(ExceptionMessages.SUPPLIER_NOT_FOUND);
         }
         return getSupplierById(id);
     }
@@ -67,7 +66,7 @@ public class AdminAccountServiceImpl implements AdminAccountService {
     public AdminUserSummaryDto getBuyerById(Integer id) {
         AdminUserSummaryDto buyer = adminAccountRepository.findBuyerById(id);
         if (buyer == null) {
-            throw new NotFoundException("Buyer not found.");
+            throw new NotFoundException(ExceptionMessages.BUYER_NOT_FOUND);
         }
         return buyer;
     }
@@ -76,11 +75,11 @@ public class AdminAccountServiceImpl implements AdminAccountService {
     @Transactional
     public AdminUserSummaryDto updateBuyerActiveStatus(Integer id, Boolean isActive) {
         if (isActive == null) {
-            throw new BadRequestException("isActive is required.");
+            throw new BadRequestException(ExceptionMessages.INACTIVE_IS_REQUIRED);
         }
         Integer rowsAffected = adminAccountRepository.updateBuyerActiveStatus(id, isActive);
         if (rowsAffected == null || rowsAffected == 0) {
-            throw new NotFoundException("Buyer not found.");
+            throw new NotFoundException(ExceptionMessages.BUYER_NOT_FOUND);
         }
         return getBuyerById(id);
     }

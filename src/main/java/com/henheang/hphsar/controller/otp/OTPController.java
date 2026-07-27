@@ -2,7 +2,6 @@ package com.henheang.hphsar.controller.otp;
 
 import com.henheang.hphsar.controller.BaseController;
 import com.henheang.hphsar.exception.BadRequestException;
-//import com.henheang.hphsar.model.ApiResponse;
 import com.henheang.hphsar.service.OtpService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;

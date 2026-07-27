@@ -1,8 +1,6 @@
 package com.henheang.hphsar.controller;
 
 import com.henheang.hphsar.config.JwtTokenUtil;
-import com.henheang.hphsar.exception.BadRequestException;
-import com.henheang.hphsar.exception.ConflictException;
 import com.henheang.hphsar.exception.UnauthorizedException;
 import com.henheang.hphsar.model.appUser.AppUserDto;
 import com.henheang.hphsar.model.appUser.AppUserRequest;
@@ -11,17 +9,12 @@ import com.henheang.hphsar.model.jwt.AccessTokenResponse;
 import com.henheang.hphsar.model.jwt.JwtChangePasswordRequest;
 import com.henheang.hphsar.model.jwt.JwtRequest;
 import com.henheang.hphsar.model.jwt.RefreshedSession;
-import com.henheang.hphsar.service.OtpService;
 import com.henheang.hphsar.service.RefreshTokenService;
 import com.henheang.hphsar.service.implement.JwtUserDetailsServiceImpl;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.security.authentication.DisabledException;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
@@ -60,9 +53,7 @@ public class JwtAuthenticationController extends BaseController {
     private static final String REFRESH_COOKIE_PATH = "/authorization";
 
     private final JwtTokenUtil jwtTokenUtil;
-    private final AuthenticationManager authenticationManager;
     private final JwtUserDetailsServiceImpl jwtUserDetailsService;
-    private final OtpService otpService;
     private final RefreshTokenService refreshTokenService;
 
     // FIX 7: Removed shared `Date` field — it was a class-level instance variable.
@@ -90,37 +81,29 @@ public class JwtAuthenticationController extends BaseController {
 
     /**
      * PROCESS:
-     * 1. Check if email is verified (is_verified = true in DB)
-     * → If not: auto-send new OTP and return 409
-     * 2. Authenticate email + password via Spring Security
-     * → Internally: load user from DB + BCrypt.matches(raw, hash)
-     * → If wrong password: throw 400
-     * 3. Generate a short-lived JWT access token containing user's email
-     * 4. Fetch roleId and userId to include in response
-     * 5. Issue a long-lived refresh token and set it as an HttpOnly cookie
-     * 6. Return { token, roleId, userId } — response body shape unchanged from before
+     * 1. Verify email is verified + password is correct (delegated to the service —
+     *    unverified email auto-sends a new OTP and rejects with 409; wrong password
+     *    rejects with 400)
+     * 2. Generate a short-lived JWT access token containing user's email
+     * 3. Fetch roleId and userId to include in response
+     * 4. Issue a long-lived refresh token and set it as an HttpOnly cookie
+     * 5. Return { token, roleId, userId } — response body shape unchanged from before
      */
     @PostMapping(value = "/login")
     public ResponseEntity<?> createAuthenticationToken(@RequestBody JwtRequest authenticationRequest) throws Exception {
 
-        // Step 1: Block login if email not yet verified via OTP
-        if (!verifyEmail(authenticationRequest.getEmail())) {
-            otpService.generateOtp(authenticationRequest.getEmail());
-            throw new ConflictException("Email is not verified. We just sent you a verification code.");
-        }
+        // Step 1: Verify email-verification status + credentials
+        jwtUserDetailsService.authenticateLogin(authenticationRequest.getEmail(), authenticationRequest.getPassword());
 
-        // Step 2: Verify email + password combination against DB
-        authenticate(authenticationRequest.getEmail(), authenticationRequest.getPassword());
-
-        // Step 3: Load user details and generate JWT token
+        // Step 2: Load user details and generate JWT token
         final UserDetails userDetails = jwtUserDetailsService.loadUserByUsername(authenticationRequest.getEmail());
         final String token = jwtTokenUtil.generateToken(userDetails);
 
-        // Step 4: Get role and user ID to send back to the client
+        // Step 3: Get role and user ID to send back to the client
         Integer roleId = jwtUserDetailsService.getRoleIdByMail(authenticationRequest.getEmail());
         Integer userId = jwtUserDetailsService.getUserIdByMail(authenticationRequest.getEmail());
 
-        // Step 5: Issue a refresh token for this session and set it as a cookie
+        // Step 4: Issue a refresh token for this session and set it as a cookie
         String rawRefreshToken = refreshTokenService.issue(authenticationRequest.getEmail(), roleId);
 
         return ok("Login Success", new LoginResponse(token, roleId, userId), refreshCookie(rawRefreshToken));
@@ -205,27 +188,6 @@ public class JwtAuthenticationController extends BaseController {
     }
 
     // ─── Private Helpers ─────────────────────────────────────────────────────────
-
-    /**
-     * Delegates to Spring Security's AuthenticationManager to verify credentials.
-     * Translates Spring Security exceptions into our custom exceptions.
-     */
-    private void authenticate(String email, String password) throws Exception {
-        try {
-            authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(email, password));
-        } catch (DisabledException e) {
-            throw new Exception("USER_DISABLED", e);
-        } catch (BadCredentialsException e) {
-            throw new BadRequestException("Invalid password. Please enter the correct password.");
-        }
-    }
-
-    // FIX 6: Changed from public to private — this method is only used internally
-    // WHY: Making it public would allow other classes to call it directly,
-    //      which was never intended. Internal helper methods should be private.
-    private boolean verifyEmail(String email) {
-        return jwtUserDetailsService.getVerifyEmail(email);
-    }
 
     /**
      * Builds the Set-Cookie header for a (re)issued refresh token.

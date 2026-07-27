@@ -50,12 +50,12 @@ if exist "%USERPROFILE%\mavenrc_pre.bat" call "%USERPROFILE%\mavenrc_pre.bat" %*
 if exist "%USERPROFILE%\mavenrc_pre.cmd" call "%USERPROFILE%\mavenrc_pre.cmd" %*
 :skipRcPre
 
-@setlocal
+@local
 
 set ERROR_CODE=0
 
 @REM To isolate internal variables from possible post scripts, we use another setlocal
-@setlocal
+@local
 
 @REM ==== START VALIDATION ====
 if not "%JAVA_HOME%" == "" goto OkJHome

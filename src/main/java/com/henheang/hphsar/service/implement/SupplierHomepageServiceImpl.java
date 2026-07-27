@@ -5,6 +5,7 @@ import com.henheang.hphsar.model.supplier.SupplierHomepage;
 import com.henheang.hphsar.model.order.OrderChartByMonth;
 import com.henheang.hphsar.repository.SupplierHomepageRepository;
 import com.henheang.hphsar.service.SupplierHomepageService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -20,6 +21,7 @@ import java.util.Objects;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class SupplierHomepageServiceImpl implements SupplierHomepageService {
 
     private final SupplierHomepageRepository supplierHomepageRepository;
@@ -32,10 +34,6 @@ public class SupplierHomepageServiceImpl implements SupplierHomepageService {
             Map.entry(7,  "JULY"),     Map.entry(8,  "AUGUST"),   Map.entry(9,  "SEPTEMBER"),
             Map.entry(10, "OCTOBER"),  Map.entry(11, "NOVEMBER"), Map.entry(12, "DECEMBER")
     );
-
-    public SupplierHomepageServiceImpl(SupplierHomepageRepository supplierHomepageRepository) {
-        this.supplierHomepageRepository = supplierHomepageRepository;
-    }
 
     @Override
     public SupplierHomepage getNewOrder(Integer currentUserId) {

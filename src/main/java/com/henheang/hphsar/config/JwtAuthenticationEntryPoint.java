@@ -1,7 +1,7 @@
 package com.henheang.hphsar.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.henheang.hphsar.model.ApiErrorResponse;
+import com.henheang.hphsar.common.ApiErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpStatus;

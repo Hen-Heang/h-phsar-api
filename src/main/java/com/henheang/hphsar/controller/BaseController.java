@@ -92,4 +92,14 @@ protected <T> ResponseEntity<ApiResponse<T>> ok(String message, T data) {
         return ResponseEntity.ok(body);
     }
 
+    protected <T> ResponseEntity<PagedResponse<T>> okPage(
+            Code code,
+            List<T> items,
+            int page,
+            int size,
+            long totalElements
+    ) {
+        return okPage(code.getMessage(), items, page, size, totalElements);
+    }
+
 }

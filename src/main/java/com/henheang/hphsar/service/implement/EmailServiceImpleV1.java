@@ -37,7 +37,7 @@ public class EmailServiceImpleV1 implements EmailService {
         }
 
         // Catch block to handle the exceptions
-        catch (Exception e) {
+        catch (Exception ignored) {
         }
     }
 

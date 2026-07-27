@@ -1,4 +1,6 @@
 package com.henheang.hphsar.service.implement;
+import com.henheang.hphsar.utils.ValidationUtils;
+import com.henheang.hphsar.common.ExceptionMessages;
 
 import com.henheang.hphsar.exception.*;
 import com.henheang.hphsar.model.Cart.Cart;
@@ -15,18 +17,21 @@ import com.henheang.hphsar.model.product.ProductOrder;
 import com.henheang.hphsar.repository.*;
 import com.henheang.hphsar.service.BuyerOrderService;
 import com.henheang.hphsar.service.OrderStatusService;
-import org.springframework.security.core.context.SecurityContextHolder;
+import com.henheang.hphsar.service.support.CurrentUserProvider;
+import com.henheang.hphsar.utils.PaginationUtils;
+import com.henheang.hphsar.utils.SortDirectionUtils;
+import com.henheang.hphsar.utils.DateTimeUtil;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
+@RequiredArgsConstructor
 public class BuyerOrderServiceImpl implements BuyerOrderService {
-    SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
     private final NotificationRepository notificationRepository;
     private final StoreRepository storeRepository;
     private final SupplierProfileRepository supplierProfileRepository;
@@ -35,17 +40,7 @@ public class BuyerOrderServiceImpl implements BuyerOrderService {
     private final SupplierOrderRepository supplierOrderRepository;
     private final SupplierProductRepository supplierProductRepository;
     private final OrderStatusService orderStatusService;
-
-    public BuyerOrderServiceImpl(NotificationRepository notificationRepository, StoreRepository storeRepository, SupplierProfileRepository supplierProfileRepository, BuyerProfileRepository buyerProfileRepository, BuyerOrderRepository buyerOrderRepository, SupplierOrderRepository supplierOrderRepository, SupplierProductRepository supplierProductRepository, OrderStatusService orderStatusService) {
-        this.notificationRepository = notificationRepository;
-        this.storeRepository = storeRepository;
-        this.supplierProfileRepository = supplierProfileRepository;
-        this.buyerProfileRepository = buyerProfileRepository;
-        this.buyerOrderRepository = buyerOrderRepository;
-        this.supplierOrderRepository = supplierOrderRepository;
-        this.supplierProductRepository = supplierProductRepository;
-        this.orderStatusService = orderStatusService;
-    }
+    private final CurrentUserProvider currentUserProvider;
 
     @Override
     @Transactional
@@ -55,11 +50,9 @@ public class BuyerOrderServiceImpl implements BuyerOrderService {
             throw new BadRequestException("2 or more duplicate product in cart.");
         }
         for (CartOrder order : orders) {
-            if (order.getProductId() > 2147483646 || order.getQty() > 2147483646) {
-                throw new BadRequestException("Integer value can not exceed 2147483646");
-            }
+            ValidationUtils.rejectIfExceedsIntLimit(order.getProductId(), order.getQty());
         }
-        AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        AppUser appUser = currentUserProvider.getCurrentUser();
         Integer buyerId = appUser.getId();
         if (!appUser.getIsVerified()) {
             throw new ConflictException("User is not verified. Can not perform order operation.");
@@ -124,11 +117,10 @@ public class BuyerOrderServiceImpl implements BuyerOrderService {
 
     @Override
     public String removeProductFromCart(Integer productId) {
-        AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        Integer buyerId = appUser.getId();
+        Integer buyerId = currentUserProvider.getCurrentUserId();
         // check if this buyer have cart in this store
         if (!buyerOrderRepository.checkForAnyCart(buyerId)) {
-            throw new NotFoundException("No cart is found.");
+            throw new NotFoundException(ExceptionMessages.NO_CART_IS_FOUND);
         }
         Integer cartId = buyerOrderRepository.getUserCartId(buyerId);
         // check if no product in the cart throw error
@@ -144,16 +136,15 @@ public class BuyerOrderServiceImpl implements BuyerOrderService {
 
     @Override
     public ProductOrder updateProductInCart(Integer productId, Integer qty) {
-        AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        Integer buyerId = appUser.getId();
+        Integer buyerId = currentUserProvider.getCurrentUserId();
         Integer cartId = buyerOrderRepository.getUserCartId(buyerId);
         Integer storeId = buyerOrderRepository.getStoreIdByOrderId(cartId);
         if (!supplierProductRepository.checkStoreHasProduct(storeId, productId)) {
-            throw new NotFoundException("This product is not found in this store.");
+            throw new NotFoundException(ExceptionMessages.THIS_PRODUCT_IS_NOT_FOUND_IN_THIS_STORE);
         }
         // check if this buyer have cart in this store
         if (!buyerOrderRepository.checkForCart(storeId, buyerId)) {
-            throw new NotFoundException("No cart is found.");
+            throw new NotFoundException(ExceptionMessages.NO_CART_IS_FOUND);
         }
         // if qty is 0, remove
         if (qty == 0) {
@@ -162,7 +153,7 @@ public class BuyerOrderServiceImpl implements BuyerOrderService {
         }
         // check stock
         if (!buyerOrderRepository.checkStock(productId, qty)) {
-            throw new ConflictException("Not enough product in stock.");
+            throw new ConflictException(ExceptionMessages.NOT_ENOUGH_PRODUCT_IN_STOCK);
         }
         Double price = buyerOrderRepository.getProductPrice(productId);
         String confirm = buyerOrderRepository.updateProductQtyFromCart(productId, cartId, qty, price);
@@ -174,21 +165,20 @@ public class BuyerOrderServiceImpl implements BuyerOrderService {
 
     @Override
     public Cart viewCartDetail(Integer pageNumber, Integer pageSize) throws ParseException {
-        AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        Integer buyerId = appUser.getId();
+        Integer buyerId = currentUserProvider.getCurrentUserId();
         Integer cartId = buyerOrderRepository.getUserCartId(buyerId);
         // check if cart exist
-        if (!isCartExist(cartId)) {
+        if (isCartExist(cartId)) {
             throw new NotFoundException("Cart does not found.");
         }
         // validate page number and size
         if (pageNumber <= 0 || pageSize <= 0) {
-            throw new BadRequestException("Page number and size should be higher than 0.");
+            throw new BadRequestException(ExceptionMessages.PAGE_SIZE_MUST_BE_POSITIVE);
         }
 
         Cart cart = new Cart();
         cart.setOrder(buyerOrderRepository.getOrderByOrderId(cartId));
-        cart.getOrder().setDate(formatter.format(formatter.parse(cart.getOrder().getDate())));
+        cart.getOrder().setDate(DateTimeUtil.format(DateTimeUtil.parse(cart.getOrder().getDate())));
         cart.setProducts(buyerOrderRepository.getProductOrderByOrderId(cartId, pageNumber, pageSize));
         Integer totalPage = getTotalPage(pageSize);
         if (totalPage < pageSize * pageNumber && cart.getProducts().isEmpty()) {
@@ -202,27 +192,19 @@ public class BuyerOrderServiceImpl implements BuyerOrderService {
 
     @Override
     public Integer getTotalPage(Integer pageSize) {
-        AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        Integer buyerId = appUser.getId();
+        Integer buyerId = currentUserProvider.getCurrentUserId();
         Integer cartId = buyerOrderRepository.getUserCartId(buyerId);
         Integer totalProduct = buyerOrderRepository.getTotalProduct(cartId);
-        int totalPage;
-        if (totalProduct % pageSize == 0) {
-            totalPage = totalProduct / pageSize;
-        } else {
-            totalPage = (totalProduct / pageSize) + 1;
-        }
-        return totalPage;
+        return PaginationUtils.totalPages(totalProduct, pageSize);
     }
 
     @Override
     public String cancelCart() {
-        AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        Integer buyerId = appUser.getId();
+        Integer buyerId = currentUserProvider.getCurrentUserId();
         Integer cartId = buyerOrderRepository.getUserCartId(buyerId);
         // check if cart exist
-        if (!isCartExist(cartId)) {
-            throw new NotFoundException("Cart does not exist.");
+        if (isCartExist(cartId)) {
+            throw new NotFoundException(ExceptionMessages.CART_DOES_NOT_EXIST);
         }
         String confirm = buyerOrderRepository.cancelCart(cartId);
         if (confirm == null) {
@@ -234,12 +216,11 @@ public class BuyerOrderServiceImpl implements BuyerOrderService {
     @Override
     @Transactional
     public String saveToDraft() {
-        AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        Integer buyerId = appUser.getId();
+        Integer buyerId = currentUserProvider.getCurrentUserId();
         Integer cartId = buyerOrderRepository.getUserCartId(buyerId);
         // check if cart exist
-        if (!isCartExist(cartId)) {
-            throw new NotFoundException("Cart does not exist.");
+        if (isCartExist(cartId)) {
+            throw new NotFoundException(ExceptionMessages.CART_DOES_NOT_EXIST);
         }
         orderStatusService.transitionOrder(cartId, OrderStatus.CART, OrderStatus.DRAFT, buyerId, Role.BUYER, "Buyer saved cart as draft");
         return "Saved to draft";
@@ -248,12 +229,11 @@ public class BuyerOrderServiceImpl implements BuyerOrderService {
     @Override
     @Transactional
     public String confirmOrder() {
-        AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        Integer buyerId = appUser.getId();
+        Integer buyerId = currentUserProvider.getCurrentUserId();
         Integer cartId = buyerOrderRepository.getUserCartId(buyerId);
         // check if cart exist
-        if (!isCartExist(cartId)) {
-            throw new NotFoundException("Cart does not exist.");
+        if (isCartExist(cartId)) {
+            throw new NotFoundException(ExceptionMessages.CART_DOES_NOT_EXIST);
         }
         orderStatusService.transitionOrder(cartId, OrderStatus.CART, OrderStatus.PENDING, buyerId, Role.BUYER, "Buyer submitted cart");
         // create new order notification for supplier
@@ -268,46 +248,35 @@ public class BuyerOrderServiceImpl implements BuyerOrderService {
 
     @Override
     public List<Order> getOrderActivities(String sort, Integer pageNumber, Integer pageSize) throws ParseException {
-        AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        Integer buyerId = appUser.getId();
+        Integer buyerId = currentUserProvider.getCurrentUserId();
         // check sort spelling
-        if (!(sort.equalsIgnoreCase("asc") || sort.equalsIgnoreCase("desc") || sort.isEmpty())) {
-            throw new BadRequestException("Field 'sort' is invalid. Please input either 'ASC' or 'DESC'. Case sensitive not required.");
-        }
+        SortDirectionUtils.validate(sort);
         // validate page number and size
         if (pageNumber <= 0 || pageSize <= 0) {
-            throw new BadRequestException("Page number and size should be higher than 0.");
+            throw new BadRequestException(ExceptionMessages.PAGE_SIZE_MUST_BE_POSITIVE);
         }
         List<Order> orders = buyerOrderRepository.getUserOrderActivities(sort, buyerId, pageNumber, pageSize);
         Integer totalOrder = buyerOrderRepository.getTotalOrder(buyerId);
         if (totalOrder <= 0) {
-            throw new NotFoundException("There is no order currently.");
+            throw new NotFoundException(ExceptionMessages.THERE_IS_NO_ORDER_CURRENTLY);
         }
         Integer totalPage = getTotalOrderPage(pageSize, totalOrder);
         if (totalOrder < pageSize * pageNumber && orders.isEmpty()) {
             throw new NotFoundException("Out of range. Total page is " + totalPage);
         }
         if (orders.isEmpty()) {
-            throw new NotFoundException("Order not found");
+            throw new NotFoundException(ExceptionMessages.ORDER_NOT_FOUND);
         }
         for (Order order : orders) {
-            order.setDate(formatter.format(formatter.parse(order.getDate())));
+            order.setDate(DateTimeUtil.format(DateTimeUtil.parse(order.getDate())));
         }
         return orders;
     }
 
     @Override
-    public Integer getTotalOrderPage(Integer pageSize) {
-        AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        Integer buyerId = appUser.getId();
-        Integer totalOrder = buyerOrderRepository.getTotalOrder(buyerId);
-        int totalPage;
-        if (totalOrder % pageSize == 0) {
-            totalPage = totalOrder / pageSize;
-        } else {
-            totalPage = (totalOrder / pageSize) + 1;
-        }
-        return totalPage;
+    public Integer getTotalOrderElements() {
+        Integer buyerId = currentUserProvider.getCurrentUserId();
+        return buyerOrderRepository.getTotalOrder(buyerId);
     }
 
     @Override
@@ -327,8 +296,7 @@ public class BuyerOrderServiceImpl implements BuyerOrderService {
 
     @Override
     public Invoice viewInvoiceByOrderId(Integer id) throws ParseException {
-        AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        Integer buyerId = appUser.getId();
+        Integer buyerId = currentUserProvider.getCurrentUserId();
         // check order exist AND belongs to this buyer (ownership check — prevents IDOR)
         if (!buyerOrderRepository.checkOrderExistForBuyer(id, buyerId)) {
             throw new NotFoundException("Order does not exist");
@@ -339,32 +307,30 @@ public class BuyerOrderServiceImpl implements BuyerOrderService {
         }
         Invoice invoice = supplierOrderRepository.getInvoiceByOrderId(id);
         if (invoice == null) {
-            throw new InternalServerErrorException("Fail to fetch order invoice.");
+            throw new InternalServerErrorException(ExceptionMessages.FAIL_TO_FETCH_ORDER_INVOICE);
         }
-        invoice.getOrder().setDate(formatter.format(formatter.parse(invoice.getOrder().getDate())));
+        invoice.getOrder().setDate(DateTimeUtil.format(DateTimeUtil.parse(invoice.getOrder().getDate())));
         return invoice;
     }
 
     @Override
     public OrderDetail getOrderDetailByOrderId(Integer id) throws ParseException {
-        AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        Integer buyerId = appUser.getId();
+        Integer buyerId = currentUserProvider.getCurrentUserId();
         // check order exist AND belongs to this buyer (ownership check — prevents IDOR)
         if (!buyerOrderRepository.checkOrderExistForBuyer(id, buyerId)) {
-            throw new NotFoundException("Order not found.");
+            throw new NotFoundException(ExceptionMessages.ORDER_NOT_FOUND);
         }
         OrderDetail orderDetail = supplierOrderRepository.getOrderDetailsByOrderId(id);
         if (orderDetail == null) {
-            throw new InternalServerErrorException("Fail to fetch order details.");
+            throw new InternalServerErrorException(ExceptionMessages.FAIL_TO_FETCH_ORDER_DETAILS);
         }
-        orderDetail.getOrder().setDate(formatter.format(formatter.parse(orderDetail.getOrder().getDate())));
+        orderDetail.getOrder().setDate(DateTimeUtil.format(DateTimeUtil.parse(orderDetail.getOrder().getDate())));
         return orderDetail;
     }
 
     @Override
     public List<CartSummery> viewAllCarts() {
-        AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        Integer currentUserId = appUser.getId();
+        Integer currentUserId = currentUserProvider.getCurrentUserId();
         // check for cart
         if (!buyerOrderRepository.checkForAnyCart(currentUserId)) {
             throw new NotFoundException("Cart not found.");
@@ -390,8 +356,7 @@ public class BuyerOrderServiceImpl implements BuyerOrderService {
     }
 
     private void confirmReceipt(Integer id) {
-        AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        Integer buyerId = appUser.getId();
+        Integer buyerId = currentUserProvider.getCurrentUserId();
         // Ownership + precondition combined (prevents IDOR and enforces DISPATCHED in one check).
         if (!buyerOrderRepository.checkForDispatchingOrder(id, buyerId)) {
             throw new NotFoundException("Order not found or is not ready to confirm.");
@@ -401,15 +366,14 @@ public class BuyerOrderServiceImpl implements BuyerOrderService {
         Integer supplierId = supplierProfileRepository.getSupplierIdByStoreId(orderDetail.getOrder().getStoreId());
         Integer delivered = notificationRepository.createSupplierNotification(supplierId, 9, orderDetail.getOrder().getId(), "Buyer confirmed receipt of order #" + orderDetail.getOrder().getId() + ".", "Order complete.", "Order #" + orderDetail.getOrder().getId() + " is complete. The buyer has confirmed receipt.", false);
         if (delivered == null) {
-            throw new InternalServerErrorException("Fail to create notification.");
+            throw new InternalServerErrorException(ExceptionMessages.FAIL_TO_CREATE_NOTIFICATION);
         }
     }
 
     @Override
     @Transactional
     public String cancelOrder(Integer id) {
-        AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        Integer buyerId = appUser.getId();
+        Integer buyerId = currentUserProvider.getCurrentUserId();
         // Ownership-scoped, restricted to the states a buyer may cancel (DRAFT, PENDING).
         if (!buyerOrderRepository.checkOrderExistForBuyerCancellable(id, buyerId)) {
             throw new NotFoundException("Order not found or can no longer be cancelled.");
@@ -421,11 +385,10 @@ public class BuyerOrderServiceImpl implements BuyerOrderService {
 
     @Override
     public List<OrderStatusHistory> getOrderHistory(Integer id) {
-        AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        Integer buyerId = appUser.getId();
+        Integer buyerId = currentUserProvider.getCurrentUserId();
         if (!buyerOrderRepository.checkOrderExistForBuyer(id, buyerId)
                 && !buyerOrderRepository.checkOrderExistForBuyerCancellable(id, buyerId)) {
-            throw new NotFoundException("Order not found.");
+            throw new NotFoundException(ExceptionMessages.ORDER_NOT_FOUND);
         }
         return orderStatusService.getHistory(id);
     }
@@ -435,18 +398,12 @@ public class BuyerOrderServiceImpl implements BuyerOrderService {
     }
 
     public Integer getTotalOrderPage(Integer pageSize, Integer totalOrder) {
-        int totalPage;
-        if (totalOrder % pageSize == 0) {
-            totalPage = totalOrder / pageSize;
-        } else {
-            totalPage = (totalOrder / pageSize) + 1;
-        }
-        return totalPage;
+        return PaginationUtils.totalPages(totalOrder, pageSize);
     }
 
 
     private boolean isCartExist(Integer orderId) {
-        return buyerOrderRepository.isCartExist(orderId);
+        return !buyerOrderRepository.isCartExist(orderId);
     }
 
 

@@ -56,3 +56,5 @@ logs/
 
 ### Claude Code personal preferences ###
 CLAUDE.local.md
+.claude/settings.local.json
+.claude/scheduled_tasks.lock

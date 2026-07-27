@@ -1,7 +1,7 @@
 package com.henheang.hphsar.service.implement;
+import com.henheang.hphsar.common.ExceptionMessages;
 
 import com.henheang.hphsar.exception.*;
-import com.henheang.hphsar.model.appUser.AppUser;
 import com.henheang.hphsar.model.category.Category;
 import com.henheang.hphsar.model.product.Product;
 import com.henheang.hphsar.model.rating.StoreRating;
@@ -9,21 +9,21 @@ import com.henheang.hphsar.model.rating.StoreRatingRequest;
 import com.henheang.hphsar.model.store.StoreBuyer;
 import com.henheang.hphsar.repository.StoreRepository;
 import com.henheang.hphsar.service.BuyerStoreService;
-import org.springframework.security.core.context.SecurityContextHolder;
+import com.henheang.hphsar.service.support.CurrentUserProvider;
+import com.henheang.hphsar.utils.DateTimeUtil;
+import com.henheang.hphsar.utils.PaginationUtils;
+import com.henheang.hphsar.utils.SortDirectionUtils;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.*;
 
 @Service
+@RequiredArgsConstructor
 public class BuyerStoreServiceImpl implements BuyerStoreService {
-    SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
     private final StoreRepository storeRepository;
-
-    public BuyerStoreServiceImpl(StoreRepository storeRepository) {
-        this.storeRepository = storeRepository;
-    }
+    private final CurrentUserProvider currentUserProvider;
 
     Boolean checkIfStoreExist(Integer storeId) {
         return storeRepository.checkIfStoreExist(storeId);
@@ -39,21 +39,20 @@ public class BuyerStoreServiceImpl implements BuyerStoreService {
 
     @Override
     public List<StoreBuyer> getAllStore() throws ParseException {
-        AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        Integer currentUser = appUser.getId();
+        Integer currentUser = currentUserProvider.getCurrentUserId();
         List<StoreBuyer> allStores = storeRepository.getAllStore();
         if (allStores.isEmpty()) {
-            throw new NotFoundException("Stores not found");
+            throw new NotFoundException(ExceptionMessages.STORES_NOT_FOUND);
         }
         List<Integer> bookmarkStoreId = storeRepository.getBookmarkStoreId(currentUser);
         // get bookmark field
         for (StoreBuyer store : allStores) {
             store.setIsBookmarked(bookmarkStoreId.contains(store.getId()));
-            store.setCreatedDate(formatter.format(formatter.parse(store.getCreatedDate())));
-            store.setUpdatedDate(formatter.format(formatter.parse(store.getUpdatedDate())));
+            store.setCreatedDate(DateTimeUtil.format(DateTimeUtil.parse(store.getCreatedDate())));
+            store.setUpdatedDate(DateTimeUtil.format(DateTimeUtil.parse(store.getUpdatedDate())));
             for (Category category : store.getCategories()) {
-                category.setCreatedDate(formatter.format(formatter.parse(category.getCreatedDate())));
-                category.setUpdatedDate(formatter.format(formatter.parse(category.getUpdatedDate())));
+                category.setCreatedDate(DateTimeUtil.format(DateTimeUtil.parse(category.getCreatedDate())));
+                category.setUpdatedDate(DateTimeUtil.format(DateTimeUtil.parse(category.getUpdatedDate())));
             }
         }
         return allStores;
@@ -63,7 +62,7 @@ public class BuyerStoreServiceImpl implements BuyerStoreService {
     public StoreBuyer getStoreById(Integer id) throws ParseException {
         // check if store exist
         if (!checkIfStoreExist(id)) {
-            throw new NotFoundException("This store id does not exist.");
+            throw new NotFoundException(ExceptionMessages.THIS_STORE_ID_DOES_NOT_EXIST);
         }
 
         // get store
@@ -78,17 +77,16 @@ public class BuyerStoreServiceImpl implements BuyerStoreService {
             throw new NotFoundException("Store is disabled.");
         }
         // get bookmark field
-        AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        Integer currentUser = appUser.getId();
+        Integer currentUser = currentUserProvider.getCurrentUserId();
         List<Integer> bookmarkStoreId = storeRepository.getBookmarkStoreId(currentUser);
         for (Integer integer : bookmarkStoreId) {
             store.setIsBookmarked(Objects.equals(integer, store.getId()));
         }
-        store.setCreatedDate(formatter.format(formatter.parse(store.getCreatedDate())));
-        store.setUpdatedDate(formatter.format(formatter.parse(store.getUpdatedDate())));
+        store.setCreatedDate(DateTimeUtil.format(DateTimeUtil.parse(store.getCreatedDate())));
+        store.setUpdatedDate(DateTimeUtil.format(DateTimeUtil.parse(store.getUpdatedDate())));
         for (Category category : store.getCategories()) {
-            category.setCreatedDate(formatter.format(formatter.parse(category.getCreatedDate())));
-            category.setUpdatedDate(formatter.format(formatter.parse(category.getUpdatedDate())));
+            category.setCreatedDate(DateTimeUtil.format(DateTimeUtil.parse(category.getCreatedDate())));
+            category.setUpdatedDate(DateTimeUtil.format(DateTimeUtil.parse(category.getUpdatedDate())));
         }
         return store;
     }
@@ -100,8 +98,7 @@ public class BuyerStoreServiceImpl implements BuyerStoreService {
             throw new NotFoundException("This store storeId does not exist.");
         }
         // get current user storeId
-        AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        Integer currentUser = appUser.getId();
+        Integer currentUser = currentUserProvider.getCurrentUserId();
 
         // check if already bookmarked throw
         if (checkAlreadyBookmarked(storeId, currentUser)) {
@@ -111,7 +108,7 @@ public class BuyerStoreServiceImpl implements BuyerStoreService {
         // get store and bookmark
         String confirm = storeRepository.bookmarkStoreById(storeId, currentUser);
         if (!Objects.equals(confirm, "1")) {
-            throw new InternalServerErrorException("Something went wrong while doing bookmark operation");
+            throw new InternalServerErrorException(ExceptionMessages.SOMETHING_WENT_WRONG_WHILE_DOING_BOOKMARK_OPERATION);
         }
         return "Successfully bookmark.";
     }
@@ -120,11 +117,10 @@ public class BuyerStoreServiceImpl implements BuyerStoreService {
     public String removeBookmarkStoreById(Integer storeId) {
         // check if store exist
         if (!checkIfStoreExist(storeId)) {
-            throw new NotFoundException("This store id does not exist.");
+            throw new NotFoundException(ExceptionMessages.THIS_STORE_ID_DOES_NOT_EXIST);
         }
         // get current user id
-        AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        Integer currentUser = appUser.getId();
+        Integer currentUser = currentUserProvider.getCurrentUserId();
 
         // check if not yet bookmarked throw
         if (!(checkAlreadyBookmarked(storeId, currentUser))) {
@@ -134,7 +130,7 @@ public class BuyerStoreServiceImpl implements BuyerStoreService {
         // get store and bookmark
         String confirm = storeRepository.removeBookmarkStoreById(storeId, currentUser);
         if (!Objects.equals(confirm, "1")) {
-            throw new InternalServerErrorException("Something went wrong while doing bookmark operation");
+            throw new InternalServerErrorException(ExceptionMessages.SOMETHING_WENT_WRONG_WHILE_DOING_BOOKMARK_OPERATION);
         }
         return "Successfully remove bookmark.";
     }
@@ -143,18 +139,17 @@ public class BuyerStoreServiceImpl implements BuyerStoreService {
     public StoreRating getRatingByStoreId(Integer storeId) throws ParseException {
         // check if store exist
         if (!checkIfStoreExist(storeId)) {
-            throw new NotFoundException("This store id does not exist.");
+            throw new NotFoundException(ExceptionMessages.THIS_STORE_ID_DOES_NOT_EXIST);
         }
 
-        AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        Integer currentUser = appUser.getId();
+        Integer currentUser = currentUserProvider.getCurrentUserId();
 
         StoreRating storeRating = storeRepository.getRatingByStoreId(storeId, currentUser);
         if (storeRating == null) {
             throw new NotFoundException("No rating found.");
         }
-        storeRating.setCreatedDate(formatter.format(formatter.parse(storeRating.getCreatedDate())));
-        storeRating.setUpdatedDate(formatter.format(formatter.parse(storeRating.getUpdatedDate())));
+        storeRating.setCreatedDate(DateTimeUtil.format(DateTimeUtil.parse(storeRating.getCreatedDate())));
+        storeRating.setUpdatedDate(DateTimeUtil.format(DateTimeUtil.parse(storeRating.getUpdatedDate())));
         return storeRating;
     }
 
@@ -162,13 +157,12 @@ public class BuyerStoreServiceImpl implements BuyerStoreService {
     public StoreRating editRatingByStoreId(Integer storeId, StoreRatingRequest ratingRequest) throws ParseException {
         // check if store exist
         if (!checkIfStoreExist(storeId)) {
-            throw new NotFoundException("This store id does not exist.");
+            throw new NotFoundException(ExceptionMessages.THIS_STORE_ID_DOES_NOT_EXIST);
         }
         if (!(ratingRequest.getRatedStar() > 0 && ratingRequest.getRatedStar() < 6)) {
-            throw new BadRequestException("Out of range. Rating range is from 1 to 5.");
+            throw new BadRequestException(ExceptionMessages.OUT_OF_RANGE_RATING_RANGE_IS_FROM_1);
         }
-        AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        Integer currentUser = appUser.getId();
+        Integer currentUser = currentUserProvider.getCurrentUserId();
         // check if already rated
         if (checkAlreadyRated(storeId, currentUser).equals(false)) {
             throw new ConflictException("Rating not found. Can't edit rating without rating.");
@@ -180,7 +174,7 @@ public class BuyerStoreServiceImpl implements BuyerStoreService {
             throw new InternalServerErrorException("Error while editing rating.");
         }
         if (storeRating.getCreatedDate() != null)
-            storeRating.setCreatedDate(formatter.format(formatter.parse(storeRating.getCreatedDate())));
+            storeRating.setCreatedDate(DateTimeUtil.format(DateTimeUtil.parse(storeRating.getCreatedDate())));
         return storeRating;
     }
 
@@ -188,10 +182,9 @@ public class BuyerStoreServiceImpl implements BuyerStoreService {
     public String deleteRatingByStoreId(Integer storeId) {
         // check if store exist
         if (!checkIfStoreExist(storeId)) {
-            throw new NotFoundException("This store id does not exist.");
+            throw new NotFoundException(ExceptionMessages.THIS_STORE_ID_DOES_NOT_EXIST);
         }
-        AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        Integer currentUser = appUser.getId();
+        Integer currentUser = currentUserProvider.getCurrentUserId();
         // check if already rated
         if (checkAlreadyRated(storeId, currentUser).equals(false)) {
             throw new ConflictException("Rating not found.");
@@ -207,14 +200,13 @@ public class BuyerStoreServiceImpl implements BuyerStoreService {
     public StoreRating ratingStoreById(Integer storeId, StoreRatingRequest storeRatingRequest) throws ParseException {
         // check if store exist
         if (!checkIfStoreExist(storeId)) {
-            throw new NotFoundException("This store id does not exist.");
+            throw new NotFoundException(ExceptionMessages.THIS_STORE_ID_DOES_NOT_EXIST);
         }
 
         if (!(storeRatingRequest.getRatedStar() > 0 && storeRatingRequest.getRatedStar() < 6)) {
-            throw new BadRequestException("Out of range. Rating range is from 1 to 5.");
+            throw new BadRequestException(ExceptionMessages.OUT_OF_RANGE_RATING_RANGE_IS_FROM_1);
         }
-        AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        Integer currentUser = appUser.getId();
+        Integer currentUser = currentUserProvider.getCurrentUserId();
 
         // check if already rated
         if (checkAlreadyRated(storeId, currentUser)) {
@@ -226,7 +218,7 @@ public class BuyerStoreServiceImpl implements BuyerStoreService {
             throw new InternalServerErrorException("Error while in rating operation.");
         }
         if (storeRating.getCreatedDate() != null)
-            storeRating.setCreatedDate(formatter.format(formatter.parse(storeRating.getCreatedDate())));
+            storeRating.setCreatedDate(DateTimeUtil.format(DateTimeUtil.parse(storeRating.getCreatedDate())));
         return storeRating;
     }
 
@@ -234,7 +226,7 @@ public class BuyerStoreServiceImpl implements BuyerStoreService {
     public List<Product> getProductListingByStoreId(Integer storeId, String sort, String by) throws ParseException {
         // check if store exist
         if (!checkIfStoreExist(storeId)) {
-            throw new NotFoundException("This store id does not exist.");
+            throw new NotFoundException(ExceptionMessages.THIS_STORE_ID_DOES_NOT_EXIST);
         }
         Map<String, String> validColumns = Map.of(
                 "name", "tp.name",
@@ -254,22 +246,22 @@ public class BuyerStoreServiceImpl implements BuyerStoreService {
         }
         assert products != null;
         if (products.isEmpty()) {
-            throw new OKException("Products not found.");
+            throw new OKException(ExceptionMessages.PRODUCTS_NOT_FOUND);
         }
-        return getProducts(products, formatter);
+        return getProducts(products);
     }
 
-    static List<Product> getProducts(List<Product> products, SimpleDateFormat formatter) throws ParseException {
+    static List<Product> getProducts(List<Product> products) throws ParseException {
         for (Product product : products) {
             if (product.getCreatedDate() != null)
-                product.setCreatedDate(formatter.format(formatter.parse(product.getCreatedDate())));
+                product.setCreatedDate(DateTimeUtil.format(DateTimeUtil.parse(product.getCreatedDate())));
             if (product.getUpdatedDate() != null)
-                product.setUpdatedDate(formatter.format(formatter.parse(product.getUpdatedDate())));
+                product.setUpdatedDate(DateTimeUtil.format(DateTimeUtil.parse(product.getUpdatedDate())));
             if (product.getCategory() != null) {
                 if (product.getCategory().getCreatedDate() != null)
-                    product.getCategory().setCreatedDate(formatter.format(formatter.parse(product.getCategory().getCreatedDate())));
+                    product.getCategory().setCreatedDate(DateTimeUtil.format(DateTimeUtil.parse(product.getCategory().getCreatedDate())));
                 if (product.getCategory().getUpdatedDate() != null)
-                    product.getCategory().setUpdatedDate(formatter.format(formatter.parse(product.getCategory().getUpdatedDate())));
+                    product.getCategory().setUpdatedDate(DateTimeUtil.format(DateTimeUtil.parse(product.getCategory().getUpdatedDate())));
             }
         }
         return products;
@@ -282,40 +274,29 @@ public class BuyerStoreServiceImpl implements BuyerStoreService {
 
     @Override
     public Integer getTotalRatedStores() {
-        AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        Integer buyerId = appUser.getId();
+        Integer buyerId = currentUserProvider.getCurrentUserId();
         return storeRepository.getTotalRatedStores(buyerId);
     }
 
     @Override
     public Integer getTotalBookmarkedStores() {
-        AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        Integer buyerId = appUser.getId();
+        Integer buyerId = currentUserProvider.getCurrentUserId();
         return storeRepository.getTotalBookmarkedStores(buyerId);
     }
 
     @Override
     public Integer findTotalPage(Integer totalStore, Integer pageSize) {
-        int totalPage;
-        if (totalStore % pageSize == 0) {
-            totalPage = totalStore / pageSize;
-        } else {
-            totalPage = (Integer) (totalStore / pageSize) + 1;
-        }
-        return totalPage;
+        return PaginationUtils.totalPages(totalStore, pageSize);
     }
 
     @Override
     public List<StoreBuyer> getAllUserStoreSortByDate(String sort, Integer pageNumber, Integer pageSize) throws ParseException {
-        AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        Integer currentUser = appUser.getId();
+        Integer currentUser = currentUserProvider.getCurrentUserId();
         // check sort spelling
-        if (!(sort.toLowerCase().equals("asc") || sort.toLowerCase().equals("desc") || sort.isEmpty())) {
-            throw new BadRequestException("Field 'sort' is invalid. Please input either 'ASC' or 'DESC'. Case sensitive not required.");
-        }
+        SortDirectionUtils.validate(sort);
         // validate page number and size
         if (pageNumber <= 0 || pageSize <= 0) {
-            throw new NotFoundException("Page number and size should be higher than 0.");
+            throw new BadRequestException(ExceptionMessages.PAGE_SIZE_MUST_BE_POSITIVE);
         }
         // fetch stores
         List<StoreBuyer> stores;
@@ -333,16 +314,16 @@ public class BuyerStoreServiceImpl implements BuyerStoreService {
             throw new NotFoundException("Out of range. Total page is " + totalPage);
         }
         if (stores.isEmpty()) {
-            throw new NotFoundException("Stores not found");
+            throw new NotFoundException(ExceptionMessages.STORES_NOT_FOUND);
         }
         List<Integer> bookmarkStoreId = storeRepository.getBookmarkStoreId(currentUser);
         for (StoreBuyer store : stores) {
             store.setIsBookmarked(bookmarkStoreId.contains(store.getId()));
-            store.setCreatedDate(formatter.format(formatter.parse(store.getCreatedDate())));
-            store.setUpdatedDate(formatter.format(formatter.parse(store.getUpdatedDate())));
+            store.setCreatedDate(DateTimeUtil.format(DateTimeUtil.parse(store.getCreatedDate())));
+            store.setUpdatedDate(DateTimeUtil.format(DateTimeUtil.parse(store.getUpdatedDate())));
             for (Category category : store.getCategories()) {
-                category.setCreatedDate(formatter.format(formatter.parse(category.getCreatedDate())));
-                category.setUpdatedDate(formatter.format(formatter.parse(category.getUpdatedDate())));
+                category.setCreatedDate(DateTimeUtil.format(DateTimeUtil.parse(category.getCreatedDate())));
+                category.setUpdatedDate(DateTimeUtil.format(DateTimeUtil.parse(category.getUpdatedDate())));
             }
         }
         return stores;
@@ -350,11 +331,10 @@ public class BuyerStoreServiceImpl implements BuyerStoreService {
 
     @Override
     public List<StoreBuyer> getAllUserStoreSortByCurrentUserFavorite(Integer pageNumber, Integer pageSize) throws ParseException {
-        AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        Integer currentUser = appUser.getId();
+        Integer currentUser = currentUserProvider.getCurrentUserId();
         // validate page number and size
         if (pageNumber <= 0 || pageSize <= 0) {
-            throw new BadRequestException("Page number and size should be higher than 0.");
+            throw new BadRequestException(ExceptionMessages.PAGE_SIZE_MUST_BE_POSITIVE);
         }
         List<StoreBuyer> stores = storeRepository.getAllUserStoreSortByCurrentUserFavoriteDESC(pageNumber, pageSize, currentUser);
         // get all store
@@ -366,16 +346,16 @@ public class BuyerStoreServiceImpl implements BuyerStoreService {
             throw new NotFoundException("Out of range. Total page is " + totalPage);
         }
         if (stores.isEmpty()) {
-            throw new NotFoundException("Stores not found");
+            throw new NotFoundException(ExceptionMessages.STORES_NOT_FOUND);
         }
         List<Integer> bookmarkStoreId = storeRepository.getBookmarkStoreId(currentUser);
         for (StoreBuyer store : stores) {
             store.setIsBookmarked(bookmarkStoreId.contains(store.getId()));
-            store.setCreatedDate(formatter.format(formatter.parse(store.getCreatedDate())));
-            store.setUpdatedDate(formatter.format(formatter.parse(store.getUpdatedDate())));
+            store.setCreatedDate(DateTimeUtil.format(DateTimeUtil.parse(store.getCreatedDate())));
+            store.setUpdatedDate(DateTimeUtil.format(DateTimeUtil.parse(store.getUpdatedDate())));
             for (Category category : store.getCategories()) {
-                category.setCreatedDate(formatter.format(formatter.parse(category.getCreatedDate())));
-                category.setUpdatedDate(formatter.format(formatter.parse(category.getUpdatedDate())));
+                category.setCreatedDate(DateTimeUtil.format(DateTimeUtil.parse(category.getCreatedDate())));
+                category.setUpdatedDate(DateTimeUtil.format(DateTimeUtil.parse(category.getUpdatedDate())));
             }
         }
         return stores;
@@ -383,14 +363,13 @@ public class BuyerStoreServiceImpl implements BuyerStoreService {
 
     @Override
     public List<StoreBuyer> getAllBookmarkedStore(Integer pageNumber, Integer pageSize) throws ParseException {
-        AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        Integer currentUser = appUser.getId();
+        Integer currentUser = currentUserProvider.getCurrentUserId();
         if (getTotalBookmarkedStores() == 0) {
             throw new NotFoundException("No bookmarked store found.");
         }
         // validate page number and size
         if (pageNumber <= 0 || pageSize <= 0) {
-            throw new BadRequestException("Page number and size should be higher than 0.");
+            throw new BadRequestException(ExceptionMessages.PAGE_SIZE_MUST_BE_POSITIVE);
         }
         List<StoreBuyer> stores = storeRepository.getAllBookmarkedStore(pageNumber, pageSize, currentUser);
         // get all store
@@ -402,16 +381,16 @@ public class BuyerStoreServiceImpl implements BuyerStoreService {
             throw new NotFoundException("Out of range. Total page is " + totalPage);
         }
         if (stores.isEmpty()) {
-            throw new NotFoundException("Stores not found");
+            throw new NotFoundException(ExceptionMessages.STORES_NOT_FOUND);
         }
         List<Integer> bookmarkStoreId = storeRepository.getBookmarkStoreId(currentUser);
         for (StoreBuyer store : stores) {
             store.setIsBookmarked(bookmarkStoreId.contains(store.getId()));
-            store.setCreatedDate(formatter.format(formatter.parse(store.getCreatedDate())));
-            store.setUpdatedDate(formatter.format(formatter.parse(store.getUpdatedDate())));
+            store.setCreatedDate(DateTimeUtil.format(DateTimeUtil.parse(store.getCreatedDate())));
+            store.setUpdatedDate(DateTimeUtil.format(DateTimeUtil.parse(store.getUpdatedDate())));
             for (Category category : store.getCategories()) {
-                category.setCreatedDate(formatter.format(formatter.parse(category.getCreatedDate())));
-                category.setUpdatedDate(formatter.format(formatter.parse(category.getUpdatedDate())));
+                category.setCreatedDate(DateTimeUtil.format(DateTimeUtil.parse(category.getCreatedDate())));
+                category.setUpdatedDate(DateTimeUtil.format(DateTimeUtil.parse(category.getUpdatedDate())));
             }
         }
         return stores;
@@ -419,11 +398,10 @@ public class BuyerStoreServiceImpl implements BuyerStoreService {
 
     @Override
     public List<StoreBuyer> searchStoreByName(Integer pageNumber, Integer pageSize, String name) throws ParseException {
-        AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        Integer currentUser = appUser.getId();
+        Integer currentUser = currentUserProvider.getCurrentUserId();
         // validate page number and size
         if (pageNumber <= 0 || pageSize <= 0) {
-            throw new BadRequestException("Page number and size should be higher than 0.");
+            throw new BadRequestException(ExceptionMessages.PAGE_SIZE_MUST_BE_POSITIVE);
         }
         List<StoreBuyer> stores = storeRepository.searchStoreByName(pageNumber, pageSize, name);
         // get all store
@@ -435,16 +413,16 @@ public class BuyerStoreServiceImpl implements BuyerStoreService {
             throw new NotFoundException("Out of range. Total page is " + totalPage);
         }
         if (stores.isEmpty()) {
-            throw new NotFoundException("Stores not found");
+            throw new NotFoundException(ExceptionMessages.STORES_NOT_FOUND);
         }
         List<Integer> bookmarkStoreId = storeRepository.getBookmarkStoreId(currentUser);
         for (StoreBuyer store : stores) {
             store.setIsBookmarked(bookmarkStoreId.contains(store.getId()));
-            store.setCreatedDate(formatter.format(formatter.parse(store.getCreatedDate())));
-            store.setUpdatedDate(formatter.format(formatter.parse(store.getUpdatedDate())));
+            store.setCreatedDate(DateTimeUtil.format(DateTimeUtil.parse(store.getCreatedDate())));
+            store.setUpdatedDate(DateTimeUtil.format(DateTimeUtil.parse(store.getUpdatedDate())));
             for (Category category : store.getCategories()) {
-                category.setCreatedDate(formatter.format(formatter.parse(category.getCreatedDate())));
-                category.setUpdatedDate(formatter.format(formatter.parse(category.getUpdatedDate())));
+                category.setCreatedDate(DateTimeUtil.format(DateTimeUtil.parse(category.getCreatedDate())));
+                category.setUpdatedDate(DateTimeUtil.format(DateTimeUtil.parse(category.getUpdatedDate())));
             }
         }
         return stores;
@@ -454,17 +432,17 @@ public class BuyerStoreServiceImpl implements BuyerStoreService {
     public List<Category> getCategoryListingByStoreId(Integer storeId) throws ParseException {
         // check if store exist
         if (!checkIfStoreExist(storeId)) {
-            throw new NotFoundException("This store id does not exist.");
+            throw new NotFoundException(ExceptionMessages.THIS_STORE_ID_DOES_NOT_EXIST);
         }
         List<Category> categories = storeRepository.getCategoryListingByStoreId(storeId);
         if (categories.isEmpty()) {
-            throw new OKException("Products not found.");
+            throw new OKException(ExceptionMessages.PRODUCTS_NOT_FOUND);
         }
         for (Category category : categories) {
             if (category.getCreatedDate() != null)
-                category.setCreatedDate(formatter.format(formatter.parse(category.getCreatedDate())));
+                category.setCreatedDate(DateTimeUtil.format(DateTimeUtil.parse(category.getCreatedDate())));
             if (category.getUpdatedDate() != null)
-                category.setUpdatedDate(formatter.format(formatter.parse(category.getUpdatedDate())));
+                category.setUpdatedDate(DateTimeUtil.format(DateTimeUtil.parse(category.getUpdatedDate())));
         }
         return categories;
     }
@@ -473,7 +451,7 @@ public class BuyerStoreServiceImpl implements BuyerStoreService {
     public List<Product> getProductListingByStoreIdAndCategoryId(Integer storeId, Integer categoryId) throws ParseException {
         // check if store exist
         if (!checkIfStoreExist(storeId)) {
-            throw new NotFoundException("This store id does not exist.");
+            throw new NotFoundException(ExceptionMessages.THIS_STORE_ID_DOES_NOT_EXIST);
         }
         if (!storeRepository.checkIfCategoryExistInStore(storeId, categoryId)) {
             throw new NotFoundException("Category does not exist in this store.");
@@ -482,18 +460,16 @@ public class BuyerStoreServiceImpl implements BuyerStoreService {
         if (products.isEmpty()) {
             throw new OKException("Product not Found. This category have no products.");
         }
-        return getProducts(products, formatter);
+        return getProducts(products);
     }
 
     @Override
     public List<StoreBuyer> getStoresByCategorySearch(String name, String sort, String by) throws ParseException {
         // check sort spelling
-        if (!(sort.toLowerCase().equals("asc") || sort.toLowerCase().equals("desc") || sort.isEmpty())) {
-            throw new BadRequestException("Field 'sort' is invalid. Please input either 'ASC' or 'DESC'. Case sensitive not required.");
-        }
+        SortDirectionUtils.validate(sort);
         by = by.toLowerCase().trim();
         if (!(by.equals("created_date") || by.equals("is_publish") || by.equals("name"))) {
-            throw new BadRequestException("Invalid input. Available sorting are 'created_date' - 'is_publish' - 'name'. Case sensitive not needed.");
+            throw new BadRequestException(ExceptionMessages.INVALID_INPUT_AVAILABLE_SORTING_ARE_CREATED_DATE_IS);
         }
         List<StoreBuyer> stores;
         if (sort.toLowerCase().equals("asc")) {
@@ -502,14 +478,14 @@ public class BuyerStoreServiceImpl implements BuyerStoreService {
             stores = storeRepository.getStoresByCategorySearchDESC(name, by);
         }
         if (stores.isEmpty()) {
-            throw new NotFoundException("No store was found.");
+            throw new NotFoundException(ExceptionMessages.STORES_NOT_FOUND);
         }
         for (StoreBuyer store : stores) {
-            store.setCreatedDate(formatter.format(formatter.parse(store.getCreatedDate())));
-            store.setUpdatedDate(formatter.format(formatter.parse(store.getUpdatedDate())));
+            store.setCreatedDate(DateTimeUtil.format(DateTimeUtil.parse(store.getCreatedDate())));
+            store.setUpdatedDate(DateTimeUtil.format(DateTimeUtil.parse(store.getUpdatedDate())));
             for (Category category : store.getCategories()) {
-                category.setCreatedDate(formatter.format(formatter.parse(category.getCreatedDate())));
-                category.setUpdatedDate(formatter.format(formatter.parse(category.getUpdatedDate())));
+                category.setCreatedDate(DateTimeUtil.format(DateTimeUtil.parse(category.getCreatedDate())));
+                category.setUpdatedDate(DateTimeUtil.format(DateTimeUtil.parse(category.getUpdatedDate())));
             }
         }
         return stores;
@@ -517,15 +493,12 @@ public class BuyerStoreServiceImpl implements BuyerStoreService {
 
     @Override
     public List<StoreBuyer> getStoresBySearch(String name, String sort, String by) throws ParseException {
-        AppUser appUser =(AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        Integer currentUser = appUser.getId();
+        Integer currentUser = currentUserProvider.getCurrentUserId();
         // check sort spelling
-        if (!(sort.toLowerCase().equals("asc") || sort.toLowerCase().equals("desc") || sort.isEmpty())) {
-            throw new BadRequestException("Field 'sort' is invalid. Please input either 'ASC' or 'DESC'. Case sensitive not required.");
-        }
+        SortDirectionUtils.validate(sort);
         by = by.toLowerCase().trim();
         if (!(by.equals("created_date") || by.equals("is_publish") || by.equals("name"))) {
-            throw new BadRequestException("Invalid input. Available sorting are 'created_date' - 'is_publish' - 'name'. Case sensitive not needed.");
+            throw new BadRequestException(ExceptionMessages.INVALID_INPUT_AVAILABLE_SORTING_ARE_CREATED_DATE_IS);
         }
         // get store ids from product
         List<Integer> storesFromProduct;
@@ -559,17 +532,17 @@ public class BuyerStoreServiceImpl implements BuyerStoreService {
             stores = storeRepository.getStoresByStoreIdsDESC(combinedList.toString().replaceAll("\\[|\\]", ""));
         }
         if (stores.isEmpty()) {
-            throw new NotFoundException("No store was found.");
+            throw new NotFoundException(ExceptionMessages.STORES_NOT_FOUND);
         }
         List<Integer> bookmarkStoreId = storeRepository.getBookmarkStoreId(currentUser);
         for_loop:
         for (StoreBuyer store : stores) {
             store.setIsBookmarked(bookmarkStoreId.contains(store.getId()));
-            store.setCreatedDate(formatter.format(formatter.parse(store.getCreatedDate())));
-            store.setUpdatedDate(formatter.format(formatter.parse(store.getUpdatedDate())));
+            store.setCreatedDate(DateTimeUtil.format(DateTimeUtil.parse(store.getCreatedDate())));
+            store.setUpdatedDate(DateTimeUtil.format(DateTimeUtil.parse(store.getUpdatedDate())));
             for (Category category : store.getCategories()) {
-                category.setCreatedDate(formatter.format(formatter.parse(category.getCreatedDate())));
-                category.setUpdatedDate(formatter.format(formatter.parse(category.getUpdatedDate())));
+                category.setCreatedDate(DateTimeUtil.format(DateTimeUtil.parse(category.getCreatedDate())));
+                category.setUpdatedDate(DateTimeUtil.format(DateTimeUtil.parse(category.getUpdatedDate())));
             }
         }
         return stores;
@@ -578,12 +551,10 @@ public class BuyerStoreServiceImpl implements BuyerStoreService {
     @Override
     public List<StoreBuyer> getAllUserStoreSortByRatedStar(String sort, Integer pageNumber, Integer pageSize) throws ParseException {
         // check sort spelling
-        if (!(sort.toLowerCase().equals("asc") || sort.toLowerCase().equals("desc") || sort.isEmpty())) {
-            throw new BadRequestException("Field 'sort' is invalid. Please input either 'ASC' or 'DESC'. Case sensitive not required.");
-        }
+        SortDirectionUtils.validate(sort);
         // validate page number and size
         if (pageNumber <= 0 || pageSize <= 0) {
-            throw new BadRequestException("Page number and size should be higher than 0.");
+            throw new BadRequestException(ExceptionMessages.PAGE_SIZE_MUST_BE_POSITIVE);
         }
         // fetch stores
         List<StoreBuyer> stores;
@@ -601,18 +572,17 @@ public class BuyerStoreServiceImpl implements BuyerStoreService {
             throw new NotFoundException("Out of range. Total page is " + totalPage);
         }
         if (stores.isEmpty()) {
-            throw new NotFoundException("Stores not found");
+            throw new NotFoundException(ExceptionMessages.STORES_NOT_FOUND);
         }
-        AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        Integer currentUser = appUser.getId();
+        Integer currentUser = currentUserProvider.getCurrentUserId();
         List<Integer> bookmarkStoreId = storeRepository.getBookmarkStoreId(currentUser);
         for (StoreBuyer store : stores) {
             store.setIsBookmarked(bookmarkStoreId.contains(store.getId()));
-            store.setCreatedDate(formatter.format(formatter.parse(store.getCreatedDate())));
-            store.setUpdatedDate(formatter.format(formatter.parse(store.getUpdatedDate())));
+            store.setCreatedDate(DateTimeUtil.format(DateTimeUtil.parse(store.getCreatedDate())));
+            store.setUpdatedDate(DateTimeUtil.format(DateTimeUtil.parse(store.getUpdatedDate())));
             for (Category category : store.getCategories()) {
-                category.setCreatedDate(formatter.format(formatter.parse(category.getCreatedDate())));
-                category.setUpdatedDate(formatter.format(formatter.parse(category.getUpdatedDate())));
+                category.setCreatedDate(DateTimeUtil.format(DateTimeUtil.parse(category.getCreatedDate())));
+                category.setUpdatedDate(DateTimeUtil.format(DateTimeUtil.parse(category.getUpdatedDate())));
             }
         }
         return stores;
@@ -621,12 +591,10 @@ public class BuyerStoreServiceImpl implements BuyerStoreService {
     @Override
     public List<StoreBuyer> getAllUserStoreSortByName(String sort, Integer pageNumber, Integer pageSize) throws ParseException {
         // check sort spelling
-        if (!(sort.toLowerCase().equals("asc") || sort.toLowerCase().equals("desc") || sort.isEmpty())) {
-            throw new BadRequestException("Field 'sort' is invalid. Please input either 'ASC' or 'DESC'. Case sensitive not required.");
-        }
+        SortDirectionUtils.validate(sort);
         // validate page number and size
         if (pageNumber <= 0 || pageSize <= 0) {
-            throw new BadRequestException("Page number and size should be higher than 0.");
+            throw new BadRequestException(ExceptionMessages.PAGE_SIZE_MUST_BE_POSITIVE);
         }
         // fetch stores
         List<StoreBuyer> stores;
@@ -644,18 +612,17 @@ public class BuyerStoreServiceImpl implements BuyerStoreService {
             throw new NotFoundException("Out of range. Total page is " + totalPage);
         }
         if (stores.isEmpty()) {
-            throw new NotFoundException("Stores not found");
+            throw new NotFoundException(ExceptionMessages.STORES_NOT_FOUND);
         }
-        AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        Integer currentUser = appUser.getId();
+        Integer currentUser = currentUserProvider.getCurrentUserId();
         List<Integer> bookmarkStoreId = storeRepository.getBookmarkStoreId(currentUser);
         for (StoreBuyer store : stores) {
             store.setIsBookmarked(bookmarkStoreId.contains(store.getId()));
-            store.setCreatedDate(formatter.format(formatter.parse(store.getCreatedDate())));
-            store.setUpdatedDate(formatter.format(formatter.parse(store.getUpdatedDate())));
+            store.setCreatedDate(DateTimeUtil.format(DateTimeUtil.parse(store.getCreatedDate())));
+            store.setUpdatedDate(DateTimeUtil.format(DateTimeUtil.parse(store.getUpdatedDate())));
             for (Category category : store.getCategories()) {
-                category.setCreatedDate(formatter.format(formatter.parse(category.getCreatedDate())));
-                category.setUpdatedDate(formatter.format(formatter.parse(category.getUpdatedDate())));
+                category.setCreatedDate(DateTimeUtil.format(DateTimeUtil.parse(category.getCreatedDate())));
+                category.setUpdatedDate(DateTimeUtil.format(DateTimeUtil.parse(category.getUpdatedDate())));
             }
         }
         return stores;

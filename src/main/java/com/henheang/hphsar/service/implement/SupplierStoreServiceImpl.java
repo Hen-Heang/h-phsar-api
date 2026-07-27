@@ -1,4 +1,5 @@
 package com.henheang.hphsar.service.implement;
+import com.henheang.hphsar.common.ExceptionMessages;
 
 import com.henheang.hphsar.exception.*;
 import com.henheang.hphsar.model.appUser.AppUser;
@@ -7,24 +8,20 @@ import com.henheang.hphsar.model.store.StoreRequest;
 import com.henheang.hphsar.repository.AppUserRepository;
 import com.henheang.hphsar.repository.StoreRepository;
 import com.henheang.hphsar.service.SupplierStoreService;
+import com.henheang.hphsar.utils.DateTimeUtil;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.regex.Pattern;
 
 @Service
+@RequiredArgsConstructor
 public class SupplierStoreServiceImpl implements SupplierStoreService {
-    SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
     Date date;
     private final StoreRepository storeRepository;
     private final AppUserRepository appUserRepository;
-
-    public SupplierStoreServiceImpl(StoreRepository storeRepository, AppUserRepository appUserRepository) {
-        this.storeRepository = storeRepository;
-        this.appUserRepository = appUserRepository;
-    }
 
     public Boolean checkStoreIfCreated(Integer currentUserId) {
         int check = 2;
@@ -39,7 +36,7 @@ public class SupplierStoreServiceImpl implements SupplierStoreService {
     @Override
     public Store createNewStore(StoreRequest storeRequest, Integer currentUserId) throws ParseException {
         if (storeRequest.getName() == null || storeRequest.getDescription() == null || storeRequest.getBannerImage() == null) {
-            throw new BadRequestException("One of the fields inside the StoreRequest object is null.");
+            throw new BadRequestException(ExceptionMessages.ONE_OF_THE_FIELDS_INSIDE_THE_STOREREQUEST_OBJECT);
         }
         if (storeRequest.getPrimaryPhone().isEmpty() || storeRequest.getPrimaryPhone().isBlank()) {
             throw new BadRequestException("Primary phone number is null. Must input primary phone number.");
@@ -65,16 +62,16 @@ public class SupplierStoreServiceImpl implements SupplierStoreService {
         AppUser appUser = appUserRepository.findSupplierUserById(currentUserId);
         int words = storeRequest.getDescription().split(" ").length;
         if (words > 100) {
-            throw new BadRequestException("Description word count can not exceed 100.");
+            throw new BadRequestException(ExceptionMessages.DESCRIPTION_WORD_COUNT_CAN_NOT_EXCEED_100);
         }
         Store store;
         // check phone number
         if (!isValid(storeRequest.getPrimaryPhone())) {
-            throw new BadRequestException("Incorrect primary phone number format. Phone number should start with '0', 8 or 9 index, and can not be '0' on second index. Example: 0XXXXXXXX(X).");
+            throw new BadRequestException(ExceptionMessages.PRIMARY_PHONE_FORMAT_INVALID);
         }
         for (String phone : storeRequest.getAdditionalPhone()){
             if (!isValid(phone) && !phone.isBlank()){
-                throw new BadRequestException("Incorrect additional phone number format. Phone number should start with '0', 8 or 9 index, and can not be '0' on second index. Example: 0XXXXXXXX(X).");
+                throw new BadRequestException(ExceptionMessages.ADDITIONAL_PHONE_FORMAT_INVALID);
             }
         }
         // trim space before and after
@@ -95,8 +92,8 @@ public class SupplierStoreServiceImpl implements SupplierStoreService {
             throw new ForbiddenException("User is not verified. Unable to create store. Please verify email/account.");
         }
         Store newStore = storeRepository.getUserStore(currentUserId);
-        newStore.setCreatedDate(formatter.format(formatter.parse(store.getCreatedDate())));
-        newStore.setUpdatedDate(formatter.format(formatter.parse(store.getUpdatedDate())));
+        newStore.setCreatedDate(DateTimeUtil.format(DateTimeUtil.parse(store.getCreatedDate())));
+        newStore.setUpdatedDate(DateTimeUtil.format(DateTimeUtil.parse(store.getUpdatedDate())));
         return newStore;
     }
 
@@ -106,31 +103,31 @@ public class SupplierStoreServiceImpl implements SupplierStoreService {
         Store store = storeRepository.getUserStore(currentUserId);
         // if not exist throw exception
         if (store == null) {
-            throw new NotFoundException("Store not found.");
+            throw new NotFoundException(ExceptionMessages.STORE_NOT_FOUND);
         }
-        store.setCreatedDate(formatter.format(formatter.parse(store.getCreatedDate())));
-        store.setUpdatedDate(formatter.format(formatter.parse(store.getUpdatedDate())));
+        store.setCreatedDate(DateTimeUtil.format(DateTimeUtil.parse(store.getCreatedDate())));
+        store.setUpdatedDate(DateTimeUtil.format(DateTimeUtil.parse(store.getUpdatedDate())));
         return store;
     }
 
     @Override
     public Store editAllFieldUserStore(Integer currentUserId, StoreRequest storeRequest) throws ParseException {
         if (storeRequest.getName() == null || storeRequest.getDescription() == null || storeRequest.getBannerImage() == null || storeRequest.getIsPublish() == null) {
-            throw new BadRequestException("One of the fields inside the StoreRequest object is null.");
+            throw new BadRequestException(ExceptionMessages.ONE_OF_THE_FIELDS_INSIDE_THE_STOREREQUEST_OBJECT);
         }
         int words = storeRequest.getDescription().split(" ").length;
         if (words > 100) {
-            throw new BadRequestException("Description word count can not exceed 100.");
+            throw new BadRequestException(ExceptionMessages.DESCRIPTION_WORD_COUNT_CAN_NOT_EXCEED_100);
         }
 
         Integer storeId = storeRepository.getStoreIdByUserId(currentUserId);
         storeRequest.setPrimaryPhone(storeRequest.getPrimaryPhone().trim());
         if (!isValid(storeRequest.getPrimaryPhone())) {
-            throw new BadRequestException("Incorrect primary phone number format. Phone number should start with '0', 8 or 9 index, and can not be '0' on second index. Example: 0XXXXXXXX(X).");
+            throw new BadRequestException(ExceptionMessages.PRIMARY_PHONE_FORMAT_INVALID);
         }
         for (String phone : storeRequest.getAdditionalPhone()){
             if (!isValid(phone) && !phone.isBlank()){
-                throw new BadRequestException("Incorrect additional phone number format. Phone number should start with '0', 8 or 9 index, and can not be '0' on second index. Example: 0XXXXXXXX(X).");
+                throw new BadRequestException(ExceptionMessages.ADDITIONAL_PHONE_FORMAT_INVALID);
             }
         }
         // check if store exist
@@ -159,8 +156,8 @@ public class SupplierStoreServiceImpl implements SupplierStoreService {
         if (store == null) {
             throw new InternalServerErrorException("Update failed.");
         }
-        store.setCreatedDate(formatter.format(formatter.parse(store.getCreatedDate())));
-        store.setUpdatedDate(formatter.format(formatter.parse(store.getUpdatedDate())));
+        store.setCreatedDate(DateTimeUtil.format(DateTimeUtil.parse(store.getCreatedDate())));
+        store.setUpdatedDate(DateTimeUtil.format(DateTimeUtil.parse(store.getUpdatedDate())));
         return store;
     }
 
@@ -168,11 +165,11 @@ public class SupplierStoreServiceImpl implements SupplierStoreService {
     public String deleteUserStore(Integer currentUserId) {
         // check if store exist for this user
         if (!checkStoreIfCreated(currentUserId)) {
-            throw new ConflictException("Store not found.");
+            throw new NotFoundException(ExceptionMessages.STORE_NOT_FOUND);
         }
         String store = storeRepository.deleteUserStore(currentUserId);
         if (store == null) {
-            throw new InternalServerErrorException("Something went wrong while deleting");
+            throw new InternalServerErrorException(ExceptionMessages.SOMETHING_WENT_WRONG_WHILE_DELETING);
         }
         return "Store was deleted from account permanently. All data will be deleted along side the store.";
     }
@@ -180,7 +177,7 @@ public class SupplierStoreServiceImpl implements SupplierStoreService {
     @Override
     public String disableStore(Integer currentUserId) {
         if (!checkStoreIfCreated(currentUserId)) {
-            throw new ConflictException("Store not found.");
+            throw new NotFoundException(ExceptionMessages.STORE_NOT_FOUND);
         }
         // check if store already disable
         if (!storeRepository.checkIfStoreIsDisable(currentUserId)) {
@@ -188,7 +185,7 @@ public class SupplierStoreServiceImpl implements SupplierStoreService {
         }
         String store = storeRepository.disableStore(currentUserId);
         if (store == null) {
-            throw new InternalServerErrorException("Something went wrong while deleting");
+            throw new InternalServerErrorException(ExceptionMessages.SOMETHING_WENT_WRONG_WHILE_DELETING);
         }
         return "Store disabled.";
     }
@@ -196,7 +193,7 @@ public class SupplierStoreServiceImpl implements SupplierStoreService {
     @Override
     public String enableStore(Integer currentUserId) {
         if (!checkStoreIfCreated(currentUserId)) {
-            throw new ConflictException("Store not found.");
+            throw new NotFoundException(ExceptionMessages.STORE_NOT_FOUND);
         }
         // check if store already enabled
         if (storeRepository.checkIfStoreIsDisable(currentUserId)) {
@@ -204,7 +201,7 @@ public class SupplierStoreServiceImpl implements SupplierStoreService {
         }
         String store = storeRepository.enableStore(currentUserId);
         if (store == null) {
-            throw new InternalServerErrorException("Something went wrong while deleting");
+            throw new InternalServerErrorException(ExceptionMessages.SOMETHING_WENT_WRONG_WHILE_DELETING);
         }
         return "Store enabled.";
     }

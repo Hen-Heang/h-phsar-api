@@ -1,12 +1,12 @@
 package com.henheang.hphsar.service.implement;
 
 import com.henheang.hphsar.exception.BadRequestException;
-import com.henheang.hphsar.model.appUser.AppUser;
 import com.henheang.hphsar.model.buyer.report.CategoryNameAndTotalOfQty;
 import com.henheang.hphsar.model.buyer.report.BuyerReport;
 import com.henheang.hphsar.repository.BuyerReportRepository;
 import com.henheang.hphsar.service.BuyerReportService;
-import org.springframework.security.core.context.SecurityContextHolder;
+import com.henheang.hphsar.service.support.CurrentUserProvider;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.text.DecimalFormat;
@@ -19,21 +19,18 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
+@RequiredArgsConstructor
 public class BuyerReportServiceImpl implements BuyerReportService {
     private final BuyerReportRepository buyerReportRepository;
     SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM");
     SimpleDateFormat formatterForDatabase = new SimpleDateFormat("yyyy-MM-dd");
     private static final DateTimeFormatter YEAR_MONTH_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM");
-
-    public BuyerReportServiceImpl(BuyerReportRepository buyerReportRepository) {
-        this.buyerReportRepository = buyerReportRepository;
-    }
+    private final CurrentUserProvider currentUserProvider;
 
     @Override
     public BuyerReport getBuyerMonthlyReport(String startDate, String endDate) {
 
-        AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        Integer currentUserId = appUser.getId();
+        Integer currentUserId = currentUserProvider.getCurrentUserId();
 
         int totalOrder = 0;
         int totalAccepted = 0;

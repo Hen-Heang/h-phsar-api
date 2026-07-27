@@ -1,11 +1,13 @@
 package com.henheang.hphsar.service.implement;
 
+import com.henheang.hphsar.common.ExceptionMessages;
 import com.henheang.hphsar.exception.*;
 import com.henheang.hphsar.model.category.Category;
 import com.henheang.hphsar.model.category.CategoryRequest;
 import com.henheang.hphsar.repository.CategoryRepository;
 import com.henheang.hphsar.service.CategoryService;
 import com.henheang.hphsar.service.support.CurrentUserProvider;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.text.ParseException;
@@ -19,6 +21,7 @@ import java.util.Locale;
 import java.util.Objects;
 
 @Service
+@RequiredArgsConstructor
 public class CategoryServiceImplV1 implements CategoryService {
 
     private static final DateTimeFormatter INPUT_TIMESTAMP_FORMATTER = new DateTimeFormatterBuilder()
@@ -31,11 +34,6 @@ public class CategoryServiceImplV1 implements CategoryService {
 
     private final CategoryRepository categoryRepository;
     private final CurrentUserProvider currentUserProvider;
-
-    public CategoryServiceImplV1(CategoryRepository categoryRepository, CurrentUserProvider currentUserProvider) {
-        this.categoryRepository = categoryRepository;
-        this.currentUserProvider = currentUserProvider;
-    }
 
 //    public Boolean checkCategoryExist(String name) {
 //        System.out.println(categoryRepository.checkIfExist(name));
@@ -56,7 +54,7 @@ public class CategoryServiceImplV1 implements CategoryService {
     //    @Override
 //    public Category insertCategory(CategoryRequest categoryRequest) {
 //        if (categoryRequest.getName().equals("string") || categoryRequest.getName().isBlank()) {
-//            throw new BadRequestException("Can not use default value. Please input value! ");
+//            throw new BadRequestException(ExceptionMessages.CAN_NOT_USE_DEFAULT_VALUE_PLEASE_INPUT_VALUE);
 //        }
 //        if (!(checkCategoryExist(categoryRequest.getName().toLowerCase().trim()))) {
 //            String newCategoryID = categoryRepository.createNewCategory(categoryRequest.getName().toLowerCase().trim());
@@ -92,7 +90,7 @@ public class CategoryServiceImplV1 implements CategoryService {
     public List<Category> getAllCategory(Integer pageNumber, Integer pageSize) throws ParseException {
         Integer storeId = getStoreIdForCurrentUser();
         if (pageNumber <= 0 || pageSize <= 0) {
-            throw new NotFoundException("Page number and size should be higher than 0.");
+            throw new BadRequestException(ExceptionMessages.PAGE_SIZE_MUST_BE_POSITIVE);
         }
         if (categoryRepository.getCategories(storeId) < 1) {
             throw new BadRequestException("This store have no category. Please create new category.");
@@ -144,13 +142,13 @@ public class CategoryServiceImplV1 implements CategoryService {
     @Override
     public Category editCategory(String name, Integer id) throws ParseException {
         if (name == null || name.isBlank()) {
-            throw new DefaultValueException("Can not use default value. Please input legal value.");
+            throw new DefaultValueException(ExceptionMessages.CAN_NOT_USE_DEFAULT_VALUE_PLEASE_INPUT_LEGAL);
         }
         if (name.equalsIgnoreCase("UNKNOWN")) {
             throw new BadRequestException("Can not change category to unknown");
         }
         if (name.equals("string")) {
-            throw new DefaultValueException("Can not use default value. Please input legal value.");
+            throw new DefaultValueException(ExceptionMessages.CAN_NOT_USE_DEFAULT_VALUE_PLEASE_INPUT_LEGAL);
         }
         String normalizedName = name.trim().toLowerCase(Locale.ROOT);
         Integer storeId = getStoreIdForCurrentUser();
@@ -258,7 +256,7 @@ public class CategoryServiceImplV1 implements CategoryService {
     public List<Category> searchCategoryByName(String name, Integer pageNumber, Integer pageSize) throws ParseException {
         Integer storeId = getStoreIdForCurrentUser();
         if (pageNumber <= 0 || pageSize <= 0) {
-            throw new NotFoundException("Page number and size should be higher than 0.");
+            throw new BadRequestException(ExceptionMessages.PAGE_SIZE_MUST_BE_POSITIVE);
         }
         Integer totalPage = findTotalPage(pageSize);
         Integer totalCategory = categoryRepository.findTotalCategory(storeId);
@@ -276,7 +274,7 @@ public class CategoryServiceImplV1 implements CategoryService {
     private Integer getStoreIdForCurrentUser() {
         Integer currentUserId = currentUserProvider.getCurrentUserId();
         if (!categoryRepository.storeIsExist(currentUserId)) {
-            throw new NotFoundException("User have not created store. Please create store to proceed with category.");
+            throw new NotFoundException(ExceptionMessages.USER_HAVE_NOT_CREATED_STORE);
         }
         return categoryRepository.getStoreIdByCurrentUserId(currentUserId);
     }

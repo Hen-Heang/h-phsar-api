@@ -5,6 +5,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -26,15 +27,11 @@ import java.io.IOException;
  * This allows protected endpoints to know who the current user is.
  */
 @Component
+@RequiredArgsConstructor
 public class JwtRequestFilter extends OncePerRequestFilter {
 
     private final JwtUserDetailsServiceImpl jwtUserDetailsService;
     private final JwtTokenUtil jwtTokenUtil;
-
-    public JwtRequestFilter(JwtUserDetailsServiceImpl jwtUserDetailsService, JwtTokenUtil jwtTokenUtil) {
-        this.jwtUserDetailsService = jwtUserDetailsService;
-        this.jwtTokenUtil = jwtTokenUtil;
-    }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)

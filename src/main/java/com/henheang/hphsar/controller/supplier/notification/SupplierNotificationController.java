@@ -1,6 +1,7 @@
 package com.henheang.hphsar.controller.supplier.notification;
 
 import com.henheang.hphsar.controller.BaseController;
+import com.henheang.hphsar.common.api.Code;
 import com.henheang.hphsar.service.NotificationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -21,18 +22,18 @@ public class SupplierNotificationController extends BaseController {
     @Operation(summary = "Get all notification")
     @GetMapping
     public ResponseEntity<?> getUserAllNotification() throws ParseException {
-        return ok("fetched notification detail.", notificationService.getUserAllNotification());
+        return ok(Code.NOTIFICATION_FETCHED, notificationService.getUserAllNotification());
     }
 
     @Operation(summary = "Mark as read")
     @PutMapping("/{id}/read")
     public ResponseEntity<?> markNotificationAsRead(@PathVariable Integer id) {
-        return ok("fetched notification detail.", notificationService.markAsRead(id));
+        return ok(Code.NOTIFICATION_FETCHED, notificationService.markAsRead(id));
     }
 
     @Operation(summary = "Mark all as read")
     @PutMapping("/read")
     public ResponseEntity<?> markAllNotificationAsRead() {
-        return ok("fetched notification detail.", notificationService.markAllNotificationAsRead());
+        return ok(Code.NOTIFICATION_FETCHED, notificationService.markAllNotificationAsRead());
     }
 }

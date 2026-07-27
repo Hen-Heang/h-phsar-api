@@ -1,10 +1,11 @@
 package com.henheang.hphsar.service.implement;
+import com.henheang.hphsar.utils.ValidationUtils;
+import com.henheang.hphsar.common.ExceptionMessages;
 
 import com.henheang.hphsar.exception.BadRequestException;
 import com.henheang.hphsar.exception.ConflictException;
 import com.henheang.hphsar.exception.InternalServerErrorException;
 import com.henheang.hphsar.exception.NotFoundException;
-import com.henheang.hphsar.model.appUser.AppUser;
 import com.henheang.hphsar.model.product.Product;
 import com.henheang.hphsar.model.product.ProductEditRequest;
 import com.henheang.hphsar.model.product.ProductImport;
@@ -13,13 +14,14 @@ import com.henheang.hphsar.repository.CategoryRepository;
 import com.henheang.hphsar.repository.SupplierProductRepository;
 import com.henheang.hphsar.repository.StoreRepository;
 import com.henheang.hphsar.service.SupplierProductService;
-import org.springframework.security.core.context.SecurityContextHolder;
+import com.henheang.hphsar.service.support.CurrentUserProvider;
+import com.henheang.hphsar.utils.DateTimeUtil;
+import com.henheang.hphsar.utils.PaginationUtils;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 
-import javax.naming.ConfigurationException;
 import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -27,18 +29,13 @@ import java.util.Objects;
 import static com.henheang.hphsar.service.implement.BuyerStoreServiceImpl.getProducts;
 
 @Service
+@RequiredArgsConstructor
 public class SupplierProductServiceImpl implements SupplierProductService {
-    SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
     private final SupplierProductRepository supplierProductRepository;
     private final StoreRepository storeRepository;
     private final CategoryRepository categoryRepository;
-
-    public SupplierProductServiceImpl(SupplierProductRepository supplierProductRepository, StoreRepository storeRepository, CategoryRepository categoryRepository) {
-        this.supplierProductRepository = supplierProductRepository;
-        this.storeRepository = storeRepository;
-        this.categoryRepository = categoryRepository;
-    }
+    private final CurrentUserProvider currentUserProvider;
 
 //    @Override
 //    public List<Product> insertNewProduct(Integer currentUserId, ArrayList<ProductRequest> productRequests) throws ParseException {
@@ -75,8 +72,8 @@ public class SupplierProductServiceImpl implements SupplierProductService {
 //                supplierProductRepository.updateStoreProductDetail(storeId, productId, productRequest);
 //
 //                Product product = supplierProductRepository.getProductById(productId);
-//                product.setCreatedDate(formatter.format(formatter.parse(product.getCreatedDate())));
-//                product.setUpdatedDate(formatter.format(formatter.parse(product.getUpdatedDate())));
+//                product.setCreatedDate(DateTimeUtil.format(DateTimeUtil.parse(product.getCreatedDate())));
+//                product.setUpdatedDate(DateTimeUtil.format(DateTimeUtil.parse(product.getUpdatedDate())));
 //                assert false;
 //                productResponse.add(product);
 //            }
@@ -88,14 +85,12 @@ public class SupplierProductServiceImpl implements SupplierProductService {
     @Override
     public List<Product> insertNewProduct(Integer currentUserId, ArrayList<ProductRequest> productRequests) throws ParseException {
         if (storeRepository.checkStoreIfCreated(currentUserId) != 1) { // this is old code so it does not output boolean but 1 if true
-            throw new NotFoundException("No store is found. Please create store before insert product");
+            throw new NotFoundException(ExceptionMessages.USER_HAVE_NOT_CREATED_STORE);
         }
         Integer storeId = categoryRepository.getStoreIdByCurrentUserId(currentUserId);
         // get precision limit to (5, 2)
         for (ProductRequest productRequest : productRequests) {
-            if (productRequest.getCategoryId() > 2147483646){
-                throw new BadRequestException("Integer value can not exceed 2147483646");
-            }
+            ValidationUtils.rejectIfExceedsIntLimit(productRequest.getCategoryId());
             if (productRequest.getPrice() > 1000) {
                 throw new BadRequestException("Maximum price is 999.");
             }
@@ -160,10 +155,10 @@ public class SupplierProductServiceImpl implements SupplierProductService {
             // insert to list
             Product thisProduct = supplierProductRepository.getStoreProductByStoreProductId(Integer.parseInt(storeProductDetailId));
             // convert date
-            thisProduct.setCreatedDate(formatter.format(formatter.parse(thisProduct.getCreatedDate())));
-            thisProduct.setUpdatedDate(formatter.format(formatter.parse(thisProduct.getUpdatedDate())));
-            thisProduct.getCategory().setCreatedDate(formatter.format(formatter.parse(thisProduct.getCategory().getCreatedDate())));
-            thisProduct.getCategory().setUpdatedDate(formatter.format(formatter.parse(thisProduct.getCategory().getUpdatedDate())));
+            thisProduct.setCreatedDate(DateTimeUtil.format(DateTimeUtil.parse(thisProduct.getCreatedDate())));
+            thisProduct.setUpdatedDate(DateTimeUtil.format(DateTimeUtil.parse(thisProduct.getUpdatedDate())));
+            thisProduct.getCategory().setCreatedDate(DateTimeUtil.format(DateTimeUtil.parse(thisProduct.getCategory().getCreatedDate())));
+            thisProduct.getCategory().setUpdatedDate(DateTimeUtil.format(DateTimeUtil.parse(thisProduct.getCategory().getUpdatedDate())));
             productResponse.add(thisProduct);
         }
         return productResponse;
@@ -171,8 +166,7 @@ public class SupplierProductServiceImpl implements SupplierProductService {
 
     @Override
     public Product getProductById(Integer id) throws ParseException {
-        AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        Integer currentUserId = appUser.getId();
+        Integer currentUserId = currentUserProvider.getCurrentUserId();
         Integer storeId = supplierProductRepository.getStoreIdByCurrentUserId(currentUserId);
         // check if product in store
         if (!supplierProductRepository.checkStoreHasProduct(storeId, id)) {
@@ -182,17 +176,16 @@ public class SupplierProductServiceImpl implements SupplierProductService {
         if (product == null) {
             throw new InternalServerErrorException("Fail to fetch product.");
         }
-        product.setCreatedDate(formatter.format(formatter.parse(product.getCreatedDate())));
-        product.setUpdatedDate(formatter.format(formatter.parse(product.getUpdatedDate())));
-        product.getCategory().setCreatedDate(formatter.format(formatter.parse(product.getCategory().getCreatedDate())));
-        product.getCategory().setUpdatedDate(formatter.format(formatter.parse(product.getCategory().getUpdatedDate())));
+        product.setCreatedDate(DateTimeUtil.format(DateTimeUtil.parse(product.getCreatedDate())));
+        product.setUpdatedDate(DateTimeUtil.format(DateTimeUtil.parse(product.getUpdatedDate())));
+        product.getCategory().setCreatedDate(DateTimeUtil.format(DateTimeUtil.parse(product.getCategory().getCreatedDate())));
+        product.getCategory().setUpdatedDate(DateTimeUtil.format(DateTimeUtil.parse(product.getCategory().getUpdatedDate())));
         return product;
     }
 
     @Override
     public String deleteProductById(Integer productId) {
-        AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        Integer currentUserId = appUser.getId();
+        Integer currentUserId = currentUserProvider.getCurrentUserId();
         // check if product is in order
         if  (supplierProductRepository.checkForProductInOrder(currentUserId, productId)){
             throw new ConflictException("Can not delete product because product object is being used.");
@@ -228,8 +221,8 @@ public class SupplierProductServiceImpl implements SupplierProductService {
             throw new NotFoundException("Can not find product: "+ name);
         }
         for (Product product : products){
-            product.setCreatedDate(formatter.format(formatter.parse(product.getCreatedDate())));
-            product.setUpdatedDate(formatter.format(formatter.parse(product.getUpdatedDate())));
+            product.setCreatedDate(DateTimeUtil.format(DateTimeUtil.parse(product.getCreatedDate())));
+            product.setUpdatedDate(DateTimeUtil.format(DateTimeUtil.parse(product.getUpdatedDate())));
         }
         System.out.println(storeId);
         return products;
@@ -257,15 +250,12 @@ public class SupplierProductServiceImpl implements SupplierProductService {
 
     @Override
     public Product editProduct(Integer id, ProductEditRequest productRequest) throws ParseException {
-        if (productRequest.getCategoryId() > 2147483646){
-            throw new BadRequestException("Integer value can not exceed 2147483646");
-        }
-        AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        Integer currentUserId = appUser.getId();
+        ValidationUtils.rejectIfExceedsIntLimit(productRequest.getCategoryId());
+        Integer currentUserId = currentUserProvider.getCurrentUserId();
         Integer storeId = categoryRepository.getStoreIdByCurrentUserId(currentUserId);
         // check create store yet
         if (storeRepository.checkStoreIfCreated(currentUserId) != 1) { // this is old code so it does not output boolean but 1 if true
-            throw new NotFoundException("No store is found. Please create store.");
+            throw new NotFoundException(ExceptionMessages.USER_HAVE_NOT_CREATED_STORE);
         }
         if (!supplierProductRepository.checkStoreHasProduct(storeId, id)){
             throw new NotFoundException("This product id is not exist in your store.");
@@ -295,24 +285,23 @@ public class SupplierProductServiceImpl implements SupplierProductService {
             throw new InternalServerErrorException("Update product failed.");
         }
         Product thisProduct = supplierProductRepository.getStoreProductByStoreProductId(Integer.parseInt(storeProductDetailId));
-        thisProduct.setCreatedDate(formatter.format(formatter.parse(thisProduct.getCreatedDate())));
-        thisProduct.setUpdatedDate(formatter.format(formatter.parse(thisProduct.getUpdatedDate())));
-        thisProduct.getCategory().setCreatedDate(formatter.format(formatter.parse(thisProduct.getCategory().getCreatedDate())));
-        thisProduct.getCategory().setUpdatedDate(formatter.format(formatter.parse(thisProduct.getCategory().getUpdatedDate())));
+        thisProduct.setCreatedDate(DateTimeUtil.format(DateTimeUtil.parse(thisProduct.getCreatedDate())));
+        thisProduct.setUpdatedDate(DateTimeUtil.format(DateTimeUtil.parse(thisProduct.getUpdatedDate())));
+        thisProduct.getCategory().setCreatedDate(DateTimeUtil.format(DateTimeUtil.parse(thisProduct.getCategory().getCreatedDate())));
+        thisProduct.getCategory().setUpdatedDate(DateTimeUtil.format(DateTimeUtil.parse(thisProduct.getCategory().getUpdatedDate())));
         return thisProduct;
     }
 //
     @Override
     public String unPublishProduct(Integer id) {
-        AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        Integer currentUserId = appUser.getId();
+        Integer currentUserId = currentUserProvider.getCurrentUserId();
         if (storeRepository.checkStoreIfCreated(currentUserId) != 1) { // this is old code so it does not output boolean but 1 if true
-            throw new NotFoundException("No store is found. Please create store.");
+            throw new NotFoundException(ExceptionMessages.USER_HAVE_NOT_CREATED_STORE);
         }
         Integer storeId = categoryRepository.getStoreIdByCurrentUserId(currentUserId);
         // check if product is in store
         if (!supplierProductRepository.checkStoreHasProduct(storeId, id)) {
-            throw new NotFoundException("This product is not found in this store.");
+            throw new NotFoundException(ExceptionMessages.THIS_PRODUCT_IS_NOT_FOUND_IN_THIS_STORE);
         }
         // check if already un-list
         if (!supplierProductRepository.checkProductPublish(storeId, id)){
@@ -328,15 +317,14 @@ public class SupplierProductServiceImpl implements SupplierProductService {
 
     @Override
     public String publishProduct(Integer id) {
-        AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        Integer currentUserId = appUser.getId();
+        Integer currentUserId = currentUserProvider.getCurrentUserId();
         if (storeRepository.checkStoreIfCreated(currentUserId) != 1) { // this is old code so it does not output boolean but 1 if true
-            throw new NotFoundException("No store is found. Please create store.");
+            throw new NotFoundException(ExceptionMessages.USER_HAVE_NOT_CREATED_STORE);
         }
         Integer storeId = categoryRepository.getStoreIdByCurrentUserId(currentUserId);
         // check if product is in store
         if (!supplierProductRepository.checkStoreHasProduct(storeId, id)) {
-            throw new NotFoundException("This product is not found in this store.");
+            throw new NotFoundException(ExceptionMessages.THIS_PRODUCT_IS_NOT_FOUND_IN_THIS_STORE);
         }
         // check if already un-list
         if (supplierProductRepository.checkProductPublish(storeId, id)){
@@ -352,10 +340,9 @@ public class SupplierProductServiceImpl implements SupplierProductService {
 
     @Override
     public List<Product> getAllProductBySorting(String sort, String by, Integer pageNumber, Integer pageSize) throws ParseException {
-        AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        Integer currentUserId = appUser.getId();
+        Integer currentUserId = currentUserProvider.getCurrentUserId();
         if (storeRepository.checkStoreIfCreated(currentUserId) != 1) { // this is old code so it does not output boolean but 1 if true
-            throw new NotFoundException("No store is found. Please create store.");
+            throw new NotFoundException(ExceptionMessages.USER_HAVE_NOT_CREATED_STORE);
         }
         Integer storeId = categoryRepository.getStoreIdByCurrentUserId(currentUserId);
         by = by.toLowerCase().trim();
@@ -376,31 +363,23 @@ public class SupplierProductServiceImpl implements SupplierProductService {
         if (products.isEmpty()) {
             return new ArrayList<>();
         }
-        return getProducts(products, formatter);
+        return getProducts(products);
     }
 
     @Override
     public Integer getTotalPage(Integer pageSize) {
-        AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        Integer currentUserId = appUser.getId();
+        Integer currentUserId = currentUserProvider.getCurrentUserId();
         if (storeRepository.checkStoreIfCreated(currentUserId) != 1) {
-            throw new NotFoundException("User have not created store.");
+            throw new NotFoundException(ExceptionMessages.USER_HAVE_NOT_CREATED_STORE);
         }
         Integer storeId = categoryRepository.getStoreIdByCurrentUserId(currentUserId);
         Integer totalProduct = supplierProductRepository.getAllProduct(storeId);
-        int totalPage;
-        if (totalProduct % pageSize == 0) {
-            totalPage = totalProduct / pageSize;
-        } else {
-            totalPage = (totalProduct / pageSize) + 1;
-        }
-        return totalPage;
+        return PaginationUtils.totalPages(totalProduct, pageSize);
     }
 
     @Override
     public Integer getTotalElements() {
-        AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        Integer currentUserId = appUser.getId();
+        Integer currentUserId = currentUserProvider.getCurrentUserId();
         if (storeRepository.checkStoreIfCreated(currentUserId) != 1) {
             return 0;
         }
@@ -410,10 +389,9 @@ public class SupplierProductServiceImpl implements SupplierProductService {
 
     @Override
     public List<Product> importProduct(List<ProductImport> productsImport) throws ParseException {
-        AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        Integer currentUserId = appUser.getId();
+        Integer currentUserId = currentUserProvider.getCurrentUserId();
         if (storeRepository.checkStoreIfCreated(currentUserId) != 1) {
-            throw new NotFoundException("User have not created store.");
+            throw new NotFoundException(ExceptionMessages.USER_HAVE_NOT_CREATED_STORE);
         }
         Integer storeId = categoryRepository.getStoreIdByCurrentUserId(currentUserId);
         // create an import
@@ -453,7 +431,7 @@ public class SupplierProductServiceImpl implements SupplierProductService {
             products.add(product);
             count ++;
         }
-        return getProducts(products, formatter);
+        return getProducts(products);
     }
 
 

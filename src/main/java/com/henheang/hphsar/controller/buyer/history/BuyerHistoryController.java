@@ -1,93 +1,56 @@
 package com.henheang.hphsar.controller.buyer.history;
+import com.henheang.hphsar.utils.ValidationUtils;
 
-import com.henheang.hphsar.exception.BadRequestException;
-import com.henheang.hphsar.model.ApiResponse;
-import com.henheang.hphsar.model.PaginationApiResponse;
+import com.henheang.hphsar.controller.BaseController;
+import com.henheang.hphsar.common.api.ApiResponse;
+import com.henheang.hphsar.common.api.PagedResponse;
 import com.henheang.hphsar.model.history.OrderDetailHistory;
 import com.henheang.hphsar.service.HistoryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.http.HttpStatus;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.List;
 
 @RestController
+@RequiredArgsConstructor
 @Tag(name = "Buyer History Controller")
 @RequestMapping("${base.buyer.v1}/history")
 @SecurityRequirement(name = "bearerAuth")
-public class BuyerHistoryController {
-    SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+public class BuyerHistoryController extends BaseController {
     private final HistoryService historyService;
-
-    public BuyerHistoryController(HistoryService historyService) {
-        this.historyService = historyService;
-    }
 
     @Operation(summary = "get order history")
     @GetMapping("/order")
-    public ResponseEntity<?> getOrderHistory(@RequestParam(defaultValue = "asc") String sort, @RequestParam Integer pageNumber, @RequestParam Integer pageSize ) throws ParseException {
-        if (pageNumber > 2147483646 || pageSize > 2147483646){
-            throw new BadRequestException("Integer value can not exceed 2147483646");
-        }
-        PaginationApiResponse<List<OrderDetailHistory>> response = PaginationApiResponse.<List<OrderDetailHistory>>builder()
-                .status(HttpStatus.OK.value())
-                .message("Fetched order history successfully.")
-                .data(historyService.getBuyerOrderHistory(sort, pageNumber, pageSize))
-                .totalPage(historyService.findBuyerTotalOrderPage(pageSize))
-                .date(formatter.format(new Date()))
-                .build();
-        return ResponseEntity.ok(response);
+    public ResponseEntity<PagedResponse<OrderDetailHistory>> getOrderHistory(@RequestParam(defaultValue = "asc") String sort, @RequestParam Integer pageNumber, @RequestParam Integer pageSize ) throws ParseException {
+        ValidationUtils.rejectIfExceedsIntLimit(pageNumber, pageSize);
+        List<OrderDetailHistory> history = historyService.getBuyerOrderHistory(sort, pageNumber, pageSize);
+        return okPage("Fetched order history successfully.", history, pageNumber, pageSize, historyService.findBuyerTotalOrderElements());
     }
 
     @Operation(summary = "Get draft")
     @GetMapping("/draft")
-    public ResponseEntity<?> getDraftHistory(@RequestParam(defaultValue = "asc") String sort, @RequestParam Integer pageNumber, @RequestParam Integer pageSize ) throws ParseException {
-        if (pageNumber > 2147483646 || pageSize > 2147483646){
-            throw new BadRequestException("Integer value can not exceed 2147483646");
-        }
-        PaginationApiResponse<List<OrderDetailHistory>> response = PaginationApiResponse.<List<OrderDetailHistory>>builder()
-                .status(HttpStatus.OK.value())
-                .message("Fetched order history successfully.")
-                .data(historyService.getDraftHistory(sort, pageNumber, pageSize))
-                .totalPage(historyService.findBuyerTotalDraftPage(pageSize))
-                .date(formatter.format(new Date()))
-                .build();
-        return ResponseEntity.ok(response);
+    public ResponseEntity<PagedResponse<OrderDetailHistory>> getDraftHistory(@RequestParam(defaultValue = "asc") String sort, @RequestParam Integer pageNumber, @RequestParam Integer pageSize ) throws ParseException {
+        ValidationUtils.rejectIfExceedsIntLimit(pageNumber, pageSize);
+        List<OrderDetailHistory> draft = historyService.getDraftHistory(sort, pageNumber, pageSize);
+        return okPage("Fetched order history successfully.", draft, pageNumber, pageSize, historyService.findBuyerTotalDraftElements());
     }
 
     @Operation(summary = "Delete draft")
     @DeleteMapping("/draft/{id}")
-    public ResponseEntity<?> deleteDraftById(@PathVariable Integer id){
-        if (id > 2147483646){
-            throw new BadRequestException("Integer value can not exceed 2147483646");
-        }
-        ApiResponse<String> response = ApiResponse.<String>builder()
-                .status(HttpStatus.OK.value())
-                .message("Deleted draft.")
-                .data(historyService.deleteDraftById(id))
-                .date(formatter.format(new Date()))
-                .build();
-        return ResponseEntity.ok(response);
+    public ResponseEntity<ApiResponse<String>> deleteDraftById(@PathVariable Integer id){
+        ValidationUtils.rejectIfExceedsIntLimit(id);
+        return ok("Deleted draft.", historyService.deleteDraftById(id));
     }
 
     @Operation(summary = "set draft to request")
     @PutMapping("/draft/{id}")
-    public ResponseEntity<?> updateDraftById(@PathVariable Integer id) throws ParseException {
-        if (id > 2147483646){
-            throw new BadRequestException("Integer value can not exceed 2147483646");
-        }
-        ApiResponse<OrderDetailHistory> response = ApiResponse.<OrderDetailHistory>builder()
-                .status(HttpStatus.OK.value())
-                .message("Updated draft.")
-                .data(historyService.updateDraftById(id))
-                .date(formatter.format(new Date()))
-                .build();
-        return ResponseEntity.ok(response);
+    public ResponseEntity<ApiResponse<OrderDetailHistory>> updateDraftById(@PathVariable Integer id) throws ParseException {
+        ValidationUtils.rejectIfExceedsIntLimit(id);
+        return ok("Updated draft.", historyService.updateDraftById(id));
     }
 }

@@ -2,12 +2,12 @@ package com.henheang.hphsar.service.implement;
 
 import com.henheang.hphsar.exception.BadRequestException;
 import com.henheang.hphsar.exception.InternalServerErrorException;
-import com.henheang.hphsar.model.appUser.AppUser;
 import com.henheang.hphsar.model.report.SupplierReport;
 import com.henheang.hphsar.repository.SupplierReportRepository;
 import com.henheang.hphsar.repository.StoreRepository;
 import com.henheang.hphsar.service.SupplierReportService;
-import org.springframework.security.core.context.SecurityContextHolder;
+import com.henheang.hphsar.service.support.CurrentUserProvider;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.text.ParseException;
@@ -23,6 +23,7 @@ import java.util.Objects;
 import java.util.regex.Pattern;
 
 @Service
+@RequiredArgsConstructor
 public class SupplierReportServiceImpl implements SupplierReportService {
     SimpleDateFormat monthFormatter = new SimpleDateFormat("MM");
     SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
@@ -30,16 +31,11 @@ public class SupplierReportServiceImpl implements SupplierReportService {
     DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MMMM", Locale.ENGLISH);
     private final SupplierReportRepository supplierReportRepository;
     private final StoreRepository storeRepository;
-
-    public SupplierReportServiceImpl(SupplierReportRepository supplierReportRepository, StoreRepository storeRepository) {
-        this.supplierReportRepository = supplierReportRepository;
-        this.storeRepository = storeRepository;
-    }
+    private final CurrentUserProvider currentUserProvider;
 
     @Override
     public SupplierReport getSupplierReport(String startDate, String endDate) throws ParseException {
-        AppUser appUser = (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        Integer storeId = storeRepository.getStoreIdByUserId(appUser.getId());
+        Integer storeId = storeRepository.getStoreIdByUserId(currentUserProvider.getCurrentUserId());
 
         LocalDate startDateLocal = parseDate(startDate, "start");
         LocalDate endDateLocal = parseDate(endDate, "end");
