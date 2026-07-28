@@ -22,9 +22,6 @@ jwt:
 cors:
   allowed-origins: ${CORS_ALLOWED_ORIGINS}
 
-file:
-  upload-dir: ${FILE_UPLOAD_DIR:/var/lib/h-phsar/uploads}
-
 logging:
   level:
     root: WARN
@@ -38,3 +35,7 @@ logging:
 #   migration this file's step was told to preserve untouched. Treat this as a
 #   known gap for a dedicated schema/Flyway step, not something already solved
 #   by selecting this profile.
+#
+# file.upload-dir / FILE_UPLOAD_DIR were removed: uploaded files are now stored
+# as bytea rows in tb_file (see DatabaseInitializer#createFileStorageTable),
+# not on local disk, since this profile's filesystem is not guaranteed durable.

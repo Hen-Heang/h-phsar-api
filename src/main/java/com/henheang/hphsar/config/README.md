@@ -148,18 +148,16 @@ eyJhbGciOiJIUzUxMiJ9   ← Header  (algorithm: HS512)
 
 ---
 
-### `WebMvcConfig.java`
-**What:** Maps uploaded files on disk to a public HTTP URL.
+### `FileController.java` / `FileService`
+**What:** `WebMvcConfig` (disk-based static file serving) has been removed. Uploaded
+bytes are now stored as rows in `tb_file` (created by
+`DatabaseInitializer#createFileStorageTable`) instead of on local disk, since the
+deployment's local filesystem is not durable across restarts/redeploys.
 
 **Example:**
 ```
-File saved to  →  ./uploads/photo.jpg
-Accessible via →  GET /api/v1/files/photo.jpg
-```
-
-**Config in `application.properties`:**
-```properties
-file.upload-dir=uploads/
+POST /api/v1/files/upload   →  bytes stored in tb_file, returns a URL
+GET  /api/v1/files/{id}     →  streams the bytes back with the stored Content-Type
 ```
 
 ---
@@ -180,7 +178,7 @@ JwtRequestFilter ─────────────────────
 
 CorsFilterConfiguration ──────────────────────► Runs at servlet level (before SecurityConfig)
 
-WebMvcConfig ─────────────────────────────────► SecurityConfig (files/** marked as permitAll)
+FileController ───────────────────────────────► SecurityConfig (files/** marked as permitAll)
 
 DatabaseInitializer ──────────────────────────► Runs on startup, independent of the above
 ```

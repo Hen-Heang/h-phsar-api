@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!--
+    Mapper for FileRepository — backs tb_file (created by
+    DatabaseInitializer#createFileStorageTable). Uploaded bytes live here
+    instead of on local disk so they survive a redeploy/restart.
+-->
+<mapper namespace="com.henheang.hphsar.repository.FileRepository">
+
+    <resultMap id="StoredFileResultMap" type="com.henheang.hphsar.model.file.StoredFile">
+        <id     property="id"          column="id"/>
+        <result property="contentType" column="content_type"/>
+        <result property="data"        column="data"/>
+        <result property="createdDate" column="created_date"/>
+    </resultMap>
+
+    <insert id="insertFile">
+        INSERT INTO tb_file (id, content_type, data)
+        VALUES (#{id}, #{contentType}, #{data})
+    </insert>
+
+    <select id="findById" resultMap="StoredFileResultMap">
+        SELECT id, content_type, data, created_date
+        FROM   tb_file
+        WHERE  id = #{id}
+    </select>
+
+</mapper>

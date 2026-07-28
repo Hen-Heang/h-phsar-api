@@ -29,6 +29,3 @@ jwt:
   # or (PowerShell, no OpenSSL required):
   #   [Convert]::ToBase64String((1..64 | ForEach-Object { Get-Random -Maximum 256 }))
   secret: replace_with_a_long_random_local_secret_at_least_64_characters
-
-file:
-  upload-dir: uploads

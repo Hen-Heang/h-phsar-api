@@ -235,6 +235,8 @@ public class DatabaseInitializer {
 
         migrateOrderLifecycleStatuses();
         createOrderStatusHistoryTable();
+
+        createFileStorageTable();
     }
 
     /**
@@ -497,6 +499,24 @@ public class DatabaseInitializer {
                 """);
         jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_refresh_token_email ON tb_refresh_token(email);");
         jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_refresh_token_expires_at ON tb_refresh_token(expires_at);");
+    }
+
+    /**
+     * File upload storage (images, etc.) — see FileController/FileService.
+     * Bytes live in Postgres (bytea) rather than on local disk, since the
+     * deployment's local filesystem is not guaranteed to survive a
+     * restart/redeploy. id is the generated "uuid.ext" filename used in the
+     * public GET /api/v1/files/{id} URL.
+     */
+    private void createFileStorageTable() {
+        jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS tb_file (
+                    id           TEXT PRIMARY KEY,
+                    content_type VARCHAR(100),
+                    data         BYTEA NOT NULL,
+                    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+                """);
     }
 
     /**

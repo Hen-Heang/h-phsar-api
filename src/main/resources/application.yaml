@@ -81,7 +81,3 @@ mybatis:
   configuration:
     map-underscore-to-camel-case: true
     default-statement-timeout: 30
-
-file:
-  # Not a secret — a plain default is fine here, unlike credentials above.
-  upload-dir: ${FILE_UPLOAD_DIR:uploads}
