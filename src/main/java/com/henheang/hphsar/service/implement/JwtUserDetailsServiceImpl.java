@@ -296,10 +296,24 @@ public class JwtUserDetailsServiceImpl implements UserDetailsService, JwtUserDet
      *   1. Block login if email not yet verified via OTP — auto-send a new OTP
      *   2. Verify email + password combination via Spring Security
      *      (internally: load user from DB + BCrypt.matches(raw, hash))
+     * <p>
+     * An unregistered email and a registered email with a wrong password both
+     * end up throwing the same "Invalid email or password." message below —
+     * getVerifyEmail()'s "email does not exist" case is caught and normalized
+     * to that message instead of being allowed to reach the client as-is.
+     * Without this, the distinct wording let a caller enumerate which emails
+     * have accounts just from the login response, with no password needed.
      */
     @Override
     public void authenticateLogin(String email, String password) throws Exception {
-        if (!getVerifyEmail(email)) {
+        boolean isVerified;
+        try {
+            isVerified = getVerifyEmail(email);
+        } catch (BadRequestException emailNotFound) {
+            throw new BadRequestException("Invalid email or password.");
+        }
+
+        if (!isVerified) {
             otpService.generateOtp(email);
             throw new ConflictException("Email is not verified. We just sent you a verification code.");
         }
@@ -309,7 +323,7 @@ public class JwtUserDetailsServiceImpl implements UserDetailsService, JwtUserDet
         } catch (DisabledException e) {
             throw new Exception("USER_DISABLED", e);
         } catch (BadCredentialsException e) {
-            throw new BadRequestException("Invalid password. Please enter the correct password.");
+            throw new BadRequestException("Invalid email or password.");
         }
     }
 
