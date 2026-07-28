@@ -34,29 +34,44 @@ class StoreSearchSqlInjectionIT extends AbstractIntegrationTest {
 
     private int khmerFoodSupplyStoreId;
     private int seoulMarketStoreId;
+    private String tag;
 
     @BeforeEach
     void seedTwoStoresWithDistinctCategoriesAndProducts() {
-        int supplier1 = insertSupplierAccount(jdbc, "supplier1@example.test");
-        int supplier2 = insertSupplierAccount(jdbc, "supplier2@example.test");
+        // Unique per-invocation tag — this class's @BeforeEach runs once per test
+        // method against the same JVM-wide singleton Testcontainers Postgres (see
+        // AbstractIntegrationTest), so hardcoded emails/names here would collide
+        // on the 2nd+ test with a duplicate-key violation. Same pattern as
+        // AdminAccountMapperIT's "Tag" + System.nanoTime() tag.
+        this.tag = "Tag" + System.nanoTime();
 
-        khmerFoodSupplyStoreId = insertStore(jdbc, supplier1, "Khmer Food Supply");
-        seoulMarketStoreId = insertStore(jdbc, supplier2, "Seoul Market");
+        int supplier1 = insertSupplierAccount(jdbc, "supplier1-" + tag + "@example.test");
+        int supplier2 = insertSupplierAccount(jdbc, "supplier2-" + tag + "@example.test");
 
-        int freshFoodCategory = insertCategory(jdbc, "Fresh Food");
-        int importedGoodsCategory = insertCategory(jdbc, "Imported Goods");
+        khmerFoodSupplyStoreId = insertStore(jdbc, supplier1, "Khmer Food Supply " + tag);
+        seoulMarketStoreId = insertStore(jdbc, supplier2, "Seoul Market " + tag);
+
+        int freshFoodCategory = insertCategory(jdbc, "Fresh Food " + tag);
+        int importedGoodsCategory = insertCategory(jdbc, "Imported Goods " + tag);
         linkStoreCategory(jdbc, khmerFoodSupplyStoreId, freshFoodCategory);
         linkStoreCategory(jdbc, seoulMarketStoreId, importedGoodsCategory);
 
-        int jasmineRice = insertProduct(jdbc, "Jasmine Rice");
-        int kimchi = insertProduct(jdbc, "Kimchi");
-        linkStoreProduct(jdbc, khmerFoodSupplyStoreId, jasmineRice);
-        linkStoreProduct(jdbc, seoulMarketStoreId, kimchi);
+        int jasmineRice = insertProduct(jdbc, "Jasmine Rice " + tag);
+        int kimchi = insertProduct(jdbc, "Kimchi " + tag);
+        // category_id must be set here — getStoresByCategorySearchASC's third join
+        // condition requires a store's product-detail rows to carry the same
+        // category_id as its tb_store_category link, exactly like a real product
+        // creation (SupplierProductMapper.xml) always does.
+        linkStoreProduct(jdbc, khmerFoodSupplyStoreId, jasmineRice, freshFoodCategory);
+        linkStoreProduct(jdbc, seoulMarketStoreId, kimchi, importedGoodsCategory);
     }
 
     @Test
     void categorySearch_partialMatch_returnsOnlyMatchingStore() {
-        List<StoreBuyer> result = storeRepository.getStoresByCategorySearchASC("Food", "name");
+        // "Food " + tag (not just "Food") — data accumulates across every
+        // @BeforeEach in this shared, never-torn-down container, so a bare
+        // "Food" would also match this class's OWN earlier test-method runs.
+        List<StoreBuyer> result = storeRepository.getStoresByCategorySearchASC("Food " + tag, "name");
 
         assertEquals(1, result.size());
         assertEquals(khmerFoodSupplyStoreId, result.get(0).getId());
@@ -73,7 +88,7 @@ class StoreSearchSqlInjectionIT extends AbstractIntegrationTest {
 
     @Test
     void productSearch_partialMatch_returnsOnlyMatchingStoreId() {
-        List<Integer> result = storeRepository.getStoreIdByProductSearchASC("Rice", "name");
+        List<Integer> result = storeRepository.getStoreIdByProductSearchASC("Rice " + tag, "name");
 
         assertEquals(1, result.size());
         assertEquals(khmerFoodSupplyStoreId, result.get(0));

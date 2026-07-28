@@ -16,6 +16,14 @@ spring:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/h_phsar_test}
     username: ${DB_USERNAME:h_phsar_test}
     password: ${DB_PASSWORD:h_phsar_test}
+    hikari:
+      # Default (30s) was too tight on CPU-constrained CI runners: Testcontainers'
+      # own wait-strategy reported the per-class Postgres container as started,
+      # but the JDBC port wasn't consistently accept()-ing connections within
+      # 30s under load, causing spurious "Connection is not available" failures
+      # across several *IT classes. Widening this doesn't paper over a real bug —
+      # it gives a genuinely-starting container more room on a slow shared runner.
+      connection-timeout: 60000
 
   mail:
     # Deliberately not a real SMTP host — no test run should ever be able to

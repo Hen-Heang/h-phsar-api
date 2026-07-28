@@ -57,6 +57,18 @@ public final class TestDataFactory {
                 "VALUES (?, ?, 10, 1.0, true)", storeId, productId);
     }
 
+    /**
+     * Same as {@link #linkStoreProduct}, but also sets category_id — mirrors what
+     * SupplierProductMapper.xml's real insert always does. Needed by any test whose
+     * query joins back through tb_store_product_detail.category_id (e.g. the
+     * category/product search mappers), since the category-less overload above
+     * leaves that column null.
+     */
+    public static void linkStoreProduct(JdbcTemplate jdbc, int storeId, int productId, int categoryId) {
+        jdbc.update("INSERT INTO tb_store_product_detail (store_id, product_id, qty, price, is_publish, category_id) " +
+                "VALUES (?, ?, 10, 1.0, true, ?)", storeId, productId, categoryId);
+    }
+
     /** Same as {@link #linkStoreProduct}, but with a caller-chosen qty and returning the store_product_detail id. */
     public static int insertStoreProduct(JdbcTemplate jdbc, int storeId, int productId, int qty) {
         return jdbc.queryForObject(
