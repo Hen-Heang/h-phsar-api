@@ -1,0 +1,11 @@
+id: C09
+language: java
+severity: warning
+message: Connection/Statement/ResultSet 를 try-with-resources 밖에서 지역변수로 획득 — 리소스 누수 위험
+note: try-with-resources 자원은 문법상 resource 노드라 local_variable_declaration 패턴에 매칭되지 않는다(고정밀). 심각도·축은 severity-rules(C09)에서 룩업.
+rule:
+  any:
+    - pattern: "Connection $C = $DS.getConnection($$$ARGS);"
+    - pattern: "Statement $S = $CONN.createStatement($$$ARGS);"
+    - pattern: "PreparedStatement $PS = $CONN.prepareStatement($$$ARGS);"
+    - pattern: "ResultSet $RS = $STMT.executeQuery($$$ARGS);"

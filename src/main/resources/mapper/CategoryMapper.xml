@@ -101,6 +101,60 @@
     </select>
 
     <!-- ═══════════════════════════════════════════════════════════════════════
+         FIND-OR-CREATE A CATEGORY BY NAME — one atomic statement
+         ═══════════════════════════════════════════════════════════════════════
+         Used when a product is created against a category NAME instead of an
+         existing id, so a supplier does not have to pre-create the category in
+         a separate request.
+
+         WHY ON CONFLICT instead of the checkDuplicateCategory + createNewCategory
+         pair this replaces:
+
+         1. Race — two suppliers registering the same new category name at the
+            same time both pass the "does it exist?" check, then the slower
+            INSERT dies on the UNIQUE(name) constraint. Here the conflict is
+            resolved by the database, and both callers get the same id.
+         2. Soft delete — deleteCategory only sets is_active = false, so the row
+            keeps occupying the UNIQUE name. checkDuplicateCategory filters on
+            is_active = true and therefore reports that name as free, and the
+            plain INSERT that follows fails. Setting is_active = true here
+            revives that row instead, which is what "create this category
+            again" means to the supplier.
+
+         DO UPDATE, not DO NOTHING: DO NOTHING returns no row, so RETURNING id
+         would come back empty on the already-exists path — the one path this
+         query exists to serve.
+    -->
+    <select id="upsertCategoryByName" resultType="int">
+        INSERT INTO tb_category (name)
+        VALUES (#{name})
+        ON CONFLICT (name) DO UPDATE
+            SET is_active    = true,
+                updated_date = NOW()
+        RETURNING id
+    </select>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         LINK A CATEGORY TO A STORE, ONLY IF NOT ALREADY LINKED
+         ═══════════════════════════════════════════════════════════════════════
+         tb_store_category has no UNIQUE (store_id, category_id) constraint, so
+         ON CONFLICT has no key to target — the guard has to be WHERE NOT EXISTS.
+         Without it, creating several products against the same new category name
+         in one request would insert a duplicate link row per product.
+
+         Returns the affected-row count: 1 = newly linked, 0 = the store already
+         had this category. Both are success for the caller.
+    -->
+    <insert id="linkStoreCategoryIfAbsent">
+        INSERT INTO tb_store_category (store_id, category_id)
+        SELECT #{storeId}, #{categoryId}
+        WHERE NOT EXISTS (SELECT 1
+                          FROM tb_store_category
+                          WHERE store_id = #{storeId}
+                            AND category_id = #{categoryId})
+    </insert>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
          GET CATEGORIES (paginated) — from tb_store_category join
          ═══════════════════════════════════════════════════════════════════════
          Queries tb_store_category which only has store_id and category_id.

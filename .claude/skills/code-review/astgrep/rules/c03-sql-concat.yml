@@ -1,0 +1,10 @@
+id: C03
+language: java
+severity: error
+message: 문자열 결합으로 만든 SQL 을 Statement.execute* 에 전달 — SQL 인젝션 위험(PreparedStatement/파라미터 바인딩 사용)
+note: MyBatis ${} 외 Java(JDBC) 측 구조적 SQLi. 키워드 룰 C03(MyBatis ${})의 보완. 심각도·축은 severity-rules(C03)에서 룩업.
+rule:
+  any:
+    - pattern: $STMT.executeQuery($A + $B)
+    - pattern: $STMT.execute($A + $B)
+    - pattern: $STMT.executeUpdate($A + $B)

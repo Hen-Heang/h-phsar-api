@@ -1,0 +1,4 @@
+lang: lang-java
+domain: none
+frameworks: [fw-jquery, fw-mybatis, fw-spring]
+langVersion: "17"

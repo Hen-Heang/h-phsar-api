@@ -95,6 +95,8 @@
               <select id="p-category" class="form-select" required>
                 <option value="">Select category</option>
               </select>
+              <input type="text" id="p-category-new" class="form-control mt-2 d-none"
+                     maxlength="150" placeholder="New category name"/>
             </div>
             <div class="col-md-4">
               <label class="form-label">Price *</label>
@@ -187,15 +189,34 @@
   let restockId   = null;
   let searchTimer = null;
   let categories  = [];
+  // Sentinel select value meaning "the supplier is typing a brand-new category name".
+  const NEW_CATEGORY = '__new__';
 
   async function loadCategories() {
     try {
-      const res = await api.get('/api/v1/suppliers/categories?pageNumber=1&pageSize=100');
+      const res = await api.get('/api/v1/suppliers/categories/all');
       categories = res.data || [];
       const sel = document.getElementById('p-category');
       sel.innerHTML = '<option value="">Select category</option>' +
-        categories.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+        categories.map(c => `<option value="${c.id}">${c.name}</option>`).join('') +
+        `<option value="${NEW_CATEGORY}">+ Create new category…</option>`;
     } catch (_) {}
+  }
+
+  // Reveals the free-text name field when "+ Create new category…" is picked.
+  // Only offered while adding a product: the edit endpoint takes ProductEditRequest,
+  // which has no categoryName, so a new name there would be silently dropped.
+  function onCategoryChange() {
+    const isNew = document.getElementById('p-category').value === NEW_CATEGORY;
+    const input = document.getElementById('p-category-new');
+    input.classList.toggle('d-none', !isNew);
+    input.required = isNew;
+    if (!isNew) input.value = '';
+  }
+
+  function setNewCategoryOptionVisible(visible) {
+    const option = document.querySelector(`#p-category option[value="${NEW_CATEGORY}"]`);
+    if (option) option.hidden = !visible;
   }
 
   async function loadProducts(page = 1) {
@@ -281,6 +302,8 @@
     document.getElementById('modal-title').textContent = 'Add Product';
     document.getElementById('save-label').textContent  = 'Save Product';
     document.getElementById('product-form').reset();
+    setNewCategoryOptionVisible(true);
+    onCategoryChange();
     new bootstrap.Modal(document.getElementById('productModal')).show();
   }
 
@@ -297,6 +320,8 @@
       document.getElementById('p-image').value       = p.image || '';
       document.getElementById('p-publish').value     = String(p.isPublish);
       if (p.category?.id) document.getElementById('p-category').value = p.category.id;
+      setNewCategoryOptionVisible(false);
+      onCategoryChange();
       document.getElementById('modal-title').textContent = 'Edit Product';
       document.getElementById('save-label').textContent  = 'Update Product';
       new bootstrap.Modal(document.getElementById('productModal')).show();
@@ -309,15 +334,23 @@
     const spinner = document.getElementById('save-spinner');
     spinner.classList.remove('d-none');
 
+    const selectedCategory = document.getElementById('p-category').value;
+    const isNewCategory    = selectedCategory === NEW_CATEGORY;
+
     const body = {
       name:        document.getElementById('p-name').value,
       price:       parseFloat(document.getElementById('p-price').value),
       qty:         parseInt(document.getElementById('p-qty').value),
       description: document.getElementById('p-description').value,
       image:       document.getElementById('p-image').value,
-      categoryId:  parseInt(document.getElementById('p-category').value),
       isPublish:   document.getElementById('p-publish').value === 'true'
     };
+    // The API takes either one: categoryName is only read when categoryId is absent.
+    if (isNewCategory) {
+      body.categoryName = document.getElementById('p-category-new').value.trim();
+    } else {
+      body.categoryId = parseInt(selectedCategory);
+    }
 
     try {
       if (id) {
@@ -328,6 +361,8 @@
         toast('Product added!', 'success');
       }
       bootstrap.Modal.getInstance(document.getElementById('productModal')).hide();
+      // A product may have just created a category — refresh so the dropdown offers it.
+      if (isNewCategory) await loadCategories();
       loadProducts(currentPage);
     } catch (err) {
       toast(err?.message || 'Save failed.', 'error');
@@ -378,6 +413,8 @@
       loadProducts(currentPage);
     } catch (e) { toast('Restock failed.', 'error'); }
   }
+
+  document.getElementById('p-category').addEventListener('change', onCategoryChange);
 
   loadCategories();
   loadProducts();

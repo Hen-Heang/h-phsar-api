@@ -97,14 +97,14 @@
     <div id="step-3" class="w-100 d-none">
       <p class="fw-semibold mb-1" style="font-size:15px;">Step 3 — Verify your email</p>
       <p class="text-muted mb-4" style="font-size:13px;">
-        We sent a 6-digit OTP to <span id="otp-email-label" class="fw-semibold text-dark"></span>.
+        We sent a 4-digit OTP to <span id="otp-email-label" class="fw-semibold text-dark"></span>.
         Check your inbox.
       </p>
       <div class="mb-4">
         <label class="form-label">Enter OTP *</label>
-        <input type="text" id="otp-input" class="form-control text-center fw-bold"
-               maxlength="6" placeholder="— — — — — —"
-               style="letter-spacing:8px;font-size:20px;" oninput="autoVerify(this)"/>
+        <label for="otp-input"></label><input type="text" id="otp-input" class="form-control text-center fw-bold"
+                                              maxlength="4" placeholder="— — — —"
+                                              style="letter-spacing:8px;font-size:20px;" oninput="autoVerify(this)"/>
       </div>
 
       <button class="btn-primary-custom w-100 justify-content-center mb-3" onclick="handleVerifyOtp()">
@@ -248,8 +248,9 @@
     if (!selectedRoleId) { toast('Please select a role.', 'error'); return; }
     const email    = document.getElementById('reg-email').value.trim();
     const password = document.getElementById('reg-password').value;
+    const confirmPassword = document.getElementById('reg-confirm').value;
     try {
-      await api.post('/authorization/register', { email, password, roleId: selectedRoleId });
+      await api.post('/authorization/register', { email, password, confirmPassword, roleId: selectedRoleId });
       // Send OTP
       await api.post(`/authorization/api/v1/otp/generate?email=${encodeURIComponent(email)}`);
       document.getElementById('otp-email-label').textContent = email;
@@ -269,7 +270,7 @@
 
   // ── OTP ──────────────────────────────────────────────────────
   function autoVerify(input) {
-    if (input.value.length === 6) handleVerifyOtp();
+    if (input.value.length === 4) handleVerifyOtp();
   }
 
   async function handleVerifyOtp() {

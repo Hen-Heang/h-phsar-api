@@ -1,0 +1,179 @@
+# project.example — 외부 워크스페이스 도입 템플릿
+#
+# 새 조직에서 dev-interview / code-review / develop 도입 시 본 파일을
+# .claude/config/project.yaml 로 복사 후 값만 교체한다.
+#
+# 함께 작성: system.example.yaml → system.yaml (gitignore),
+#            project-meta.example.yaml → project-meta.yaml,
+#            (스코프 사용 시) scope.example.yaml → scope.yaml.
+#
+# 프로젝트 분류는 guideline.backend 가이드 파일명이 단일 출처다 (별도 type 필드 없음).
+#   guide-api / guide-webmvc / guide-webfullstack / guide-batch / guide-daemon /
+#   guide-proxy / guide-library / guide-kafka·redis·single. guideline 미지정 → META.
+#
+# DB vendor enum: postgres / mysql / oracle
+
+# ---------------------------------------------------------------------------
+# 워크스페이스 메타
+# ---------------------------------------------------------------------------
+
+workspaceName: h-phsar-api
+outputDir: target/works     # 영속 작업 산출물 루트: 브리프는 바로 아래, 계획서는 plans/{task}/
+tempDir: target/tmp
+planSkill: dev-plan                  # 후속 스킬 없으면 빈 문자열
+
+# ---------------------------------------------------------------------------
+# 패키지·아티팩트 명명
+# ---------------------------------------------------------------------------
+
+baseNamespacePattern: com.henheang.hphsar
+commonUtilsArtifact:        # 공통 유틸 없으면 빈 문자열
+commonUtilsAutoInclude:   # security-auditor 자동 포함. 없으면 빈 문자열
+
+# ---------------------------------------------------------------------------
+# 언어팩 정체성 (가이드 {{config.lang.*}} 공급)
+# ---------------------------------------------------------------------------
+
+lang:
+  name: 자바
+  conventionFile: java-convention.md
+
+# ---------------------------------------------------------------------------
+# 빌드/테스트 도구 (가이드 {{config.build.*}}/{{config.test.*}}/{{config.coverage.*}} 공급)
+# 빌드 도구 변경 시(Gradle 등) 본 블록만 교체.
+# ---------------------------------------------------------------------------
+
+build:
+  tool: Maven
+test:
+  command: "./mvnw test"
+  classFilter: "-Dtest={TestClassName}"
+coverage:
+  command: "./mvnw verify"
+
+# ---------------------------------------------------------------------------
+# 추적 (분산 추적 MDC 키)
+# ---------------------------------------------------------------------------
+
+tracing:
+  mdcKey: x-track-uuid              # 모든 로그·비동기 전파 키
+
+# ---------------------------------------------------------------------------
+# 가이드라인 — 프로젝트별 직접 지정 (projects[].guideline)
+#   가이드 파일 실제 위치: .claude/docs/guideline/{filename} (파일명만 명시)
+#   각 프로젝트가 guideline: {backend(필수), frontend?[]} 를 직접 명시한다.
+# ---------------------------------------------------------------------------
+
+# 조건부 가이드 — 프로젝트 무관, LLM 트리거 판단으로 추가 로드
+conditionalGuides:
+  mapper:
+    trigger: "MyBatis mapper 작성·수정 시"
+    file: guide-mybatis.md
+
+# ---------------------------------------------------------------------------
+# 사용자 정의 문서 — 체크리스트 라우터 (Core 워크플로 STEP 0). 빈 값이면 STEP 0 skip.
+# ---------------------------------------------------------------------------
+
+customDocs:
+  antiPatterns: 
+
+# ---------------------------------------------------------------------------
+# 프로젝트 인벤토리 — 워크스페이스 전체의 단일 truth source
+#
+# 본 섹션이 모든 프로젝트 메타의 마스터.
+# - dev-interview Phase 0-1 선택지
+# - scope.yaml `groups.*.scopes[].project` 의 참조 대상
+# - /git 스킬의 shortName/multiModule 매핑
+#
+# 필드:
+#   name / shortName / multiModule / role
+#   buildArgs / buildArgsRequired (선택)
+#   guideline — 가이드 파일 {backend(필수), frontend?[]}. .claude/docs/guideline/ 기준 파일명. 프로젝트 분류 단일 출처.
+# ---------------------------------------------------------------------------
+
+projects:
+  - name: h-phsar-api
+    shortName: api
+    multiModule: false
+    role: B2B 도매 마켓플레이스 API — 공급자가 재고·상품·주문을 관리하고 구매자가 주문하며, 관리자가 계정을 관리한다. 보조/내부용 서버렌더 대시보드(Thymeleaf, /web/**)도 함께 제공하지만 주 제품 프론트엔드는 별도 저장소 h-phsar-ui(Next.js/React)다.
+    guideline:
+      backend: docs/guideline/guide-webfullstack.md
+      frontend: docs/guideline/guide-frontend/h-phsar-api-style.md
+
+# ---------------------------------------------------------------------------
+# DB 메타
+#
+# vendor 별 schema 예시: postgres=<schema_name> / mysql=<db_name> / oracle=<owner>.
+# 메타 카탈로그·코멘트 컬럼은 db.vendor 에서 db-meta-manager 가 자동 유도(여기 지정 불필요).
+# vendor 별 SQL — .claude/docs/agents/db-meta-manager/templates/table-search.{vendor}.sql 교체.
+# ---------------------------------------------------------------------------
+
+db:
+  vendor: postgres
+  schema: 
+  searchPathEnabled: true
+  codePattern: '^([A-Z0-9]+)\s*[:：]\s*(.+)$'
+  codeSeparator: ","
+
+# ---------------------------------------------------------------------------
+# code-review 동작 knob
+#   소비처: /code-review · code-reviewer · mr-reviewer
+# ---------------------------------------------------------------------------
+
+codeReview:
+  defaultLang: ko            # ko / en
+  defaultTarget: staged      # staged / unstaged / HEAD~N / branch
+  maxFiles: 30               # 하드 커트오프 — 최대 분석 파일 수
+  maxLinesPerFile: 500       # 파일당 최대 분석 라인
+
+# ---------------------------------------------------------------------------
+# 기능 토글
+# ---------------------------------------------------------------------------
+
+features:
+  scope:
+    enabled: false           # true -> 스코프 식별·allowedPaths 제한(scope.yaml 필요) / false -> 전체 소스 기준
+
+# ---------------------------------------------------------------------------
+# Stage 2 정성 검토자 (dev-interview 등 브리프 파이프라인)
+#   none -> Stage 2 skip / codex:rescue / claude-sonnet / 기타 subagent 위임
+# ---------------------------------------------------------------------------
+
+reviewerAgent: none
+
+# ---------------------------------------------------------------------------
+# 도입 체크리스트
+#
+# [ ] project.yaml 작성 (본 파일 복사 후 값 교체)
+# [ ] system.yaml 작성 (system.example.yaml 복사, gitlab.token 등 채움 — gitignore 대상)
+# [ ] project-meta.yaml 작성 (project-meta.example.yaml 복사 후 도메인 키워드 교체)
+# [ ] projects[] 1개 이상 채움 (각 항목 guideline.backend 필수)
+# [ ] guideline 가이드 파일 경로 확인 (.claude/docs/guideline/ 실존)
+# [ ] tracing.mdcKey 조직 표준 키 확인
+# [ ] projects[].buildArgs 필요 항목만 작성
+# [ ] db.vendor 결정 + docs/agents/db-meta-manager/templates/*.sql 해당 vendor 로 교체
+# [ ] reviewerAgent 검토 — project.yaml 에서 설정 (codex 미사용 환경 none 권장)
+# [ ] (스코프 사용 시) features.scope.enabled: true + scope.yaml 작성
+# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# Mapper 어노테이션 (fw-mybatis — guide-batch/daemon·code-review 소비)
+#   {{config.mapper.*}} 공급. project.yaml 뒤에 이어붙는 조각.
+# ---------------------------------------------------------------------------
+
+mapper:
+  primaryAnnotation: "@Mapper"      # 주 데이터소스 Mapper
+  secondaryAnnotation: ""  # 보조 데이터소스 Mapper
+
+# ---------------------------------------------------------------------------
+# Batch 어노테이션 (fw-spring — guide-batch 소비). {{config.batch.*}} 공급.
+#   project.yaml 뒤에 이어붙는 조각.
+# ---------------------------------------------------------------------------
+
+batch:
+  jobAnnotation: ""       # Batch Job 마커
+# structure:                       # 커스텀 진입점 신호 (we-init 후보 확정이 채움)
+#   entrypoints:
+#     - annotation: "@YourJobMarker"
+#       kind: batch
+#       level: class

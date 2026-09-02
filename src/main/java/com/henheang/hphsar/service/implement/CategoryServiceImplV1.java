@@ -9,6 +9,7 @@ import com.henheang.hphsar.service.CategoryService;
 import com.henheang.hphsar.service.support.CurrentUserProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.text.ParseException;
 import java.time.LocalDateTime;
@@ -31,6 +32,8 @@ public class CategoryServiceImplV1 implements CategoryService {
             .optionalEnd()
             .toFormatter();
     private static final DateTimeFormatter OUTPUT_TIMESTAMP_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    /** Matches tb_category.name VARCHAR(150) in schema.sql. */
+    private static final int MAX_CATEGORY_NAME_LENGTH = 150;
 
     private final CategoryRepository categoryRepository;
     private final CurrentUserProvider currentUserProvider;
@@ -207,6 +210,7 @@ public class CategoryServiceImplV1 implements CategoryService {
 
 
     @Override
+    @Transactional
     public Category createCategoryStore(String name) throws ParseException {
 
         if (name == null || name.isBlank()) {
@@ -215,18 +219,17 @@ public class CategoryServiceImplV1 implements CategoryService {
         Integer storeId = getStoreIdForCurrentUser();
         // trim white space
         String normalizedName = name.trim().toLowerCase(Locale.ROOT);
-        Category category;
-        // if category is already created or haven't been created
-        if (!categoryRepository.checkDuplicateCategory(normalizedName)) { // if not yet create, create new
-            Integer newCategoryId = categoryRepository.createNewCategory(normalizedName);
-            category = categoryRepository.createNewStoreCategory(storeId, newCategoryId);
-        } else { // if already created, just get the id and insert
-            Integer categoryId = categoryRepository.getCategoryIdByName(normalizedName);
-            if (categoryRepository.checkIfStoreCategoryDuplicate(storeId, categoryId)) {
-                throw new ConflictException("Fail to create category because store already created this category.");
-            }
-            category = categoryRepository.createNewStoreCategory(storeId, categoryId);
+        // One upsert replaces the old "checkDuplicateCategory then createNewCategory" pair.
+        // That pair lost the race between two suppliers adding the same new name, and it
+        // failed outright on a soft-deleted name — is_active = false still holds the
+        // UNIQUE(name) row, but checkDuplicateCategory reported the name as free.
+        Integer categoryId = categoryRepository.upsertCategoryByName(normalizedName);
+        // Keeps this endpoint's existing 409: adding a category the store already has is
+        // an error here, unlike the product-creation path, which is deliberately idempotent.
+        if (categoryRepository.checkIfStoreCategoryDuplicate(storeId, categoryId)) {
+            throw new ConflictException("Fail to create category because store already created this category.");
         }
+        Category category = categoryRepository.createNewStoreCategory(storeId, categoryId);
         // if insert fail
         if (category == null) {
             throw new InternalServerErrorException("Fail to create category. Something went during the process.");
@@ -235,11 +238,36 @@ public class CategoryServiceImplV1 implements CategoryService {
         return category;
     }
 
+    @Override
+    @Transactional
+    public Integer resolveCategoryIdForStore(String name) {
+        if (name == null || name.isBlank()) {
+            throw new BadRequestException("Invalid category name. Please input name.");
+        }
+        String normalizedName = name.trim().toLowerCase(Locale.ROOT);
+        // tb_category.name is VARCHAR(150); rejecting here turns a driver-level failure
+        // into a 400 that names the offending category.
+        if (normalizedName.length() > MAX_CATEGORY_NAME_LENGTH) {
+            throw new BadRequestException("Category name is too long: " + name);
+        }
+        Integer storeId = getStoreIdForCurrentUser();
+        Integer categoryId = categoryRepository.upsertCategoryByName(normalizedName);
+        if (categoryId == null) {
+            throw new InternalServerErrorException("Fail to create category. Something went during the process.");
+        }
+        // 0 affected rows is the "store already had this category" case, which is a
+        // success for this method — unlike createCategoryStore, resolving is idempotent.
+        categoryRepository.linkStoreCategoryIfAbsent(storeId, categoryId);
+        return categoryId;
+    }
+
 
     @Override
     public List<Category> getCategoryByCurrentUserId() {
         Integer storeId = getStoreIdForCurrentUser();
-        return categoryRepository.getCategoryByCurrentUserId(storeId);
+        List<Category> categories = categoryRepository.getCategoryByCurrentUserId(storeId);
+        normalizeCategoryDates(categories);
+        return categories;
     }
 
     @Override
