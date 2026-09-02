@@ -60,6 +60,55 @@ Verify controller paths, HTTP methods, request/response DTOs, pagination, and au
 - Multi-write business operations must be atomic at the service layer.
 - Use constructor injection; follow existing Lombok and package conventions.
 - Reuse current abstractions before creating a new layer.
+- Follow current package and naming conventions before inventing a new pattern.
+- Use `@Transactional` on public service methods that perform one business operation with multiple writes; do not rely on same-class self-invocation for transactional behavior.
+- Do not catch and swallow exceptions that should trigger rollback.
+- Use existing domain exceptions and the global exception handler; do not return error strings from services.
+- Use Bean Validation for request-shape rules and service validation for database/business rules.
+- Use `LocalDate`, `LocalDateTime`, or `Instant`; do not introduce legacy `Date`.
+- Use named `OrderStatus` values and the centralized transition service. Do not add magic status IDs.
+
+## API response contract
+
+- Treat the current JSON response shape as a public contract. Do not rename, remove, or change the type of existing fields without explicit approval.
+- Use `ApiResponse<T>` for standard successful responses and `PagedResponse<T>` for paginated collections.
+- Use `ApiErrorResponse` and the existing global exception handling for failures; do not construct unrelated error shapes in controllers.
+- Use `Code` as the centralized application-code and HTTP-status mapping. Reuse an existing value before adding one; give new entries a unique application code, a concise client-safe message, and the correct HTTP status.
+- Keep HTTP status and response-body status consistent. Do not return HTTP 200 for a failure merely to preserve an internal code.
+- Never expose exception stack traces, SQL details, credentials, tokens, filesystem paths, or internal infrastructure details in response messages.
+- Preserve backward compatibility for existing mobile or frontend clients. When a response contract must change, update its tests and documentation in the same task.
+- Do not broadly migrate legacy response models during an unrelated feature.
+
+## MyBatis and SQL patterns
+
+- For dynamic sorting, prefer MyBatis `<choose>` with known columns and directions.
+- Never build comma-separated ID lists in Java; use MyBatis `<foreach>`.
+- New queries should select explicit columns rather than `SELECT *`.
+- Use clear table aliases and qualify ambiguous columns.
+- Mutation methods should return an affected-row count; services must verify the expected count.
+- Use a single guarded `UPDATE` for stock deduction and order-status transitions.
+- Target `tb_store_product_detail.id` for inventory; do not deduct by generic `product_id`.
+- Use half-open timestamp ranges: `created_date >= #{start}` and `created_date < #{endExclusive}`.
+- Use `EXISTS` for existence checks instead of counting every row.
+- Preserve `qty >= 0`, order-detail uniqueness, foreign keys, and lifecycle-history integrity.
+- Do not write a schema migration without checking existing data and all maintained schema sources.
+- Do not run destructive SQL against an unknown database.
+- Explain every non-trivial query in simple English when reporting the change.
+
+## Code style
+
+- Optimize first for correct, understandable behavior; concise code is not automatically cleaner code.
+- Use names that reflect domain intent. Avoid vague names such as `data`, `info`, `obj`, `temp`, or `process` when a precise term exists.
+- Keep methods focused on one coherent responsibility and one level of abstraction.
+- Prefer guard clauses when they reduce nesting without hiding required workflow steps.
+- Extract duplication only when the repeated code represents the same business concept and is expected to change together.
+- Do not create an interface, utility, helper, base class, or pattern for a single speculative use.
+- Keep comments for business reasons, constraints, and non-obvious tradeoffs; do not narrate straightforward code.
+- Preserve public endpoints, DTO fields, validation, authorization, transaction boundaries, mapper signatures, and observable exception behavior during cleanup.
+- Keep refactoring separate from behavior changes whenever practical.
+- Do not perform repository-wide renames, formatting sweeps, or import churn during a scoped cleanup.
+- Add or update tests around behavior being refactored before changing risky logic.
+- Prefer a small sequence of reviewable changes over one large clean-code rewrite.
 
 ## Security and data rules
 
@@ -82,6 +131,24 @@ Verify controller paths, HTTP methods, request/response DTOs, pagination, and au
 - Do not weaken a production rule to make a test pass.
 - Any backend change must be the smallest compatible contract fix, preserve existing behavior outside the issue, and add/update targeted tests before the full suite.
 - Report backend changes separately from frontend changes.
+- Use JUnit 5 and current project test conventions. Keep fixtures small, explicit, and deterministic.
+- Security regression tests must prove a different buyer or supplier cannot access the resource.
+- Transaction tests must prove all earlier writes roll back after a later failure.
+- Verify database state after both success and failure.
+- Run the targeted test class before the full suite.
+- Do not disable, weaken, or delete a failing test without explaining why the expected behavior changed.
+- Report the exact command and actual result.
+
+## Documentation standards
+
+- Write clear, simple English suitable for a developer learning the project.
+- Keep `docs/ORDER_WORKFLOW.md` synchronized with lifecycle code and SQL.
+- Keep SQL examples safe: use `#{}` for values and never teach raw user-input substitution.
+- Do not include passwords, tokens, private hosts, database credentials, or copied `.env` values.
+- Do not copy stale status-number tables from old README sections.
+- Prefer diagrams, tables, and short examples over long repeated prose.
+- Mark transitional behavior and known technical debt honestly.
+- Link to the source-of-truth file instead of duplicating large sections across documents.
 
 Required checks when backend code changed:
 

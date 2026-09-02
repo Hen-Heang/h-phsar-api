@@ -1,0 +1,12 @@
+id: C11
+language: java
+severity: warning
+message: Optional 결과를 isPresent()/orElse() 가드 없이 .get() 으로 역참조 — NoSuchElementException/NPE 직결
+note: 갓 반환된 Optional 체인에 .get() 을 바로 호출하는 고정밀 패턴만 매칭한다. 심각도·축은 severity-rules(C11)에서 룩업.
+rule:
+  any:
+    - pattern: $REPO.findById($$$ARGS).get()
+    - pattern: $REPO.findOne($$$ARGS).get()
+    - pattern: Optional.ofNullable($$$ARGS).get()
+    - pattern: $STREAM.findFirst().get()
+    - pattern: $STREAM.findAny().get()

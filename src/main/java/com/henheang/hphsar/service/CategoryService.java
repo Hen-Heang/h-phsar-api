@@ -22,6 +22,15 @@ public interface CategoryService {
 
     List<Category> getCategoryByCurrentUserId();
 
+    /**
+     * 상품 등록 시 카테고리 이름을 현재 스토어에서 바로 쓸 수 있는 카테고리 id 로 바꾼다.
+     * 카테고리가 없으면 만들고, 스토어에 연결돼 있지 않으면 연결한다. 이미 있으면 그대로 쓴다.
+     *
+     * @param name 카테고리 이름
+     * @return 현재 스토어에 연결된 카테고리 id
+     */
+    Integer resolveCategoryIdForStore(String name);
+
     Integer findTotalPage(Integer pageSize);
 
     List<Category> searchCategoryByName(String name, Integer pageNumber, Integer pageSize) throws ParseException;

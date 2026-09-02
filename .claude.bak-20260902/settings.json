@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "model": "sonnet",
+  "autoMemoryEnabled": true,
+  "permissions": {
+    "defaultMode": "default",
+    "allow": [
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git branch:*)",
+      "Bash(./mvnw.cmd test)",
+      "Bash(./mvnw.cmd clean test)",
+      "Bash(./mvnw.cmd clean package)",
+      "Bash(./mvnw.cmd verify)",
+      "Bash(./mvnw.cmd clean verify)"
+    ],
+    "ask": [
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(./mvnw.cmd test -Dtest=:*)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Edit(./.env)",
+      "Read(./src/main/resources/application-local.yaml)",
+      "Edit(./src/main/resources/application-local.yaml)",
+      "Read(./src/main/resources/application-secrets.yaml)",
+      "Edit(./src/main/resources/application-secrets.yaml)",
+      "Read(./**/*.jks)",
+      "Read(./**/*.p12)",
+      "Read(./**/*.pfx)",
+      "Read(./**/*.pem)",
+      "Read(./**/*.key)",
+      "Read(./.git/**)",
+      "Read(./target/classes/**)",
+      "Read(./target/test-classes/**)",
+      "Read(./target/generated-sources/**)",
+      "Read(./target/maven-status/**)",
+      "Read(./uploads/**)",
+      "Read(./logs/**)",
+      "Bash(git push:*)",
+      "Bash(git reset --hard:*)",
+      "Bash(git clean:*)",
+      "Bash(rm -rf:*)",
+      "Bash(./mvnw.cmd deploy:*)",
+      "Bash(./mvnw.cmd release:*)"
+    ]
+  }
+}

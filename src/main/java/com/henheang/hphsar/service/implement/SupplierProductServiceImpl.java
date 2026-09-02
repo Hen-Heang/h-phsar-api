@@ -13,6 +13,7 @@ import com.henheang.hphsar.model.product.ProductRequest;
 import com.henheang.hphsar.repository.CategoryRepository;
 import com.henheang.hphsar.repository.SupplierProductRepository;
 import com.henheang.hphsar.repository.StoreRepository;
+import com.henheang.hphsar.service.CategoryService;
 import com.henheang.hphsar.service.SupplierProductService;
 import com.henheang.hphsar.service.support.CurrentUserProvider;
 import com.henheang.hphsar.utils.DateTimeUtil;
@@ -35,6 +36,7 @@ public class SupplierProductServiceImpl implements SupplierProductService {
     private final SupplierProductRepository supplierProductRepository;
     private final StoreRepository storeRepository;
     private final CategoryRepository categoryRepository;
+    private final CategoryService categoryService;
     private final CurrentUserProvider currentUserProvider;
 
 //    @Override
@@ -82,6 +84,27 @@ public class SupplierProductServiceImpl implements SupplierProductService {
 //    }
 
 
+    /**
+     * 요청에 categoryId 가 없고 categoryName 만 있으면 이름을 카테고리 id 로 바꿔 채운다.
+     *
+     * <p>이름으로 들어온 카테고리는 없으면 만들어 현재 스토어에 연결한다. 둘 다 비어 있으면
+     * 뒤따르는 id 검증이 NullPointerException 을 내므로 여기서 400 으로 막는다.
+     *
+     * @param productRequest 상품 등록 요청. categoryId 가 이 자리에서 채워질 수 있다
+     * @throws BadRequestException categoryId 와 categoryName 이 모두 비어 있을 경우
+     */
+    private void resolveCategoryNameIfIdAbsent(ProductRequest productRequest) {
+        if (productRequest.getCategoryId() != null && productRequest.getCategoryId() > 0) {
+            return;
+        }
+        String categoryName = productRequest.getCategoryName();
+        if (categoryName == null || categoryName.isBlank()) {
+            throw new BadRequestException(
+                    "Either categoryId or categoryName is required on product: " + productRequest.getName());
+        }
+        productRequest.setCategoryId(categoryService.resolveCategoryIdForStore(categoryName));
+    }
+
     @Override
     public List<Product> insertNewProduct(Integer currentUserId, ArrayList<ProductRequest> productRequests) throws ParseException {
         if (storeRepository.checkStoreIfCreated(currentUserId) != 1) { // this is old code so it does not output boolean but 1 if true
@@ -90,6 +113,11 @@ public class SupplierProductServiceImpl implements SupplierProductService {
         Integer storeId = categoryRepository.getStoreIdByCurrentUserId(currentUserId);
         // get precision limit to (5, 2)
         for (ProductRequest productRequest : productRequests) {
+            // A request may name a brand-new category instead of picking an existing id.
+            // Resolving it here — before the id-based checks below — means the supplier no
+            // longer has to create the category in a separate call first. Requests that
+            // already carry a categoryId skip this entirely and behave exactly as before.
+            resolveCategoryNameIfIdAbsent(productRequest);
             ValidationUtils.rejectIfExceedsIntLimit(productRequest.getCategoryId());
             if (productRequest.getPrice() > 1000) {
                 throw new BadRequestException("Maximum price is 999.");
