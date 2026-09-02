@@ -7,6 +7,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 
+import java.util.Locale;
+
 import static com.henheang.hphsar.support.TestDataFactory.insertProduct;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -29,17 +31,25 @@ class SupplierProductLookupSqlInjectionIT extends AbstractIntegrationTest {
     private JdbcTemplate jdbc;
 
     private int jasmineRiceProductId;
+    private String productName;
 
     @BeforeEach
     void seedOneProduct() {
-        jasmineRiceProductId = insertProduct(jdbc, "Jasmine Rice");
+        // tb_product.name is UNIQUE and the Testcontainers database is shared by every
+        // *IT class with no truncation between tests, so a fixed literal collides on
+        // the second @BeforeEach in this class. Tag the name per invocation and derive
+        // the case variants from it.
+        productName = "Jasmine Rice " + System.nanoTime();
+        jasmineRiceProductId = insertProduct(jdbc, productName);
     }
 
     @Test
     void exactMatch_findsExistingProductCaseInsensitively() {
-        assertEquals(jasmineRiceProductId, supplierProductRepository.getProductIdByName("Jasmine Rice"));
-        assertEquals(jasmineRiceProductId, supplierProductRepository.getProductIdByName("jasmine rice"));
-        assertEquals(jasmineRiceProductId, supplierProductRepository.getProductIdByName("JASMINE RICE"));
+        assertEquals(jasmineRiceProductId, supplierProductRepository.getProductIdByName(productName));
+        assertEquals(jasmineRiceProductId,
+                supplierProductRepository.getProductIdByName(productName.toLowerCase(Locale.ROOT)));
+        assertEquals(jasmineRiceProductId,
+                supplierProductRepository.getProductIdByName(productName.toUpperCase(Locale.ROOT)));
     }
 
     @Test

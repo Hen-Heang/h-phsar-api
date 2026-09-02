@@ -46,6 +46,7 @@ class DraftOrderOwnershipIT extends AbstractIntegrationTest {
     @Autowired
     private JdbcTemplate jdbc;
 
+    private String tag;
     private int buyerA;
     private int buyerB;
     private int draftAId;
@@ -53,11 +54,17 @@ class DraftOrderOwnershipIT extends AbstractIntegrationTest {
 
     @BeforeEach
     void seedTwoBuyersEachWithTheirOwnDraft() {
-        int supplier = insertSupplierAccount(jdbc, "supplier@example.test");
+        // tb_supplier_account.email and tb_buyer_account.email are UNIQUE, and the
+        // Testcontainers database is shared by every *IT class with no truncation
+        // between tests. @BeforeEach runs once per test method, so fixed literals
+        // collide from the second method onwards — tag every seeded email.
+        tag = "Tag" + System.nanoTime();
+
+        int supplier = insertSupplierAccount(jdbc, "supplier-" + tag + "@example.test");
         int store = insertStore(jdbc, supplier, "Shared Store");
 
-        buyerA = insertBuyerAccount(jdbc, "buyerA@example.test");
-        buyerB = insertBuyerAccount(jdbc, "buyerB@example.test");
+        buyerA = insertBuyerAccount(jdbc, "buyerA-" + tag + "@example.test");
+        buyerB = insertBuyerAccount(jdbc, "buyerB-" + tag + "@example.test");
 
         draftAId = insertOrder(jdbc, buyerA, store, DRAFT_STATUS_ID);
         draftBId = insertOrder(jdbc, buyerB, store, DRAFT_STATUS_ID);
@@ -86,7 +93,7 @@ class DraftOrderOwnershipIT extends AbstractIntegrationTest {
 
     @Test
     void repository_existsDraftByIdAndBuyerId_falseWhenStatusIsNotDraft() {
-        int pendingOrderId = insertOrder(jdbc, buyerA, insertStore(jdbc, insertSupplierAccount(jdbc, "s2@example.test"), "Other Store"), PENDING_STATUS_ID);
+        int pendingOrderId = insertOrder(jdbc, buyerA, insertStore(jdbc, insertSupplierAccount(jdbc, "s2-" + tag + "@example.test"), "Other Store"), PENDING_STATUS_ID);
 
         assertFalse(historyRepository.existsDraftByIdAndBuyerId(pendingOrderId, buyerA));
     }
@@ -149,7 +156,7 @@ class DraftOrderOwnershipIT extends AbstractIntegrationTest {
 
     @Test
     void service_deleteDraftById_wrongStatusOrderIsRejectedAndLeftUnchanged() {
-        int pendingOrderId = insertOrder(jdbc, buyerA, insertStore(jdbc, insertSupplierAccount(jdbc, "s3@example.test"), "Third Store"), PENDING_STATUS_ID);
+        int pendingOrderId = insertOrder(jdbc, buyerA, insertStore(jdbc, insertSupplierAccount(jdbc, "s3-" + tag + "@example.test"), "Third Store"), PENDING_STATUS_ID);
         loginAs(buyerA);
 
         assertThrows(NotFoundException.class, () -> historyService.deleteDraftById(pendingOrderId));
