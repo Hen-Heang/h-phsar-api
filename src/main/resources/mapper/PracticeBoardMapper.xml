@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!--
+    P1 practice: OLV-style board mapper for tb_practice_board.
+    The test-only table is defined in src/test/resources/practice/practice_board_schema.sql.
+    (OLV would name this file PracticeBoard_SQL.xml; h-phsar keeps the *Mapper.xml naming.)
+
+    Rules to follow (OLV guide-mybatis Part A):
+      - #{} binding only, never ${}
+      - no schema prefix, no SELECT *
+      - SQL keywords in UPPERCASE, tables/columns in snake_case
+      - snake_case -> camelCase through the resultMap
+      - paging: LIMIT #{recordCountPerPage} OFFSET #{firstIndex}
+      - every query on active rows filters del_yn = 'N'
+-->
+<mapper namespace="com.henheang.hphsar.repository.practice.PracticeBoardMapper">
+
+    <resultMap id="PracticeBoardResultMap" type="com.henheang.hphsar.model.practice.PracticeBoardOutVO">
+        <id     property="bbsSn"     column="bbs_sn"/>
+        <result property="bbsTtlNm"  column="bbs_ttl_nm"/>
+        <result property="bbsCn"     column="bbs_cn"/>
+        <result property="bbsInqCnt" column="bbs_inq_cnt"/>
+        <result property="pstgYn"    column="pstg_yn"/>
+        <result property="dataRegId" column="data_reg_id"/>
+        <result property="dataRegDt" column="data_reg_dt"/>
+        <result property="dataChgId" column="data_chg_id"/>
+        <result property="dataChgDt" column="data_chg_dt"/>
+    </resultMap>
+
+    <sql id="boardColumns">
+        b.bbs_sn, b.bbs_ttl_nm, b.bbs_cn, b.bbs_inq_cnt, b.pstg_yn,
+        b.data_reg_id, b.data_reg_dt, b.data_chg_id, b.data_chg_dt
+    </sql>
+
+    <!-- Shared by selectList and selectListTotCnt so the page and the total always agree. -->
+    <sql id="activeListWhere">
+        WHERE b.del_yn = 'N'
+        <if test="searchKeyword != null and searchKeyword != ''">
+            AND b.bbs_ttl_nm ILIKE CONCAT('%', #{searchKeyword}, '%')
+        </if>
+    </sql>
+
+    <select id="selectList" resultMap="PracticeBoardResultMap">
+        SELECT <include refid="boardColumns"/>
+        FROM tb_practice_board b
+        <include refid="activeListWhere"/>
+        ORDER BY b.data_reg_dt DESC, b.bbs_sn DESC
+        LIMIT #{recordCountPerPage} OFFSET #{firstIndex}
+    </select>
+
+    <select id="selectListTotCnt" resultType="int">
+        SELECT COUNT(*)
+        FROM tb_practice_board b
+        <include refid="activeListWhere"/>
+    </select>
+
+    <select id="selectDetail" resultMap="PracticeBoardResultMap">
+        SELECT <include refid="boardColumns"/>
+        FROM tb_practice_board b
+        WHERE b.bbs_sn = #{bbsSn}
+          AND b.del_yn = 'N'
+    </select>
+
+    <!-- Increment in SQL, not read-then-write in Java, so concurrent views are not lost. -->
+    <update id="updateInqCnt">
+        UPDATE tb_practice_board
+        SET bbs_inq_cnt = bbs_inq_cnt + 1
+        WHERE bbs_sn = #{bbsSn}
+          AND del_yn = 'N'
+    </update>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="bbsSn" keyColumn="bbs_sn">
+        INSERT INTO tb_practice_board (bbs_ttl_nm, bbs_cn, pstg_yn, data_reg_id)
+        VALUES (
+            #{bbsTtlNm},
+            #{bbsCn, jdbcType=VARCHAR},
+            COALESCE(#{pstgYn, jdbcType=VARCHAR}, 'Y'),
+            #{dataRegId}
+        )
+    </insert>
+
+    <!-- A null pstgYn keeps the current flag instead of violating NOT NULL. -->
+    <update id="update">
+        UPDATE tb_practice_board
+        SET bbs_ttl_nm  = #{bbsTtlNm},
+            bbs_cn      = #{bbsCn, jdbcType=VARCHAR},
+            pstg_yn     = COALESCE(#{pstgYn, jdbcType=VARCHAR}, pstg_yn),
+            data_chg_id = #{dataChgId},
+            data_chg_dt = NOW()
+        WHERE bbs_sn = #{bbsSn}
+          AND del_yn = 'N'
+    </update>
+
+    <!-- The del_yn = 'N' guard makes a second delete affect 0 rows. -->
+    <update id="delete">
+        UPDATE tb_practice_board
+        SET del_yn      = 'Y',
+            data_chg_id = #{dataChgId},
+            data_chg_dt = NOW()
+        WHERE bbs_sn = #{bbsSn}
+          AND del_yn = 'N'
+    </update>
+
+</mapper>
