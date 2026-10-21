@@ -26,3 +26,9 @@ jobs:
       # Postgres container per AbstractIntegrationTest subclass.
       - name: Build and verify (unit + integration tests)
         run: ./mvnw --batch-mode --no-transfer-progress verify
+
+      # Render deploys from the Dockerfile, so build the image here too —
+      # a broken Dockerfile should fail the PR, not the deploy. Build only;
+      # nothing is pushed to a registry.
+      - name: Build Docker image
+        run: docker build --tag h-phsar-api:ci .
